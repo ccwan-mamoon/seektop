@@ -1,6 +1,6 @@
 # SeekTop · 寻桌（Windows 桌面移植）
 
-这是原 Nodyssey 的 Windows 应用壳，入口直接调用 `:ui` 的 `NodysseyRoot`，并依赖原 `:shared`、`:designsys`、`:richtext`。帖子列表、详情、编辑器、通知页面、设置和富文本继续使用原来的代码。不是网页启动器。
+这是原 Nodyssey 的 Windows 应用壳，入口直接调用 `:ui` 的 `NodysseyRoot`，并依赖原 `:shared`、`:designsys`、`:richtext`。共享原 ViewModel、Repository 和富文本；桌面能力由 `LocalDesktopExperience` 注入。桌面模式使用专用导航框架、紧凑列表、快捷键、固定阅读操作栏和居中弹窗，不显示手机新手向导或单手入口。
 
 ## 构建
 
@@ -24,11 +24,19 @@ python desktop/provision-browser.py --mirror https://npmmirror.com/mirrors/elect
 
 ## 当前范围
 
-这是一版 Windows 移植原型。Windows 自动更新、系统推送、应用退出后的离线后台任务、头像更换、图片保存及系统分享面板尚未接入。离线任务只在进程存活时执行；Wi-Fi 限制尚未适配 Windows 网络计费状态。原生表单内的 Turnstile 小组件仍沿用上游的 JVM 降级处理，请使用页面提供的网页登录入口。
+这是一版桌面交互预览版。Windows 自动更新、系统推送、应用退出后的离线后台任务、头像更换、图片保存及系统分享面板尚未接入。离线任务只在进程存活时执行；Wi-Fi 限制尚未适配 Windows 网络计费状态。原生表单内的 Turnstile 小组件仍沿用上游的 JVM 降级处理，请使用页面提供的网页登录入口。
 
 项目沿用上游 GPL-3.0 许可，保留上游版权；Electron 自带的许可证位于浏览器运行时目录。
 
-## 本次验证（2026-11-12）
+## 0.2.0 验证记录
+
+- UI 和桌面 JVM 模块编译通过，Windows app-image 已生成。
+- Compose 桌面导航点击、返回与 Ctrl+N 快捷键测试通过。
+- 当前帖子优先刷新、退出详情后恢复列表刷新测试通过。
+- 桌面模块运行时及离线文件用例通过，Spotless 检查通过。
+- 本轮未提交真实账号操作；全应用逐页实机点击回归尚未完成。
+
+## 0.1.0 验证记录（2026-11-12）
 
 - Windows app-image 成功生成并实际启动。
 - 实际窗口中确认原版宽屏双栏首页、真实帖子列表、正文、评论和头像正常显示。

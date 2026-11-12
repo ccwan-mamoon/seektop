@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -51,12 +53,12 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.WavyProgressIndicatorDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -112,6 +114,7 @@ import io.github.nodyssey.model.countOf
 import io.github.nodyssey.model.hasSpent
 import io.github.nodyssey.ui.common.BoardTag
 import io.github.nodyssey.ui.common.BottomPullToRefreshBox
+import io.github.nodyssey.ui.common.DesktopAwareRefreshBox
 import io.github.nodyssey.ui.common.JumpDestination
 import io.github.nodyssey.ui.common.LocalUserNotes
 import io.github.nodyssey.ui.common.NodeSeekIcons
@@ -504,6 +507,7 @@ fun PostDetailScreen(
     // has to be a thread to be positioned in — an empty screen mid-fetch reports page 1 — and the
     // reader has to have got somewhere: every thread parks at its top on open, so opening one and
     // backing straight out would otherwise reset it to page 1.
+    io.github.nodyssey.DesktopRefreshTarget(priority = 2, onRefresh = { onRefreshPage(visiblePage) })
     val positionWorthRecording = state.hasContent && (visiblePage > 1 || !atListTop)
     LaunchedEffect(visiblePage, visibleFloor, positionWorthRecording) {
         if (positionWorthRecording) onReadingPositionChange(visiblePage, visibleFloor)
@@ -668,7 +672,7 @@ fun PostDetailScreen(
         topBar = {
             DetailTopBar(
                 title = state.title,
-                showTitle = showCollapsedTitle,
+                showTitle = io.github.nodyssey.LocalDesktopExperience.current || showCollapsedTitle,
                 onTitleClick = openOriginalPost,
                 postUrl = postUrl,
                 onBack = onBack,
@@ -735,7 +739,7 @@ fun PostDetailScreen(
                     )
 
                 else ->
-                    PullToRefreshBox(
+                    DesktopAwareRefreshBox(
                         isRefreshing = state.isRefreshing,
                         onRefresh = onPullRefresh,
                     ) {
@@ -746,7 +750,7 @@ fun PostDetailScreen(
                         BottomPullToRefreshBox(
                             isRefreshing = state.isRefreshingTail,
                             onRefresh = onRefreshTail,
-                            enabled = state.hasContent && !state.hasNextPage && !state.isAppending,
+                            enabled = !io.github.nodyssey.LocalDesktopExperience.current && state.hasContent && !state.hasNextPage && !state.isAppending,
                             // Clear of the floating controls rather than under them: the same room
                             // the list's last floor keeps puts the spinner where it can be seen.
                             indicatorBottomPadding = bottomActionsHeight,
@@ -980,6 +984,18 @@ private fun DetailBottomActions(
     onReply: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (io.github.nodyssey.LocalDesktopExperience.current) {
+        Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 2.dp) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onPrevious, enabled = page > 1) { Text("‹") }
+                TextButton(onClick = onPageClick) { Text("$page / $totalPages") }
+                TextButton(onClick = onNext, enabled = page < totalPages) { Text("›") }
+                Spacer(Modifier.weight(1f))
+                Button(onClick = onReply) { Text(stringResource(Res.string.post_reply_action)) }
+            }
+        }
+        return
+    }
     Column(
         modifier = modifier.padding(Spacing.lg),
         horizontalAlignment = Alignment.End,
@@ -1179,14 +1195,15 @@ private fun ThreadList(
     onTitleBottom: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        state = listState,
-        contentPadding =
-        PaddingValues(start = LayerPageGutter, end = LayerPageGutter, top = Spacing.xs, bottom = bottomRoom),
-        modifier = modifier
-            .fillMaxHeight()
-            .readableWidth(),
-    ) {
+    io.github.nodyssey.ui.common.DesktopScrollbars(listState) {
+        LazyColumn(
+            state = listState,
+            contentPadding =
+            PaddingValues(start = LayerPageGutter, end = LayerPageGutter, top = Spacing.xs, bottom = bottomRoom),
+            modifier = modifier
+                .fillMaxHeight()
+                .readableWidth(),
+        ) {
         /*
          * Present whether or not the thread has arrived — which is the whole reason this is one item
          * and not an `item` guarded by `state.body != null`.
@@ -1202,108 +1219,109 @@ private fun ThreadList(
          * post became a card, because a card cannot be split across two items without a seam where
          * one item's shadow falls over the other's paint.
          */
-        item(key = "body") {
-            val body = state.body
-            // The opening post is always on page 1, wherever the reader currently is.
-            val onEdit = body?.commentId
-                ?.takeIf { body.isMine }
-                ?.let { id ->
-                    {
-                        onEditFloor(
-                            PostEditTarget(
-                                postId = state.postId,
-                                commentId = id,
-                                page = 1,
-                                isOpeningPost = true,
-                            ),
-                        )
+            item(key = "body") {
+                val body = state.body
+                // The opening post is always on page 1, wherever the reader currently is.
+                val onEdit = body?.commentId
+                    ?.takeIf { body.isMine }
+                    ?.let { id ->
+                        {
+                            onEditFloor(
+                                PostEditTarget(
+                                    postId = state.postId,
+                                    commentId = id,
+                                    page = 1,
+                                    isOpeningPost = true,
+                                ),
+                            )
+                        }
                     }
-                }
-            ThreadOpeningPost(
-                title = state.title,
-                isAwarded = state.isAwarded,
-                onOpenOriginalPost = onOpenOriginalPost,
-                body = body,
-                preview = state.preview,
-                postId = state.postId,
-                authorLevel = state.authorLevel,
-                authorJoinedDays = state.authorJoinedDays,
-                showBlockedContent = state.showBlockedContent,
-                onOpenBrowser = onOpenBrowser,
-                onImageClick = onImageClick,
-                onJumpToFloor = onJumpToFloor,
-                pendingReaction = body?.let { state.pendingReactionFor(it) },
-                onReact = { action -> body?.let { onReact(it, action) } },
-                onAuthorClick = onAuthorClick,
-                // The opening post keeps the site's own set: no 回复 or 引用 of it, 编辑 on your own.
-                onMore = body?.let { { onOpenFloorActions(FloorActions(it, onReply = null, onQuote = null, onEdit)) } },
-                collected = state.collected,
-                collectionCount = state.collectionCount,
-                collectPending = state.collectPending,
-                onCollect = onCollect,
-                voteContent = voteContent,
-                stardustContent = stardustContent,
-                onTitleBottom = onTitleBottom,
-            )
-        }
-
-        if (state.hasContent) {
-            item(key = "comments-header") {
-                CommentsHeader(count = state.comments.size)
-            }
-        } else {
-            // "共 0 条回复" would be a claim, and nobody has counted yet.
-            item(key = "comments-skeleton") { CommentSkeletons() }
-        }
-
-        itemsIndexed(
-            items = state.comments,
-            key = { index, comment -> comment.commentId ?: -index.toLong() - 1 },
-        ) { index, comment ->
-            // The site page this floor came from, which is the only page whose `__config__` carries
-            // its Markdown. Read from the index rather than derived from the floor number: the list
-            // is one scroll over several pages, and the two disagree as soon as a floor above has
-            // been deleted.
-            val onEdit = comment.commentId
-                ?.takeIf { comment.isMine }
-                ?.let { id ->
-                    {
-                        onEditFloor(
-                            PostEditTarget(
-                                postId = state.postId,
-                                commentId = id,
-                                page = state.commentPages.getOrNull(index) ?: state.lastLoadedPage,
-                                isOpeningPost = false,
-                            ),
-                        )
-                    }
-                }
-            // 回复 gives way to 编辑 on this account's own floor, which is what the site does.
-            val onReply = { onReplyToFloor(comment.toFloorReference()) }.takeIf { onEdit == null }
-            val onQuote = { comment.toFloorReference()?.let(onQuoteFloor) ?: Unit }
-            // Inside this floor's own item rather than an item of its own, so every index helper
-            // below that mirrors the list's order stays one comment, one row.
-            if (state.startsNewReplies(index)) NewRepliesDivider()
-            BlockAware(content = comment, revealed = state.showBlockedContent) {
-                CommentRow(
-                    comment = comment,
+                ThreadOpeningPost(
+                    title = state.title,
+                    isAwarded = state.isAwarded,
+                    onOpenOriginalPost = onOpenOriginalPost,
+                    body = body,
+                    preview = state.preview,
+                    postId = state.postId,
+                    authorLevel = state.authorLevel,
+                    authorJoinedDays = state.authorJoinedDays,
+                    showBlockedContent = state.showBlockedContent,
                     onOpenBrowser = onOpenBrowser,
                     onImageClick = onImageClick,
                     onJumpToFloor = onJumpToFloor,
-                    pendingReaction = state.pendingReactionFor(comment),
-                    onReact = { action -> onReact(comment, action) },
-                    onReply = onReply,
-                    onEdit = onEdit,
-                    onMore = { onOpenFloorActions(FloorActions(comment, onReply, onQuote, onEdit)) },
+                    pendingReaction = body?.let { state.pendingReactionFor(it) },
+                    onReact = { action -> body?.let { onReact(it, action) } },
                     onAuthorClick = onAuthorClick,
+                    // The opening post keeps the site's own set: no 回复 or 引用 of it, 编辑 on your own.
+                    onMore = body?.let { { onOpenFloorActions(FloorActions(it, onReply = null, onQuote = null, onEdit)) } },
+                    collected = state.collected,
+                    collectionCount = state.collectionCount,
+                    collectPending = state.collectPending,
+                    onCollect = onCollect,
                     voteContent = voteContent,
                     stardustContent = stardustContent,
+                    onTitleBottom = onTitleBottom,
                 )
             }
-        }
 
-        if (state.isAppending) {
-            item(key = "appending") { AppendSpinner() }
+            if (state.hasContent) {
+                item(key = "comments-header") {
+                    CommentsHeader(count = state.comments.size)
+                }
+            } else {
+                // "共 0 条回复" would be a claim, and nobody has counted yet.
+                item(key = "comments-skeleton") { CommentSkeletons() }
+            }
+
+            itemsIndexed(
+                items = state.comments,
+                key = { index, comment -> comment.commentId ?: -index.toLong() - 1 },
+            ) { index, comment ->
+                // The site page this floor came from, which is the only page whose `__config__` carries
+                // its Markdown. Read from the index rather than derived from the floor number: the list
+                // is one scroll over several pages, and the two disagree as soon as a floor above has
+                // been deleted.
+                val onEdit = comment.commentId
+                    ?.takeIf { comment.isMine }
+                    ?.let { id ->
+                        {
+                            onEditFloor(
+                                PostEditTarget(
+                                    postId = state.postId,
+                                    commentId = id,
+                                    page = state.commentPages.getOrNull(index) ?: state.lastLoadedPage,
+                                    isOpeningPost = false,
+                                ),
+                            )
+                        }
+                    }
+                // 回复 gives way to 编辑 on this account's own floor, which is what the site does.
+                val onReply = { onReplyToFloor(comment.toFloorReference()) }.takeIf { onEdit == null }
+                val onQuote = { comment.toFloorReference()?.let(onQuoteFloor) ?: Unit }
+                // Inside this floor's own item rather than an item of its own, so every index helper
+                // below that mirrors the list's order stays one comment, one row.
+                if (state.startsNewReplies(index)) NewRepliesDivider()
+                BlockAware(content = comment, revealed = state.showBlockedContent) {
+                    CommentRow(
+                        comment = comment,
+                        onOpenBrowser = onOpenBrowser,
+                        onImageClick = onImageClick,
+                        onJumpToFloor = onJumpToFloor,
+                        pendingReaction = state.pendingReactionFor(comment),
+                        onReact = { action -> onReact(comment, action) },
+                        onReply = onReply,
+                        onEdit = onEdit,
+                        onMore = { onOpenFloorActions(FloorActions(comment, onReply, onQuote, onEdit)) },
+                        onAuthorClick = onAuthorClick,
+                        voteContent = voteContent,
+                        stardustContent = stardustContent,
+                    )
+                }
+            }
+
+            if (state.isAppending) {
+                item(key = "appending") { AppendSpinner() }
+            }
         }
     }
 }

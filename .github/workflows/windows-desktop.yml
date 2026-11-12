@@ -1,6 +1,9 @@
 name: SeekTop Windows
 
 on:
+  push:
+    branches: [main]
+    paths: [desktop/build.gradle.kts]
   workflow_dispatch:
     inputs:
       publish_release:
@@ -39,17 +42,17 @@ jobs:
         run: python desktop/package_release.py --app-dir desktop/build/compose/binaries/main/app/SeekTop --output-dir release
       - uses: actions/upload-artifact@v7
         with:
-          name: SeekTop-0.1.0-windows-x64
+          name: SeekTop-0.2.0-windows-x64
           path: release/*
           if-no-files-found: error
       - name: Publish prerelease
-        if: ${{ inputs.publish_release }}
+        if: ${{ github.event_name == 'push' || inputs.publish_release }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         shell: pwsh
         run: |
-          gh release create desktop-v0.1.0 release/SeekTop-0.1.0-windows-x64.zip release/SeekTop-0.1.0-source.zip release/SHA256SUMS.txt --target $env:GITHUB_SHA --prerelease --title "SeekTop 0.1.0 · 寻桌（Windows 预览版）" --notes-file desktop/RELEASE_NOTES.md
+          gh release create desktop-v0.2.0 release/SeekTop-0.2.0-windows-x64.zip release/SeekTop-0.2.0-source.zip release/SHA256SUMS.txt --target $env:GITHUB_SHA --prerelease --title "SeekTop 0.2.0 · 寻桌（Windows 预览版）" --notes-file desktop/RELEASE_NOTES.md
       - name: Stop Gradle
         if: always()
         run: ./gradlew.bat --stop

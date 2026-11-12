@@ -262,6 +262,10 @@ fun PostListScreen(
      */
     reselectRequests: Int = 0,
 ) {
+    if (io.github.nodyssey.LocalDesktopExperience.current) {
+        DesktopPostListScreen(state, postsFor(state.categorySlug), feedStates.listState(state.categorySlug, state.sort), onPostClick, onBoardClick, onSortChange, onSignInClick, onRecoverInBrowser, onGoToPage, reselectRequests, modifier)
+        return
+    }
     /*
      * 左右滑动切换板块.
      *

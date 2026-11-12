@@ -54,6 +54,10 @@ kotlin {
     }
 
     sourceSets {
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.compose.ui.test)
+        }
         commonMain.dependencies {
             // The components and the theme. `api` because a screen's own signature names them —
             // `PlazaTheme`, `RichContent`, the app bars — and because everything Compose arrives

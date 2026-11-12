@@ -1615,4 +1615,7 @@
     <string name="messages_scam_warning_low_level">This account has a low level (Lv.%1$d). Private message scams are common — avoid advance payments, off-site chats, or unverified transfers, and use an official forum escrow for large trades.</string>
     <string name="messages_scam_warning_new_account">This account registered less than 100 days ago (%1$d d). Private message scams are common — avoid advance payments, off-site chats, or unverified transfers, and use an official forum escrow for large trades.</string>
     <string name="messages_scam_caution_general">Private message scams are common, and even high-level or older accounts may be compromised. Avoid advance payments, off-site chats, or unverified transfers, and use an official forum escrow for large trades.</string>
+    <string name="desktop_workspace">Workspace</string>
+    <string name="desktop_open_browser">Open in browser</string>
+    <string name="desktop_help_body">Use the sidebar for Home, Notifications and Account. Click a topic to read it in the right pane. The toolbar provides search, refresh and a new topic. Click a board to switch feeds, scroll with the mouse wheel, or use the page buttons below.</string>
 </resources>

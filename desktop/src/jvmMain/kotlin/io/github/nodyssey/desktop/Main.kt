@@ -6,6 +6,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import coil3.SingletonImageLoader
+import io.github.nodyssey.LocalDesktopExperience
 import io.github.nodyssey.NodysseyRoot
 import io.github.nodyssey.ui.login.LocalDesktopBrowser
 import io.github.nodyssey.ui.navigation.TopLevelDestination
@@ -35,7 +36,8 @@ private fun launchDesktop() {
     try {
         application {
             Window(onCloseRequest = ::exitApplication, title = "SeekTop · 寻桌", state = rememberWindowState(width = 1280.dp, height = 860.dp)) {
-                CompositionLocalProvider(LocalDesktopBrowser provides browser::login) {
+                window.minimumSize = java.awt.Dimension(1100, 700)
+                CompositionLocalProvider(LocalDesktopBrowser provides browser::login, LocalDesktopExperience provides true) {
                     NodysseyRoot(container, initial, TopLevelDestination.HOME, null, {})
                 }
             }

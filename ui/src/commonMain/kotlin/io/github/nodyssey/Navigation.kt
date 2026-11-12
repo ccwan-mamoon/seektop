@@ -113,6 +113,7 @@ fun MainNavigation(
     launchRequest: LaunchRequest? = null,
     onLaunchRequestHandled: () -> Unit = {},
 ) {
+    val desktop = LocalDesktopExperience.current
     // Hoisted out of the navigation lambdas below, which are not composable.
     val siteTitle = appName()
     val aboutSiteTitle = stringResource(Res.string.about_site)
@@ -243,7 +244,7 @@ fun MainNavigation(
     // bar is not tucked away, it is gone. Under touch exploration the bar stays put.
     val touchExploration = rememberTouchExplorationEnabled()
     val showNavigationSuite =
-        (atTabRoot && (!tabBarHiddenByScroll || isListDetailExpanded || touchExploration)) ||
+        desktop || (atTabRoot && (!tabBarHiddenByScroll || isListDetailExpanded || touchExploration)) ||
             (isListDetailExpanded && paneRoleOf(backStack.lastOrNull()) != null)
     val navigationSuiteState = rememberNavigationSuiteScaffoldState()
     LaunchedEffect(showNavigationSuite) {
@@ -519,40 +520,63 @@ fun MainNavigation(
         )
     }
 
-    NavigationSuiteScaffold(
-        navigationItems = {
-            NodysseyNavigationItems(
-                current = currentTab,
-                onSelect = { destination ->
-                    // Re-selecting a tab takes its list back to the start — 首页 reloads on the way,
-                    // since the one thing a reader taps 首页 for while already on 首页 is 新帖. Only
-                    // the two tabs that *are* a list long enough to get lost in answer at all; 我的
-                    // stays inert, because a tab that silently jumps somewhere is worse than one
-                    // that does nothing.
-                    if (destination == currentTab) {
-                        when (destination) {
-                            TopLevelDestination.HOME -> homeReselectRequests++
-                            TopLevelDestination.NOTIFICATIONS -> notificationsScrollToTopRequests++
-                            else -> Unit
-                        }
-                    }
-                    currentTab = destination
+    DesktopAwareNavigationFrame(
+        desktop = desktop,
+        current = currentTab,
+        unreadCount = notificationsState.counts.all,
+        onSelect = { currentTab = it },
+        canGoBack = backStack.size > 1,
+        onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+        onSearch = { if (backStack.lastOrNull() != SearchKey()) backStack.add(SearchKey()) },
+        onCreatePost = { backStack.add(PostComposerKey()) },
+        onSettings = { if (backStack.lastOrNull() != SettingsKey) backStack.add(SettingsKey) },
+        onBookmarks = { backStack.add(BookmarksKey) },
+        onHistory = { backStack.add(ReadHistoryKey) },
+        onRefresh = {
+            when (currentTab) {
+                TopLevelDestination.HOME -> homeReselectRequests++
+                TopLevelDestination.NOTIFICATIONS -> notificationsViewModel.refresh()
+                TopLevelDestination.PROFILE -> Unit
+            }
+        },
+        mobileNavigation = { content ->
+            NavigationSuiteScaffold(
+                navigationItems = {
+                    NodysseyNavigationItems(
+                        current = currentTab,
+                        onSelect = { destination ->
+                            // Re-selecting a tab takes its list back to the start — 首页 reloads on the way,
+                            // since the one thing a reader taps 首页 for while already on 首页 is 新帖. Only
+                            // the two tabs that *are* a list long enough to get lost in answer at all; 我的
+                            // stays inert, because a tab that silently jumps somewhere is worse than one
+                            // that does nothing.
+                            if (destination == currentTab) {
+                                when (destination) {
+                                    TopLevelDestination.HOME -> homeReselectRequests++
+                                    TopLevelDestination.NOTIFICATIONS -> notificationsScrollToTopRequests++
+                                    else -> Unit
+                                }
+                            }
+                            currentTab = destination
+                        },
+                        unreadCount = notificationsState.counts.all,
+                    )
                 },
-                unreadCount = notificationsState.counts.all,
+                modifier = modifier,
+                navigationSuiteType =
+                NavigationSuiteScaffoldDefaults.navigationSuiteType(windowAdaptiveInfo),
+                // The bar is a card like any other — white on the grey page — and the rail beside a wide
+                // layout sits flush with the page, since it has no content under it to lift off.
+                navigationSuiteColors =
+                NavigationSuiteDefaults.colors(
+                    shortNavigationBarContainerColor = LocalPlazaLayers.current.card,
+                    navigationBarContainerColor = LocalPlazaLayers.current.card,
+                    navigationRailContainerColor = LocalPlazaLayers.current.page,
+                ),
+                state = navigationSuiteState,
+                content = content,
             )
         },
-        modifier = modifier,
-        navigationSuiteType =
-        NavigationSuiteScaffoldDefaults.navigationSuiteType(windowAdaptiveInfo),
-        // The bar is a card like any other — white on the grey page — and the rail beside a wide
-        // layout sits flush with the page, since it has no content under it to lift off.
-        navigationSuiteColors =
-        NavigationSuiteDefaults.colors(
-            shortNavigationBarContainerColor = LocalPlazaLayers.current.card,
-            navigationBarContainerColor = LocalPlazaLayers.current.card,
-            navigationRailContainerColor = LocalPlazaLayers.current.page,
-        ),
-        state = navigationSuiteState,
     ) {
         Box(Modifier.fillMaxSize()) {
             SharedTransitionLayout(
@@ -561,7 +585,7 @@ fun MainNavigation(
                     // iOS 26's swipe-anywhere back, within a tab's own stack only: a tab's root has no
                     // content swipe on iOS, and here it would mean "jump to 首页" — which stays on the
                     // edge swipe, as it always was.
-                    .contentSwipeBack(enabled = contentSwipeBackSupported && backStack.size > 1),
+                    .contentSwipeBack(enabled = !desktop && contentSwipeBackSupported && backStack.size > 1),
             ) {
             /*
              * Withheld on a two-pane window, where a row and the thread it opens are on screen at
@@ -574,7 +598,7 @@ fun MainNavigation(
              * header is a per-frame redraw of two moving areas, which is the most expensive shape a
              * transition can have on a panel and the one that ghosts worst.
              */
-                val eink = LocalEinkMode.current
+                val eink = LocalEinkMode.current || desktop
                 val openNetworkCheck = remember(backStack) { { backStack.add(NetworkCheckKey) } }
                 val openReportCompare = remember(backStack) { { backStack.add(ReportCompareKey) } }
                 val stickerNavigation = remember(backStack) {

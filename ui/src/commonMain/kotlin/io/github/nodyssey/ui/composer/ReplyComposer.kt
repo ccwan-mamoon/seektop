@@ -30,7 +30,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import io.github.nodyssey.data.composer.ImageAttachment
 import io.github.nodyssey.data.composer.PickedImage
 import io.github.nodyssey.data.composer.UploadFailure
+import io.github.nodyssey.ui.common.DesktopModalSurface
 import io.github.nodyssey.ui.common.describedAsLoading
 import io.github.nodyssey.ui.common.siteErrorRecovery
 import io.github.nodyssey.ui.resources.Res
@@ -289,7 +289,7 @@ private fun ReplyEditorSheet(
     val keyboard = LocalSoftwareKeyboardController.current
     val stickerPictures = rememberStickerPictures()
 
-    ModalBottomSheet(
+    DesktopModalSurface(
         // Guarded like the close button and the BackHandler: while a publish is in flight, a swipe
         // or scrim tap must not be the one dismiss path that still works.
         onDismissRequest = { if (!state.isPublishing) onDismiss() },

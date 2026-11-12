@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -19,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import io.github.nodyssey.ui.common.DesktopModalSurface
 import io.github.plaza.designsys.component.PlazaSheetDefaults
 import io.github.plaza.designsys.theme.LocalPlazaLayers
 import io.github.plaza.designsys.theme.Spacing
@@ -48,7 +48,7 @@ internal fun PlazaSheet(
     dragHandle: @Composable (() -> Unit)? = { PlazaSheetDefaults.DragHandle() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    ModalBottomSheet(
+    DesktopModalSurface(
         onDismissRequest = onDismiss,
         modifier = modifier,
         sheetState = sheetState,

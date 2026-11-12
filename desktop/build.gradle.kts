@@ -23,7 +23,7 @@ compose.desktop.application {
     mainClass = "io.github.nodyssey.desktop.MainKt"
     nativeDistributions {
         packageName = "SeekTop"
-        packageVersion = "0.1.0"
+        packageVersion = "0.2.0"
         includeAllModules = true
         appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
         licenseFile.set(rootProject.file("LICENSE"))

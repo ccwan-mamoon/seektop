@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
  */
 internal fun EntryProviderScope<NavKey>.tabRootEntries(nav: StackEntryScope) = with(nav) {
     entry<PostListKey> {
+        val desktop = LocalDesktopExperience.current
         val viewModel: PostListViewModel =
             viewModel(factory = PostListViewModel.factory(container))
         PostListRoute(
@@ -41,6 +42,7 @@ internal fun EntryProviderScope<NavKey>.tabRootEntries(nav: StackEntryScope) = w
             // draws these four before the network answers, and they are what the row's own
             // title, avatar, name and board tag fly into.
             onPostClick = { post ->
+                if (desktop && backStack.lastOrNull() is PostDetailKey) backStack.removeLastOrNull()
                 backStack.add(
                     PostDetailKey(
                         post.summary.postId,
@@ -110,7 +112,7 @@ internal fun EntryProviderScope<NavKey>.tabRootEntries(nav: StackEntryScope) = w
             onOpenThread = { uid, name ->
                 backStack.add(MessageThreadKey(uid, name))
             },
-            showOneHandTip = !oneHandTipDismissed,
+            showOneHandTip = !LocalDesktopExperience.current && !oneHandTipDismissed,
             onDismissOneHandTip = { scope.launch { container.settingsRepository.dismissOneHandTip() } },
             onOpenSettings = { backStack.add(SettingsKey) },
             scrollToTopRequests = notificationsScrollToTopRequests(),

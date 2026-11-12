@@ -110,6 +110,10 @@ fun HelpScreen(
     appLinksEnabled: Boolean? = null,
     onOpenAppLinkSettings: () -> Unit = {},
 ) {
+    if (io.github.nodyssey.LocalDesktopExperience.current) {
+        DesktopHelpScreen(onBack, modifier)
+        return
+    }
     val appBarState = rememberOneHandAppBarState()
     Scaffold(
         modifier = modifier.nestedScroll(appBarState.nestedScrollConnection),

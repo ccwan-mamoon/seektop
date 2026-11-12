@@ -1883,4 +1883,7 @@
     <string name="messages_scam_warning_low_level">对方等级较低（Lv.%1$d）。近期私信诈骗频发，请勿轻信先款、口令红包或站外私聊交易，大额交易请务必使用论坛中介。</string>
     <string name="messages_scam_warning_new_account">对方注册时间不足 100 天（%1$d 天）。近期私信诈骗频发，请勿轻信先款、口令红包或站外私聊交易，大额交易请务必使用论坛中介。</string>
     <string name="messages_scam_caution_general">近期私信诈骗频发，高等级或老账号亦可能存在被盗风险。请勿轻信先款、口令红包或站外私聊交易，大额交易请务必使用论坛中介。</string>
+    <string name="desktop_workspace">桌面工作区</string>
+    <string name="desktop_open_browser">在浏览器中处理</string>
+    <string name="desktop_help_body">使用左侧导航切换首页、通知和账号；点击帖子在右侧阅读。顶部工具栏始终提供搜索、刷新和发帖。板块通过点击切换，列表可用鼠标滚轮滚动，底部按钮可翻页。</string>
 </resources>

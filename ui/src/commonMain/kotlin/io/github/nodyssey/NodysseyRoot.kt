@@ -97,7 +97,7 @@ fun NodysseyRoot(
              * store has been read as well as after, and drawing the guide over that frame would show it
              * to everyone, once, on every launch.
              */
-            if (storedSettings?.onboardingSeen == false) {
+            if (!LocalDesktopExperience.current && storedSettings?.onboardingSeen == false) {
                 OnboardingScreen(
                     onFinish = {
                         scope.launch { container.settingsRepository.setOnboardingSeen(true) }
@@ -193,7 +193,7 @@ internal fun NodysseyChrome(
             fontScale = settings.fontScale,
             // 单手模式 reaches the twenty-odd screens that carry a `OneHandTopAppBar` through a
             // composition local, so none of them has to be told about the setting.
-            oneHandMode = settings.oneHandMode,
+            oneHandMode = !LocalDesktopExperience.current && settings.oneHandMode,
             // Two questions with one answer. The OS's remove-animations setting is not an in-app
             // one — whoever asked the system for no motion asked every app — and 墨水屏模式 is not an
             // accessibility setting, but on electronic paper every frame is a physical refresh, so
