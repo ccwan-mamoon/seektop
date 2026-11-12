@@ -1618,4 +1618,6 @@
     <string name="desktop_workspace">Workspace</string>
     <string name="desktop_open_browser">Open in browser</string>
     <string name="desktop_help_body">Use the sidebar for Home, Notifications and Account. Click a topic to read it in the right pane. The toolbar provides search, refresh and a new topic. Click a board to switch feeds, scroll with the mouse wheel, or use the page buttons below.</string>
+    <string name="desktop_board_previous">Scroll boards left</string>
+    <string name="desktop_board_next">Scroll boards right</string>
 </resources>

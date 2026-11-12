@@ -322,7 +322,7 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
 
     override val signInRepository: SignInRepository by lazy { NodeSeekSignInRepository(jsonClient) }
 
-    override val appVersion: AppVersion by lazy { AppVersion("0.1.0", 1, "SeekTop · 寻桌") }
+    override val appVersion: AppVersion by lazy { AppVersion(System.getProperty("jpackage.app-version") ?: "development", 3, "SeekTop · 寻桌") }
 
     override val appUpdateRepository: AppUpdateRepository get() = NoAppUpdates
 

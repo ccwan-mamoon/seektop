@@ -1886,4 +1886,6 @@
     <string name="desktop_workspace">桌面工作区</string>
     <string name="desktop_open_browser">在浏览器中处理</string>
     <string name="desktop_help_body">使用左侧导航切换首页、通知和账号；点击帖子在右侧阅读。顶部工具栏始终提供搜索、刷新和发帖。板块通过点击切换，列表可用鼠标滚轮滚动，底部按钮可翻页。</string>
+    <string name="desktop_board_previous">向左浏览板块</string>
+    <string name="desktop_board_next">向右浏览板块</string>
 </resources>

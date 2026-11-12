@@ -1,5 +1,6 @@
 package io.github.nodyssey
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -20,16 +23,18 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isAltPressed
@@ -46,6 +52,7 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.nodyssey.ui.navigation.TopLevelDestination
 import io.github.nodyssey.ui.resources.Res
@@ -122,10 +129,18 @@ internal fun DesktopAwareNavigationFrame(
             }
         }.focusable(),
     ) {
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
-            Column(Modifier.width(196.dp).fillMaxHeight().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("SeekTop", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(12.dp))
-                Text(stringResource(Res.string.desktop_workspace), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+        Surface(color = Color(0xFF121E2E)) {
+            Column(Modifier.width(212.dp).fillMaxHeight().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.padding(horizontal = 10.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF66DFC1)) {
+                        Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) { Text("S", color = Color(0xFF122D30), fontWeight = FontWeight.Bold) }
+                    }
+                    Column {
+                        Text("SeekTop", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("NodeSeek Desktop", style = MaterialTheme.typography.labelSmall, color = Color(0xFF91A2B8))
+                    }
+                }
+                Text(stringResource(Res.string.desktop_workspace), style = MaterialTheme.typography.labelMedium, color = Color(0xFF91A2B8), modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp))
                 TopLevelDestination.entries.forEach { destination ->
                     NavigationDrawerItem(
                         label = { Text(stringResource(destination.label)) },
@@ -138,52 +153,68 @@ internal fun DesktopAwareNavigationFrame(
                             null
                         },
                         modifier = Modifier.height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = Color(0xFF233E47),
+                            unselectedContainerColor = Color.Transparent,
+                            selectedIconColor = Color(0xFF84E7CF),
+                            selectedTextColor = Color(0xFFB6F4E5),
+                            unselectedIconColor = Color(0xFFA2B3C9),
+                            unselectedTextColor = Color(0xFFD2DCE9),
+                            selectedBadgeColor = Color(0xFF84E7CF),
+                            unselectedBadgeColor = Color(0xFFD2DCE9),
+                        ),
                     )
                 }
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
-                TextButton(onClick = onBookmarks, modifier = Modifier.fillMaxWidth()) {
+                HorizontalDivider(Modifier.padding(horizontal = 10.dp, vertical = 14.dp), color = Color.White.copy(alpha = 0.08f))
+                TextButton(onClick = onBookmarks, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFD2DCE9))) {
                     Icon(PlazaIcons.Bookmark, null)
                     Spacer(Modifier.width(12.dp))
                     Text(stringResource(Res.string.bookmarks_title))
+                    Spacer(Modifier.weight(1f))
                 }
-                TextButton(onClick = onHistory, modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onHistory, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFD2DCE9))) {
                     Icon(PlazaIcons.History, null)
                     Spacer(Modifier.width(12.dp))
                     Text(stringResource(Res.string.history_title))
+                    Spacer(Modifier.weight(1f))
                 }
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFD2DCE9))) {
                     Icon(Icons.Default.Settings, null)
                     Spacer(Modifier.width(12.dp))
                     Text(stringResource(Res.string.settings_title))
+                    Spacer(Modifier.weight(1f))
                 }
-                Text("NodeSeek · Desktop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(12.dp))
+                Text("SEE MORE. SEEK MORE.", style = MaterialTheme.typography.labelSmall, color = Color(0xFF72859D), modifier = Modifier.padding(12.dp))
             }
         }
-        VerticalDivider()
-        Column(Modifier.weight(1f)) {
-            Row(Modifier.fillMaxWidth().height(56.dp).background(MaterialTheme.colorScheme.surface).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(onClick = onBack, enabled = canGoBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.action_back)) }
-                OutlinedButton(onClick = onSearch, modifier = Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).background(MaterialTheme.colorScheme.surfaceContainerLow)) {
+            Row(Modifier.fillMaxWidth().height(72.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(onClick = onBack, enabled = canGoBack, colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface, disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f))) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.action_back)) }
+                OutlinedButton(onClick = onSearch, modifier = Modifier.weight(1f).height(42.dp), shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
                     Icon(Icons.Default.Search, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(Res.string.home_search_hint))
                     Spacer(Modifier.weight(1f))
-                    Text("Ctrl K", style = MaterialTheme.typography.labelSmall)
+                    Text("Ctrl K", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                 }
                 TextButton(onClick = refreshCurrent) {
                     Icon(Icons.Default.Refresh, null)
                     Text(stringResource(Res.string.action_refresh))
                     Text("  F5", style = MaterialTheme.typography.labelSmall)
                 }
-                Button(onClick = onCreatePost) {
+                Button(onClick = onCreatePost, shape = RoundedCornerShape(10.dp), modifier = Modifier.height(42.dp)) {
                     Icon(Icons.Default.Edit, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(Res.string.action_create_post))
                 }
             }
-            HorizontalDivider()
-            Box(Modifier.weight(1f).fillMaxWidth()) { CompositionLocalProvider(LocalDesktopRefreshTargets provides refreshTargets) { content() } }
+            Box(Modifier.weight(1f).fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))) {
+                    CompositionLocalProvider(LocalDesktopRefreshTargets provides refreshTargets) { content() }
+                }
+            }
         }
     }
 }

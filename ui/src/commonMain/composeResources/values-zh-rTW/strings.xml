@@ -1610,4 +1610,6 @@
     <string name="desktop_workspace">桌面工作區</string>
     <string name="desktop_open_browser">在瀏覽器中處理</string>
     <string name="desktop_help_body">使用左側導覽切換首頁、通知和帳號；點擊主題在右側閱讀。頂部工具列提供搜尋、重新整理和發文。點擊切換板塊，使用滑鼠滾輪捲動，底部按鈕可翻頁。</string>
+    <string name="desktop_board_previous">向左瀏覽板塊</string>
+    <string name="desktop_board_next">向右瀏覽板塊</string>
 </resources>

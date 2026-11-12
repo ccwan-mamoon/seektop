@@ -28,6 +28,13 @@ python desktop/provision-browser.py --mirror https://npmmirror.com/mirrors/elect
 
 项目沿用上游 GPL-3.0 许可，保留上游版权；Electron 自带的许可证位于浏览器运行时目录。
 
+## 0.3.0 验证记录
+
+- 竖向滚轮横移板块栏、鼠标左键拖动、边界钳制和滚动不误选的输入回归测试通过。
+- 浅色与深色桌面布局已用真实 Compose 组件及示例数据渲染检查；临时渲染脚手架不进入发布源码。
+- UI 与桌面 JVM 编译、Windows app-image 生成通过。
+- 全应用逐页实机回归及真实账号写入操作未在本轮执行。
+
 ## 0.2.0 验证记录
 
 - UI 和桌面 JVM 模块编译通过，Windows app-image 已生成。
