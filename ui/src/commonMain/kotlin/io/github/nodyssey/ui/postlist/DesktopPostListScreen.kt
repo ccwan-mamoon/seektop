@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -56,6 +57,7 @@ import io.github.nodyssey.ui.resources.sort_by_reply_time
 import io.github.nodyssey.ui.resources.tab_home
 import io.github.plaza.designsys.component.PlazaIcons
 import io.github.plaza.designsys.component.UserAvatar
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 /** Mouse-oriented feed: no swipe pager, pull refresh, collapsing header or floating controls. */
@@ -73,12 +75,37 @@ internal fun DesktopPostListScreen(
     refreshRequests: Int,
     modifier: Modifier = Modifier,
 ) {
-    io.github.nodyssey.DesktopRefreshTarget(priority = 1, onRefresh = posts::refresh)
+    val scope = rememberCoroutineScope()
+    var topRequest by rememberSaveable { mutableIntStateOf(0) }
+    fun refreshFromTop() {
+        topRequest++
+        if (state.startPage != 1) onGoToPage(1) else posts.refresh()
+        scope.launch { listState.scrollToItem(0) }
+    }
+    io.github.nodyssey.DesktopRefreshTarget(priority = 1, onRefresh = ::refreshFromTop)
+    io.github.nodyssey.PublishDesktopBoards((state.boards + state.parkedBoards).distinctBy { it.slug }, state.categorySlug) { slug ->
+        onBoardClick(slug)
+    }
+    val boardRequest = io.github.nodyssey.LocalDesktopBoardNavigation.current?.selectionGeneration ?: 0
+    var lastSlug by rememberSaveable { mutableStateOf(state.categorySlug) }
+    var lastSort by rememberSaveable { mutableStateOf(state.sort.name) }
+    var lastPage by rememberSaveable { mutableIntStateOf(state.startPage) }
+    var answeredTop by rememberSaveable { mutableIntStateOf(0) }
+    var answeredBoard by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(state.categorySlug, state.sort, state.startPage, topRequest, boardRequest) {
+        val changed = lastSlug != state.categorySlug || lastSort != state.sort.name || lastPage != state.startPage || answeredTop != topRequest || answeredBoard != boardRequest
+        lastSlug = state.categorySlug
+        lastSort = state.sort.name
+        lastPage = state.startPage
+        answeredTop = topRequest
+        answeredBoard = boardRequest
+        if (changed) listState.scrollToItem(0)
+    }
     var answered by rememberSaveable { mutableIntStateOf(refreshRequests) }
     LaunchedEffect(refreshRequests) {
         if (answered != refreshRequests) {
             answered = refreshRequests
-            posts.refresh()
+            refreshFromTop()
         }
     }
     var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -86,17 +113,12 @@ internal fun DesktopPostListScreen(
     val error = (refresh as? LoadState.Error)?.error?.toSiteError()
     val page = if (listState.firstVisibleItemIndex < posts.itemCount) posts.peek(listState.firstVisibleItemIndex)?.page ?: state.startPage else state.startPage
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        DesktopBoardStrip(
-            boards = (state.boards + state.parkedBoards).distinctBy { it.slug },
-            selectedSlug = state.categorySlug,
-            onSelect = onBoardClick,
-        )
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(state.selectedBoardTitle ?: stringResource(Res.string.tab_home), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
             TextButton(onClick = { onSortChange(if (state.sort == FeedSort.LAST_REPLY) FeedSort.POST_TIME else FeedSort.LAST_REPLY) }) {
                 Text(stringResource(if (state.sort == FeedSort.LAST_REPLY) Res.string.sort_by_reply_time else Res.string.sort_by_post_time))
             }
-            TextButton(onClick = posts::refresh, enabled = refresh !is LoadState.Loading) { Text(stringResource(Res.string.action_refresh)) }
+            TextButton(onClick = ::refreshFromTop, enabled = refresh !is LoadState.Loading) { Text(stringResource(Res.string.action_refresh)) }
         }
         HorizontalDivider()
         if (refresh is LoadState.Loading) LinearProgressIndicator(Modifier.fillMaxWidth())

@@ -192,7 +192,7 @@ fun PostListRoute(
         onCreatePost = onCreatePost,
         onSearch = onSearch,
         onAccountClick = onAccountClick,
-        onBoardClick = viewModel::selectCategory,
+        onBoardClick = if (io.github.nodyssey.LocalDesktopExperience.current) viewModel::selectDesktopCategory else viewModel::selectCategory,
         onArrangementChange = viewModel::saveBoardArrangement,
         onSortChange = viewModel::selectSort,
         onGoToPage = viewModel::goToPage,

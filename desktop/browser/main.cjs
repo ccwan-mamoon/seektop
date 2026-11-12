@@ -7,6 +7,7 @@ app.whenReady().then(() => {
     const forum = session.fromPartition("persist:nodyssey");
     const third = session.fromPartition("persist:third-party");
     let login = null;
+    const verification = require("./verification.cjs").createVerificationService(forum, BrowserWindow);
     const allowed = (u) => {
         try {
             const x = new URL(u);
@@ -122,6 +123,13 @@ app.whenReady().then(() => {
                     break;
                 case "/clear-cache":
                     await forum.clearCache();
+                    value = {};
+                    break;
+                case "/verify":
+                    value = await verification.verify(q);
+                    break;
+                case "/verification-close":
+                    verification.close(q.id);
                     value = {};
                     break;
                 case "/login": {

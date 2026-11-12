@@ -220,6 +220,11 @@ class PostListViewModel(
         viewModelScope.launch { categoryRepository.refreshIfNeeded() }
     }
 
+    /** Desktop board navigation opens the beginning rather than restoring a paged-away window. */
+    fun selectDesktopCategory(slug: String?) {
+        _uiState.update { it.copy(categorySlug = slug, startPages = it.startPages + (slug to 1)) }
+    }
+
     /**
      * Which board the strip and 翻页栏 are about. It no longer decides which rows are on screen —
      * every board has its own stream — so this moves the selection and nothing else.
@@ -384,7 +389,7 @@ data class PostListUiState(
      * would be a sentence about a board that does not exist.
      */
     val selectedBoardTitle: String?
-        get() = categorySlug?.let { slug -> boards.firstOrNull { it.slug == slug }?.title }
+        get() = categorySlug?.let { slug -> (boards + parkedBoards).firstOrNull { it.slug == slug }?.title }
 
     /** Where [slug]'s window starts; the first page for every board 翻页栏 has not moved. */
     fun startPageOf(slug: String?): Int = startPages[slug] ?: FeedRemoteMediator.FIRST_PAGE

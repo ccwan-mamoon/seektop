@@ -9,7 +9,7 @@ import zipfile
 parser = argparse.ArgumentParser()
 parser.add_argument("--app-dir", required=True, type=Path)
 parser.add_argument("--output-dir", required=True, type=Path)
-parser.add_argument("--version", default="0.3.0")
+parser.add_argument("--version", default="0.4.0")
 parser.add_argument("--source-ref", default="HEAD")
 args = parser.parse_args()
 if not re.fullmatch(r"\d+\.\d+\.\d+", args.version):

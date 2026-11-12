@@ -419,6 +419,7 @@ fun PostDetailScreen(
      */
     shareImage: (suspend (ImageBitmap, String?) -> Boolean)? = null,
 ) {
+    val desktop = io.github.nodyssey.LocalDesktopExperience.current
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var confirmTarget by remember { mutableStateOf<ReactionConfirm?>(null) }
@@ -507,7 +508,6 @@ fun PostDetailScreen(
     // has to be a thread to be positioned in — an empty screen mid-fetch reports page 1 — and the
     // reader has to have got somewhere: every thread parks at its top on open, so opening one and
     // backing straight out would otherwise reset it to page 1.
-    io.github.nodyssey.DesktopRefreshTarget(priority = 2, onRefresh = { onRefreshPage(visiblePage) })
     val positionWorthRecording = state.hasContent && (visiblePage > 1 || !atListTop)
     LaunchedEffect(visiblePage, visibleFloor, positionWorthRecording) {
         if (positionWorthRecording) onReadingPositionChange(visiblePage, visibleFloor)
@@ -663,6 +663,23 @@ fun PostDetailScreen(
         }
     }
 
+    var desktopRefreshPending by remember { mutableStateOf(false) }
+    fun refreshDesktopFromTop() {
+        pendingBottom = false
+        onScrollHandled()
+        desktopRefreshPending = true
+        onRefreshPage(1)
+        scope.launch { listState.scrollToItem(0) }
+    }
+    LaunchedEffect(desktopRefreshPending, state.isLoading, state.firstLoadedPage, state.error) {
+        if (desktopRefreshPending && !state.isLoading && (state.firstLoadedPage == 1 || state.error != null)) {
+            listState.scrollToItem(0)
+            onScrollHandled()
+            desktopRefreshPending = false
+        }
+    }
+    io.github.nodyssey.DesktopRefreshTarget(priority = 2, onRefresh = ::refreshDesktopFromTop)
+
     val imageActions = rememberImageActionsState()
     ImageActionsSheet(imageActions, snackbarHostState)
 
@@ -677,7 +694,7 @@ fun PostDetailScreen(
                 postUrl = postUrl,
                 onBack = onBack,
                 onOpenInBrowser = { onOpenBrowser(postUrl) },
-                onRefresh = { onRefreshPage(visiblePage) },
+                onRefresh = { if (desktop) refreshDesktopFromTop() else onRefreshPage(visiblePage) },
                 showBackButton = showBackButton,
                 tracked = state.tracked,
                 onToggleTrack = onToggleTrack,

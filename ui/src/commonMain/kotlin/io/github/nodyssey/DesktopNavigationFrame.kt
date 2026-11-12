@@ -15,10 +15,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -38,7 +43,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,12 +63,16 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.nodyssey.ui.navigation.TopLevelDestination
 import io.github.nodyssey.ui.resources.Res
 import io.github.nodyssey.ui.resources.action_back
 import io.github.nodyssey.ui.resources.action_create_post
 import io.github.nodyssey.ui.resources.action_refresh
 import io.github.nodyssey.ui.resources.bookmarks_title
+import io.github.nodyssey.ui.resources.desktop_boards
+import io.github.nodyssey.ui.resources.desktop_boards_collapse
+import io.github.nodyssey.ui.resources.desktop_boards_expand
 import io.github.nodyssey.ui.resources.desktop_workspace
 import io.github.nodyssey.ui.resources.history_title
 import io.github.nodyssey.ui.resources.home_search_hint
@@ -85,6 +98,7 @@ internal fun DesktopAwareNavigationFrame(
     onHistory: () -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenBoard: () -> Unit = { onSelect(TopLevelDestination.HOME) },
     mobileNavigation: @Composable (@Composable () -> Unit) -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -94,6 +108,9 @@ internal fun DesktopAwareNavigationFrame(
     }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    val boardNavigation = remember { DesktopBoardNavigation() }
+    var boardsExpanded by rememberSaveable { mutableStateOf(true) }
+    val boardListState = rememberLazyListState()
     val refreshTargets = remember { DesktopRefreshTargets() }
     val refreshCurrent = { if (!refreshTargets.refresh()) onRefresh() }
     Row(
@@ -129,7 +146,7 @@ internal fun DesktopAwareNavigationFrame(
             }
         }.focusable(),
     ) {
-        Surface(color = Color(0xFF121E2E)) {
+        Surface(color = Color(0xFF121E2E), contentColor = Color.White) {
             Column(Modifier.width(212.dp).fillMaxHeight().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.padding(horizontal = 10.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF66DFC1)) {
@@ -179,7 +196,35 @@ internal fun DesktopAwareNavigationFrame(
                     Text(stringResource(Res.string.history_title))
                     Spacer(Modifier.weight(1f))
                 }
-                Spacer(Modifier.weight(1f))
+                Column(Modifier.weight(1f).fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(Res.string.desktop_boards), color = Color(0xFF91A2B8), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                        IconButton(onClick = { boardsExpanded = !boardsExpanded }) {
+                            Icon(if (boardsExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(if (boardsExpanded) Res.string.desktop_boards_collapse else Res.string.desktop_boards_expand), tint = Color(0xFF91A2B8))
+                        }
+                    }
+                    if (boardsExpanded) {
+                        Box(Modifier.weight(1f).fillMaxWidth()) {
+                            io.github.nodyssey.ui.common.DesktopScrollbars(boardListState) {
+                                LazyColumn(state = boardListState, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    items(boardNavigation.boards, key = { it.slug ?: "front" }) { board ->
+                                        NavigationDrawerItem(
+                                            selected = current == TopLevelDestination.HOME && boardNavigation.selectedSlug == board.slug,
+                                            onClick = {
+                                                onOpenBoard()
+                                                boardNavigation.select(board.slug)
+                                            },
+                                            label = { Text(board.title, fontSize = 13.sp, maxLines = 1) },
+                                            modifier = Modifier.height(38.dp),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = Color(0xFF233E47), unselectedContainerColor = Color.Transparent, selectedTextColor = Color(0xFFB6F4E5), unselectedTextColor = Color(0xFFD2DCE9)),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFD2DCE9))) {
                     Icon(Icons.Default.Settings, null)
                     Spacer(Modifier.width(12.dp))
@@ -212,7 +257,7 @@ internal fun DesktopAwareNavigationFrame(
             }
             Box(Modifier.weight(1f).fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                 Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))) {
-                    CompositionLocalProvider(LocalDesktopRefreshTargets provides refreshTargets) { content() }
+                    CompositionLocalProvider(LocalDesktopRefreshTargets provides refreshTargets, LocalDesktopBoardNavigation provides boardNavigation) { content() }
                 }
             }
         }

@@ -1,5 +1,6 @@
 package io.github.nodyssey.ui.common
 
+import androidx.compose.foundation.LocalScrollbarStyle
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,7 +20,7 @@ import io.github.nodyssey.ui.resources.action_open_in_external_browser
 internal actual fun DesktopScrollbars(state: LazyListState, content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize().padding(end = 10.dp)) { content() }
     Box(Modifier.fillMaxSize()) {
-        VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+        VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight(), style = LocalScrollbarStyle.current.copy(unhoverColor = LocalContentColor.current.copy(alpha = 0.25f), hoverColor = LocalContentColor.current.copy(alpha = 0.55f)))
     }
 }
 

@@ -53,7 +53,7 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
         val builder = JdkRequest.newBuilder(URI("http://127.0.0.1:$port/$operation"))
             .header("Authorization", "Bearer $token").header("Content-Type", "application/json")
             .POST(JdkRequest.BodyPublishers.ofString(body.toString()))
-        if (operation != "login") builder.timeout(Duration.ofSeconds(90))
+        if (operation != "login") builder.timeout(Duration.ofSeconds(if (operation == "verify") 240 else 90))
         val request = builder.build()
         val response = client.send(request, JdkResponse.BodyHandlers.ofString())
         val result = Json.parseToJsonElement(response.body()).jsonObject
@@ -64,6 +64,27 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
     suspend fun login(url: String) = withContext(Dispatchers.IO) {
         call("login", buildJsonObject { put("url", url) })
         Unit
+    }
+
+    /** A scoped, cancellable verification request; no credentials are given to the widget window. */
+    suspend fun verify(document: String, dark: Boolean): String? {
+        val id = UUID.randomUUID().toString()
+        try {
+            val result = kotlinx.coroutines.runInterruptible(Dispatchers.IO) {
+                call(
+                    "verify",
+                    buildJsonObject {
+                        put("id", id)
+                        put("origin", io.github.nodyssey.core.NodeSeekSite.BASE_URL)
+                        put("document", document)
+                        put("dark", dark)
+                    },
+                )
+            }
+            return result["value"]?.jsonPrimitive?.content?.takeIf { result["kind"]?.jsonPrimitive?.content == "token" && it.isNotBlank() }
+        } finally {
+            withContext(kotlinx.coroutines.NonCancellable + Dispatchers.IO) { runCatching { call("verification-close", buildJsonObject { put("id", id) }) } }
+        }
     }
     override fun cookieHeader(url: String): String? = call("cookies", buildJsonObject { put("url", url) })["header"]?.jsonPrimitive?.content?.ifBlank { null }
     override fun setCookie(url: String, cookie: String) {

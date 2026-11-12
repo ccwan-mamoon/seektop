@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
@@ -46,6 +47,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
@@ -65,6 +71,7 @@ import io.github.nodyssey.ui.common.SiteErrorSnackbar
 import io.github.nodyssey.ui.common.siteName
 import io.github.nodyssey.ui.resources.Res
 import io.github.nodyssey.ui.resources.action_close
+import io.github.nodyssey.ui.resources.desktop_sign_in_hint
 import io.github.nodyssey.ui.resources.sign_in_account
 import io.github.nodyssey.ui.resources.sign_in_forgot
 import io.github.nodyssey.ui.resources.sign_in_one_tap
@@ -128,6 +135,7 @@ fun SignInRoute(
     onOpenSiteSignInPage: () -> Unit,
     onOneTapSignIn: () -> Unit,
     modifier: Modifier = Modifier,
+    onVerificationChallenge: (() -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -140,7 +148,7 @@ fun SignInRoute(
         // No 去登录 recovery: this *is* the sign-in screen. A challenge is the one failure the web
         // view can clear, and it lands on the same page 改用网页登录 would have opened anyway — so
         // the address the failure names is deliberately dropped here, unlike everywhere else.
-        onVerify = { onUseWebSignIn() },
+        onVerify = { onVerificationChallenge?.invoke() ?: onUseWebSignIn() },
         onRetry = viewModel::retry,
     )
 
@@ -274,6 +282,7 @@ fun SignInScreen(
      */
     turnstile: @Composable () -> Unit = {},
 ) {
+    val desktop = io.github.nodyssey.LocalDesktopExperience.current
     val oneTap = ActiveSite.current.oneTapSignIn
     Scaffold(
         modifier = modifier,
@@ -296,6 +305,15 @@ fun SignInScreen(
                 .paddingWithKeyboard(padding)
                 .fillMaxSize()
                 .readableWidth()
+                .then(if (desktop) Modifier.widthIn(max = 520.dp) else Modifier)
+                .onPreviewKeyEvent { event ->
+                    if (desktop && event.type == KeyEventType.KeyDown && event.key == Key.Enter && state.canSubmitCredentials) {
+                        onSubmit()
+                        true
+                    } else {
+                        false
+                    }
+                }
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.xl)
                 .padding(top = Spacing.lg),
@@ -381,7 +399,7 @@ fun SignInScreen(
                 // `RevealLastTyped` rather than the board's eye toggle, which is the same decision
                 // 安全 (d6 2/4) made and for the same reason: it shows the character just typed and
                 // hides it again, with no switch left on and nothing in the state to remember.
-                textObfuscationMode = TextObfuscationMode.RevealLastTyped,
+                textObfuscationMode = if (desktop) TextObfuscationMode.Hidden else TextObfuscationMode.RevealLastTyped,
                 shape = PlazaFieldDefaults.shape,
                 colors = PlazaFieldDefaults.colors(),
                 supportingText = { PasswordSupport(state, onOpenSiteSignInPage) },
@@ -406,7 +424,7 @@ fun SignInScreen(
             // deliberately dead. Shown whenever the button is down, which is the state that ships.
             if (!state.canSubmitCredentials) {
                 Text(
-                    stringResource(Res.string.sign_in_readonly_hint),
+                    stringResource(if (desktop) Res.string.desktop_sign_in_hint else Res.string.sign_in_readonly_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -521,7 +539,7 @@ private fun VerificationBlock(verification: VerificationState, turnstile: @Compo
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        if (verification is VerificationState.NotWired) {
+        if (verification is VerificationState.NotWired && !io.github.nodyssey.LocalDesktopExperience.current) {
             VerificationNotice(Icons.Default.Info, stringResource(Res.string.sign_in_verify_not_wired))
         } else {
             turnstile()

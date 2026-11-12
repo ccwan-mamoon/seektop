@@ -9,6 +9,7 @@ import coil3.SingletonImageLoader
 import io.github.nodyssey.LocalDesktopExperience
 import io.github.nodyssey.NodysseyRoot
 import io.github.nodyssey.ui.login.LocalDesktopBrowser
+import io.github.nodyssey.ui.login.LocalDesktopVerification
 import io.github.nodyssey.ui.navigation.TopLevelDestination
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -35,9 +36,9 @@ private fun launchDesktop() {
     val initial = runBlocking { container.settingsRepository.settings.first() }
     try {
         application {
-            Window(onCloseRequest = ::exitApplication, title = "SeekTop · 寻桌", state = rememberWindowState(width = 1280.dp, height = 860.dp)) {
+            Window(onCloseRequest = ::exitApplication, title = "SeekTop · 寻桌 — 本地验收版", state = rememberWindowState(width = 1280.dp, height = 860.dp)) {
                 window.minimumSize = java.awt.Dimension(1100, 700)
-                CompositionLocalProvider(LocalDesktopBrowser provides browser::login, LocalDesktopExperience provides true) {
+                CompositionLocalProvider(LocalDesktopBrowser provides browser::login, LocalDesktopVerification provides browser::verify, LocalDesktopExperience provides true) {
                     NodysseyRoot(container, initial, TopLevelDestination.HOME, null, {})
                 }
             }

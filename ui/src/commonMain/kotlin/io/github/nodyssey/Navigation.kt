@@ -530,6 +530,10 @@ fun MainNavigation(
         onSearch = { if (backStack.lastOrNull() != SearchKey()) backStack.add(SearchKey()) },
         onCreatePost = { backStack.add(PostComposerKey()) },
         onSettings = { if (backStack.lastOrNull() != SettingsKey) backStack.add(SettingsKey) },
+        onOpenBoard = {
+            currentTab = TopLevelDestination.HOME
+            while (homeStack.size > 1) homeStack.removeLastOrNull()
+        },
         onBookmarks = { backStack.add(BookmarksKey) },
         onHistory = { backStack.add(ReadHistoryKey) },
         onRefresh = {

@@ -76,7 +76,7 @@ internal fun turnstileDocument(sitekey: String, darkTheme: Boolean): String {
           }
           function nsTurnstileReset() { try { turnstile.reset(); } catch (e) {} }
         </script>
-        <script src="$TURNSTILE_SCRIPT" async defer></script>
+        <script src="$TURNSTILE_SCRIPT" async defer onerror="__nsBridge.post('error', 'script-load')"></script>
         </head><body><div id="w"></div></body></html>
     """.trimIndent()
 }

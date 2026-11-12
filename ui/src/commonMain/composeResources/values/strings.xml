@@ -1888,4 +1888,13 @@
     <string name="desktop_help_body">使用左侧导航切换首页、通知和账号；点击帖子在右侧阅读。顶部工具栏始终提供搜索、刷新和发帖。板块通过点击切换，列表可用鼠标滚轮滚动，底部按钮可翻页。</string>
     <string name="desktop_board_previous">向左浏览板块</string>
     <string name="desktop_board_next">向右浏览板块</string>
+    <string name="desktop_boards">板块</string>
+    <string name="desktop_boards_collapse">收起板块列表</string>
+    <string name="desktop_boards_expand">展开板块列表</string>
+    <string name="desktop_verify_start">完成人机验证</string>
+    <string name="desktop_verify_working">请在应用的安全验证窗口中完成验证</string>
+    <string name="desktop_verify_passed">验证已通过</string>
+    <string name="desktop_verify_retry">重新验证</string>
+    <string name="desktop_verify_unavailable">安全验证组件不可用，请重启应用</string>
+    <string name="desktop_sign_in_hint">填写账号和密码，完成人机验证后登录。</string>
 </resources>

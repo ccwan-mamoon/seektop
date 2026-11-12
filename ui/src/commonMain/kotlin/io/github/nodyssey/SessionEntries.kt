@@ -32,6 +32,11 @@ internal fun EntryProviderScope<NavKey>.sessionEntries(nav: StackEntryScope) = w
             // The screen that asked for a session is underneath; dropping this one puts the
             // user back on it, and its own reload keys on the session generation.
             onSignedIn = { backStack.removeLastOrNull() },
+            onVerificationChallenge = if (LocalDesktopExperience.current) {
+                { backStack.add(WebKey(signInUrl, siteTitle, WebViewGoal.CHALLENGE)) }
+            } else {
+                null
+            },
             onUseWebSignIn = {
                 backStack.removeLastOrNull()
                 backStack.add(WebKey(signInUrl, siteTitle, WebViewGoal.SIGN_IN))

@@ -170,6 +170,8 @@ class SignInViewModel(
                 // accusing a sign-in that worked of not having worked is the one wrong answer this
                 // check must not give.
                 if (session.syncAwaitingSession().isSignedIn) {
+                    passwordState.clearText()
+                    codeState.clearText()
                     _uiState.update { it.copy(isSubmitting = false, signedIn = true) }
                 } else {
                     // Back to card 1 whichever leg we are on: card 3 has nothing left to post, and
@@ -261,6 +263,12 @@ class SignInViewModel(
     fun secondsUntilNextCode(): Int {
         val elapsed = (clock.nowMillis() / 1_000L).mod(TOTP_PERIOD_SECONDS.toLong())
         return (TOTP_PERIOD_SECONDS - elapsed).toInt()
+    }
+
+    override fun onCleared() {
+        passwordState.clearText()
+        codeState.clearText()
+        super.onCleared()
     }
 
     companion object {
