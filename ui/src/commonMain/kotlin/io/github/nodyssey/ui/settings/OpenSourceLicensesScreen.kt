@@ -140,7 +140,7 @@ private val SHIPPED_LIBRARIES =
         LibraryLicense("kotlinx-datetime", "Apache License 2.0", "https://github.com/Kotlin/kotlinx-datetime"),
     )
 
-private const val APP_LICENSE_URL = "https://github.com/5151561/nodyssey/blob/main/LICENSE"
+private const val APP_LICENSE_URL = "https://github.com/ccwan-mamoon/seektop/blob/main/LICENSE"
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 800)
 @Composable

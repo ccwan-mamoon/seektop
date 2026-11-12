@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Nodyssey</string>
+    <string name="app_name">SeekTop</string>
 
     <!-- 屏幕阅读器焦点落在进度指示器上时读出的名字；见 Modifier.describedAsLoading -->
     <string name="loading_indicator_label">加载中</string>
@@ -480,7 +480,7 @@
     <string name="settings_clear_cache">清除缓存</string>
     <string name="settings_clear_cache_size">图片与帖子缓存 %1$s</string>
     <string name="settings_about">关于</string>
-    <string name="settings_about_app">关于 Nodyssey</string>
+    <string name="settings_about_app">关于 SeekTop</string>
     <string name="settings_version">v%1$s</string>
     <string name="settings_update_on_launch">启动时检查更新</string>
     <string name="settings_update_dev_channel">接收 dev 版更新</string>
@@ -641,11 +641,11 @@
 
     <string name="network_check_hint_title">这份报告说明什么</string>
     <string name="network_check_hint_layers">DNS、连接、首字节三项大而下载快，是在等；三项都小而下载慢，才是带宽被限。进度条一点点爬属于后者。</string>
-    <string name="network_check_hint_custom_tab">帖子里的链接是交给上面那个 App 打开的，流量算它的，不算 Nodyssey 的。它和默认浏览器不是同一个的时候，「App 里慢、浏览器里快」多半就是这个原因——VPN 的分应用代理是按 App 算的。</string>
+    <string name="network_check_hint_custom_tab">帖子里的链接是交给上面那个 App 打开的，流量算它的，不算 SeekTop 的。它和默认浏览器不是同一个的时候，「App 里慢、浏览器里快」多半就是这个原因——VPN 的分应用代理是按 App 算的。</string>
     <string name="network_check_hint_scope">论坛和更新源分开测：只有一边慢，是那条线路的问题；两边都慢，是这台设备的连接。</string>
 
     <!-- About & community (board f1). -->
-    <string name="about_title">关于 Nodyssey</string>
+    <string name="about_title">关于 SeekTop</string>
     <string name="about_community_title">关于 · 社区</string>
     <string name="about_community_hint">论坛信息、联络方式与友站</string>
     <string name="about_version">版本 %1$s (%2$d)</string>
@@ -669,7 +669,7 @@
     <string name="about_update_cancel">取消</string>
     <string name="about_update_install">立即安装</string>
     <string name="about_update_open_release">在 GitHub 查看 ↗</string>
-    <string name="about_update_permission_hint">系统要求你先允许 Nodyssey 安装应用，开一次就行。</string>
+    <string name="about_update_permission_hint">系统要求你先允许 SeekTop 安装应用，开一次就行。</string>
     <string name="about_update_permission_action">去开启</string>
     <string name="about_install_failed_blocked">系统拦下了这次安装，可能是应用商店的安全检查或设备策略。</string>
     <string name="about_install_failed_conflict">和已装的版本冲突，签名不同或版本更旧。可先卸载再装。</string>
@@ -685,10 +685,10 @@
     <string name="about_project_home">项目主页</string>
     <string name="about_feedback">问题反馈</string>
     <string name="about_feedback_hint">提 GitHub Issue 或站内私信开发者</string>
-    <string name="about_app_channel">Telegram 官方频道</string>
-    <string name="about_app_channel_hint">新版本发布和更新说明</string>
-    <string name="about_app_group">Telegram 官方群组</string>
-    <string name="about_app_group_hint">聊 Nodyssey、报 bug、看 dev 版动静</string>
+    <string name="about_app_channel">版本发布</string>
+    <string name="about_app_channel_hint">查看 SeekTop 的 GitHub Releases</string>
+    <string name="about_app_group">讨论与反馈</string>
+    <string name="about_app_group_hint">在 SeekTop 仓库提交问题与建议</string>
     <string name="about_changelog">更新日志</string>
     <string name="about_help">使用帮助</string>
     <string name="about_help_hint">被当成 bug 的那几件事，和不容易撞见的用法</string>
@@ -736,7 +736,7 @@
     <string name="changelog_failed_hint">更新日志读自项目发布的版本清单，可稍后重试。</string>
     <string name="changelog_all_releases">查看全部 Releases ↗</string>
 
-    <string name="licenses_summary">Nodyssey 是 GPL-3.0 开源软件，并使用下列主要开源组件。点击条目可查看对应源码与许可信息。</string>
+    <string name="licenses_summary">SeekTop 基于 Nodyssey（GPL-3.0）二次开发，保留上游版权，并使用下列主要开源组件。点击条目可查看对应源码与许可信息。</string>
     <string name="licenses_app_section">本应用</string>
     <string name="licenses_dependencies_section">主要运行时依赖</string>
     <string name="licenses_lockfile_note">完整且精确的传递依赖版本以源码仓库中的 app/gradle.lockfile 为准。</string>
@@ -1579,7 +1579,7 @@
     <string name="onboarding_done">开始使用</string>
     <string name="onboarding_progress">第 %1$d 屏，共 %2$d 屏</string>
 
-    <string name="onboarding_welcome_title">欢迎使用 Nodyssey</string>
+    <string name="onboarding_welcome_title">欢迎使用 SeekTop</string>
     <string name="onboarding_welcome_body">%1$s 的第三方客户端</string>
 
     <string name="onboarding_one_hand_title">单手模式</string>

@@ -313,6 +313,10 @@ kotlin {
             implementation(libs.androidx.paging.runtime)
         }
 
+        jvmMain.dependencies {
+            implementation(libs.androidx.sqlite.bundled)
+        }
+
         jvmTest.dependencies {
             implementation(kotlin("test"))
         }

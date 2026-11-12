@@ -378,7 +378,7 @@
     <string name="settings_clear_cache">清除快取</string>
     <string name="settings_clear_cache_size">圖片與文章快取 %1$s</string>
     <string name="settings_about">關於</string>
-    <string name="settings_about_app">關於 Nodyssey</string>
+    <string name="settings_about_app">關於 SeekTop</string>
     <string name="settings_update_on_launch">啟動時檢查更新</string>
     <string name="settings_update_dev_channel">接收 dev 版更新</string>
     <string name="settings_update_dev_channel_hint">可能不穩定</string>
@@ -504,10 +504,10 @@
     <string name="network_check_failed">失敗（%1$s）</string>
     <string name="network_check_hint_title">這份報告說明什麼</string>
     <string name="network_check_hint_layers">DNS、連線、首位元組三項大而下載快，是在等；三項都小而下載慢，才是頻寬被限。進度條一點點爬屬於後者。</string>
-    <string name="network_check_hint_custom_tab">貼文裡的連結是交給上面那個 App 開啟的，流量算它的，不算 Nodyssey 的。它和預設瀏覽器不是同一個的時候，「App 裡慢、瀏覽器裡快」多半就是這個原因——VPN 的分應用代理是按 App 算的。</string>
+    <string name="network_check_hint_custom_tab">貼文裡的連結是交給上面那個 App 開啟的，流量算它的，不算 SeekTop 的。它和預設瀏覽器不是同一個的時候，「App 裡慢、瀏覽器裡快」多半就是這個原因——VPN 的分應用代理是按 App 算的。</string>
     <string name="network_check_hint_scope">論壇和更新來源分開測：只有一邊慢，是那條線路的問題；兩邊都慢，是這台裝置的連線。</string>
 
-    <string name="about_title">關於 Nodyssey</string>
+    <string name="about_title">關於 SeekTop</string>
     <string name="about_community_title">關於 · 社群</string>
     <string name="about_community_hint">論壇資訊、聯絡方式與友站</string>
     <string name="about_version">版本 %1$s (%2$d)</string>
@@ -531,7 +531,7 @@
     <string name="about_update_cancel">取消</string>
     <string name="about_update_install">立即安裝</string>
     <string name="about_update_open_release">在 GitHub 檢視 ↗</string>
-    <string name="about_update_permission_hint">系統要求你先允許 Nodyssey 安裝應用程式，開一次就行。</string>
+    <string name="about_update_permission_hint">系統要求你先允許 SeekTop 安裝應用程式，開一次就行。</string>
     <string name="about_update_permission_action">去開啟</string>
     <string name="about_install_failed_blocked">系統攔下了這次安裝，可能是應用程式商店的安全檢查或裝置政策。</string>
     <string name="about_install_failed_conflict">和已裝的版本衝突，簽章不同或版本更舊。可先解除安裝再裝。</string>
@@ -547,10 +547,10 @@
     <string name="about_project_home">專案首頁</string>
     <string name="about_feedback">問題回報</string>
     <string name="about_feedback_hint">開 GitHub Issue 或站內私訊開發者</string>
-    <string name="about_app_channel">Telegram 官方頻道</string>
-    <string name="about_app_channel_hint">新版本發布和更新說明</string>
-    <string name="about_app_group">Telegram 官方群組</string>
-    <string name="about_app_group_hint">聊 Nodyssey、回報 bug、看 dev 版動靜</string>
+    <string name="about_app_channel">版本發佈</string>
+    <string name="about_app_channel_hint">查看 SeekTop 的 GitHub Releases</string>
+    <string name="about_app_group">討論與回饋</string>
+    <string name="about_app_group_hint">在 SeekTop 儲存庫提交問題與建議</string>
     <string name="about_changelog">更新紀錄</string>
     <string name="about_help">使用說明</string>
     <string name="about_help_hint">被當成 bug 的那幾件事，和不容易撞見的用法</string>
@@ -595,7 +595,7 @@
     <string name="changelog_failed_hint">更新紀錄讀自專案發布的版本清單，可稍後重試。</string>
     <string name="changelog_all_releases">檢視全部 Releases ↗</string>
 
-    <string name="licenses_summary">Nodyssey 是 GPL-3.0 開源軟體，並使用下列主要開源元件。點擊項目可檢視對應原始碼與授權資訊。</string>
+    <string name="licenses_summary">SeekTop 基於 Nodyssey（GPL-3.0）二次開發，保留上游著作權，並使用下列主要開源元件。點擊項目可查看對應原始碼與授權資訊。</string>
     <string name="licenses_app_section">本應用程式</string>
     <string name="licenses_dependencies_section">主要執行階段相依</string>
     <string name="licenses_lockfile_note">完整且精確的傳遞相依版本以原始碼儲存庫中的 app/gradle.lockfile 為準。</string>
@@ -1316,7 +1316,7 @@
     <string name="onboarding_done">開始使用</string>
     <string name="onboarding_progress">第 %1$d 屏，共 %2$d 屏</string>
 
-    <string name="onboarding_welcome_title">歡迎使用 Nodyssey</string>
+    <string name="onboarding_welcome_title">歡迎使用 SeekTop</string>
     <string name="onboarding_welcome_body">%1$s 的第三方用戶端</string>
 
     <string name="onboarding_one_hand_title">單手模式</string>

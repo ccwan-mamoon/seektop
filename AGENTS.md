@@ -12,6 +12,7 @@ Two application shells over four libraries, plus two modules that exist only to 
 | `:shared` | The business core below the screens: domain model, site parsers, network layer, Room schema, repositories — see below | Android, JVM, iOS, macOS |
 | `:designsys` | The Compose theme and components that carry no NodeSeek knowledge (`io.github.plaza.designsys`) | Android, JVM, iOS |
 | `:richtext` | The `RichNode` tree, the Markdown reader that produces one, and the ANSI decoder — four files with no dependency beyond kotlinx-serialization, split out so `:designsys` can render posts without resolving SQLite and Paging | Android, JVM, iOS, macOS |
+| `:desktop` | Windows shell: original `NodysseyRoot`, JVM repository graph, Room and Chromium session bridge; see `desktop/README.md` | JVM |
 | `:gallery` | `:designsys` in a desktop window (`./gradlew :gallery:run`); CI composes it headlessly via `jvmTest` | JVM |
 | `:smoke` | A `com.android.test` module that installs `:app`'s R8-minified build on the CI emulator and checks it starts — the only place the optimized build is ever executed | Android |
 

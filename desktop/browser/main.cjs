@@ -1,0 +1,261 @@
+const { app, BrowserWindow, session, Menu } = require("electron");
+const http = require("http");
+const token = process.env.NODYSSEY_BRIDGE_TOKEN;
+if (!token) process.exit(1);
+app.setPath("userData", process.env.NODYSSEY_BROWSER_DATA);
+app.whenReady().then(() => {
+    const forum = session.fromPartition("persist:nodyssey");
+    const third = session.fromPartition("persist:third-party");
+    let login = null;
+    const allowed = (u) => {
+        try {
+            const x = new URL(u);
+            return (
+                x.protocol === "https:" &&
+                ["nodeseek.com", "www.nodeseek.com"].includes(x.hostname)
+            );
+        } catch {
+            return false;
+        }
+    };
+    let proxyCredentials = {};
+    app.on("login", (event, contents, details, auth, callback) => {
+        if (auth.isProxy) {
+            event.preventDefault();
+            callback(
+                proxyCredentials.username || "",
+                proxyCredentials.password || "",
+            );
+        }
+    });
+    const server = http.createServer(async (req, res) => {
+        if (req.headers.authorization !== `Bearer ${token}`) {
+            res.writeHead(403);
+            return res.end();
+        }
+        try {
+            let body = "";
+            for await (const c of req) {
+                body += c;
+                if (body.length > 40 * 1024 * 1024)
+                    throw Error("Request too large");
+            }
+            const q = body ? JSON.parse(body) : {};
+            let value;
+            switch (req.url) {
+                case "/info":
+                    value = { userAgent: forum.getUserAgent() };
+                    break;
+                case "/shutdown":
+                    value = {};
+                    setTimeout(() => app.quit(), 100);
+                    break;
+                case "/proxy": {
+                    proxyCredentials = q;
+                    const config = q.enabled
+                        ? {
+                              mode: "fixed_servers",
+                              proxyRules: `${q.type === "SOCKS" ? "socks5" : "http"}://${q.host}:${q.port}`,
+                          }
+                        : { mode: "system" };
+                    await forum.setProxy(config);
+                    await third.setProxy(
+                        q.scope === "FORUM_ONLY" ? { mode: "system" } : config,
+                    );
+                    await forum.closeAllConnections();
+                    await third.closeAllConnections();
+                    value = {};
+                    break;
+                }
+                case "/cookies":
+                    value = {
+                        header: (await forum.cookies.get({ url: q.url }))
+                            .map((c) => `${c.name}=${c.value}`)
+                            .join("; "),
+                    };
+                    break;
+                case "/set-cookie": {
+                    if (!allowed(q.url)) throw Error("Invalid cookie origin");
+                    const chunks = q.cookie.split(";").map((x) => x.trim()),
+                        i = chunks[0].indexOf("=");
+                    const c = {
+                        url: q.url,
+                        name: chunks[0].slice(0, i),
+                        value: chunks[0].slice(i + 1),
+                    };
+                    for (const attr of chunks.slice(1)) {
+                        const [k, ...v] = attr.split("=");
+                        const val = v.join("=");
+                        switch (k.toLowerCase()) {
+                            case "path":
+                                c.path = val;
+                                break;
+                            case "domain":
+                                c.domain = val;
+                                break;
+                            case "max-age":
+                                c.expirationDate =
+                                    Date.now() / 1000 + Number(val);
+                                break;
+                            case "secure":
+                                c.secure = true;
+                                break;
+                            case "httponly":
+                                c.httpOnly = true;
+                                break;
+                        }
+                    }
+                    await forum.cookies.set(c);
+                    value = {};
+                    break;
+                }
+                case "/clear-cookies":
+                    await forum.clearStorageData({ storages: ["cookies"] });
+                    value = {};
+                    break;
+                case "/flush":
+                    await forum.cookies.flushStore();
+                    value = {};
+                    break;
+                case "/cache-size":
+                    value = { size: await forum.getCacheSize() };
+                    break;
+                case "/clear-cache":
+                    await forum.clearCache();
+                    value = {};
+                    break;
+                case "/login": {
+                    if (!allowed(q.url)) throw Error("Invalid login URL");
+                    if (login) {
+                        login.focus();
+                        throw Error("Login window already open");
+                    }
+                    login = new BrowserWindow({
+                        width: 1050,
+                        height: 800,
+                        title: "SeekTop · 登录与验证",
+                        webPreferences: {
+                            session: forum,
+                            contextIsolation: true,
+                            nodeIntegration: false,
+                            sandbox: true,
+                        },
+                    });
+                    login.setMenu(
+                        Menu.buildFromTemplate([
+                            {
+                                label: "完成并返回应用",
+                                click: () => login?.close(),
+                            },
+                            { role: "editMenu" },
+                            { role: "viewMenu" },
+                        ]),
+                    );
+                    login.webContents.setWindowOpenHandler(() => ({
+                        action: "deny",
+                    }));
+                    login.webContents.on("will-navigate", (e, url) => {
+                        if (!allowed(url)) e.preventDefault();
+                    });
+                    const closed = new Promise((resolve) =>
+                        login.once("closed", resolve),
+                    );
+                    login.loadURL(q.url).catch(() => {});
+                    await closed;
+                    login = null;
+                    await forum.cookies.flushStore();
+                    value = {};
+                    break;
+                }
+                case "/fetch": {
+                    const url = new URL(q.url);
+                    if (!["https:", "http:"].includes(url.protocol))
+                        throw Error("Invalid URL");
+                    const s = q.forum ? forum : third;
+                    if (q.forum && !allowed(q.url))
+                        throw Error(
+                            "Forum session cannot be sent to another host",
+                        );
+                    const headers = { ...q.headers };
+                    if (
+                        q.forum &&
+                        !Object.keys(headers).some(
+                            (x) => x.toLowerCase() === "referer",
+                        )
+                    )
+                        headers.Referer = "https://www.nodeseek.com/";
+                    let payload;
+                    if (q.body?.kind === "text") {
+                        payload = q.body.content;
+                        headers["Content-Type"] = q.body.contentType;
+                    } else if (q.body?.kind === "empty") payload = "";
+                    else if (q.body?.kind === "multipart") {
+                        payload = new FormData();
+                        for (const [k, v] of Object.entries(q.body.fields))
+                            payload.append(k, v);
+                        payload.append(
+                            q.body.fileField,
+                            new Blob([Buffer.from(q.body.bytes, "base64")], {
+                                type: q.body.mime,
+                            }),
+                            q.body.name,
+                        );
+                    }
+                    const response = await s.fetch(q.url, {
+                        method: q.method,
+                        headers,
+                        body: payload,
+                        signal: AbortSignal.timeout(60000),
+                    });
+                    const limit = q.maxBytes || 16 * 1024 * 1024,
+                        chunks = [];
+                    let length = 0;
+                    if (response.body) {
+                        const reader = response.body.getReader();
+                        for (;;) {
+                            const { done, value: chunk } = await reader.read();
+                            if (done) break;
+                            length += chunk.length;
+                            if (length > limit) {
+                                await reader.cancel();
+                                throw Error("Response exceeds size limit");
+                            }
+                            chunks.push(Buffer.from(chunk));
+                        }
+                    }
+                    const bytes = Buffer.concat(chunks);
+                    value = {
+                        code: response.status,
+                        url: response.url,
+                        headers: Object.fromEntries(response.headers),
+                        body: q.binary
+                            ? bytes.toString("base64")
+                            : bytes.toString("utf8"),
+                    };
+                    break;
+                }
+                default:
+                    throw Error("Unknown operation");
+            }
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(value));
+        } catch (e) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: e.message }));
+        }
+    });
+    server.listen(0, "127.0.0.1", () =>
+        process.stdout.write(
+            JSON.stringify({ port: server.address().port }) + "\n",
+        ),
+    );
+    if (process.env.NODYSSEY_PARENT_PID)
+        setInterval(() => {
+            try {
+                process.kill(Number(process.env.NODYSSEY_PARENT_PID), 0);
+            } catch {
+                app.quit();
+            }
+        }, 3000);
+});
+app.on("window-all-closed", () => {});

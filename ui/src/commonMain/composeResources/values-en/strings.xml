@@ -384,7 +384,7 @@
     <string name="settings_clear_cache">Clear the cache</string>
     <string name="settings_clear_cache_size">Images and posts, %1$s</string>
     <string name="settings_about">About</string>
-    <string name="settings_about_app">About Nodyssey</string>
+    <string name="settings_about_app">About SeekTop</string>
     <string name="settings_update_on_launch">Check for updates at launch</string>
     <string name="settings_update_dev_channel">Offer dev builds</string>
     <string name="settings_update_dev_channel_hint">May be unstable</string>
@@ -510,10 +510,10 @@
     <string name="network_check_failed">Failed (%1$s)</string>
     <string name="network_check_hint_title">How to read this report</string>
     <string name="network_check_hint_layers">Large DNS, connect and first-byte numbers next to a fast download mean waiting; all three small with a slow download means the bandwidth is capped. A progress bar crawling along is the latter.</string>
-    <string name="network_check_hint_custom_tab">Links in posts are handed to the app named above, and the traffic counts as that app’s, not Nodyssey’s. When it is not the same app as the default browser, that gap is usually the whole story behind “slow in the app, fast in the browser” — a VPN’s per-app rules go by app.</string>
+    <string name="network_check_hint_custom_tab">Links in posts are handed to the app named above, and the traffic counts as that app’s, not SeekTop’s. When it is not the same app as the default browser, that gap is usually the whole story behind “slow in the app, fast in the browser” — a VPN’s per-app rules go by app.</string>
     <string name="network_check_hint_scope">The forum and the update source are probed separately: one side slow means that route is the problem; both slow means this device’s connection.</string>
 
-    <string name="about_title">About Nodyssey</string>
+    <string name="about_title">About SeekTop</string>
     <string name="about_community_title">About · community</string>
     <string name="about_community_hint">Forum facts, ways to get in touch, sister sites</string>
     <string name="about_version">Version %1$s (%2$d)</string>
@@ -537,7 +537,7 @@
     <string name="about_update_cancel">Cancel</string>
     <string name="about_update_install">Install now</string>
     <string name="about_update_open_release">See it on GitHub ↗</string>
-    <string name="about_update_permission_hint">The system needs you to allow Nodyssey to install apps. Once is enough.</string>
+    <string name="about_update_permission_hint">The system needs you to allow SeekTop to install apps. Once is enough.</string>
     <string name="about_update_permission_action">Turn it on</string>
     <string name="about_install_failed_blocked">The system stopped this install — a store safety check or a device policy, most likely.</string>
     <string name="about_install_failed_conflict">It conflicts with the installed version: a different signature, or an older one. Uninstalling first should get past it.</string>
@@ -553,10 +553,10 @@
     <string name="about_project_home">Project home</string>
     <string name="about_feedback">Report a problem</string>
     <string name="about_feedback_hint">Open a GitHub issue, or message the developer on the forum</string>
-    <string name="about_app_channel">Telegram channel</string>
-    <string name="about_app_channel_hint">Releases, and what changed in them</string>
-    <string name="about_app_group">Telegram group</string>
-    <string name="about_app_group_hint">Talk about Nodyssey, report bugs, follow the dev builds</string>
+    <string name="about_app_channel">Releases</string>
+    <string name="about_app_channel_hint">View SeekTop releases on GitHub</string>
+    <string name="about_app_group">Discussion and feedback</string>
+    <string name="about_app_group_hint">Report problems and suggestions in the SeekTop repository</string>
     <string name="about_changelog">Changelog</string>
     <string name="about_help">How to use this app</string>
     <string name="about_help_hint">The things that look like bugs, and the ones nobody stumbles onto</string>
@@ -583,7 +583,7 @@
     <string name="about_crash_export">Export the crash log</string>
     <string name="about_crash_export_hint">Last crash: %1$s · v%2$s. The log stays on this device; whether it goes to the developer is your call</string>
     <string name="about_crash_clear">Clear the crash record</string>
-    <string name="about_unofficial_notice">Nodyssey is an unofficial, open-source client for the %1$s forum and has no affiliation with the people who run the site; posts and comments remain the copyright of the forum and their authors.</string>
+    <string name="about_unofficial_notice">SeekTop is an unofficial, open-source client for the %1$s forum and has no affiliation with the people who run the site; posts and comments remain the copyright of the forum and their authors.</string>
 
     <string name="privacy_title">Privacy policy</string>
     <string name="privacy_open_original">Open the original in a browser</string>
@@ -601,7 +601,7 @@
     <string name="changelog_failed_hint">The changelog is read from the project’s published releases; try again in a while.</string>
     <string name="changelog_all_releases">See all releases ↗</string>
 
-    <string name="licenses_summary">Nodyssey is GPL-3.0 open-source software and uses the main open-source components below. Tap an entry for its source and licence.</string>
+    <string name="licenses_summary">SeekTop is derived from Nodyssey under GPL-3.0, retaining upstream copyright notices, and uses the open-source components below. Open an entry for source and license details.</string>
     <string name="licenses_app_section">This app</string>
     <string name="licenses_dependencies_section">Main runtime dependencies</string>
     <string name="licenses_lockfile_note">The complete and exact transitive versions are whatever app/gradle.lockfile in the source repository says.</string>
@@ -1324,7 +1324,7 @@
     <string name="onboarding_done">Get started</string>
     <string name="onboarding_progress">Screen %1$d of %2$d</string>
 
-    <string name="onboarding_welcome_title">Welcome to Nodyssey</string>
+    <string name="onboarding_welcome_title">Welcome to SeekTop</string>
     <string name="onboarding_welcome_body">An unofficial client for %1$s</string>
 
     <string name="onboarding_one_hand_title">One-handed mode</string>

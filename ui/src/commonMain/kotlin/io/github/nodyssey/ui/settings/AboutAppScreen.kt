@@ -234,7 +234,7 @@ fun AboutAppScreen(
                 )
                 AboutRow(
                     title = stringResource(Res.string.about_project_home),
-                    subtitle = "github.com/5151561/nodyssey",
+                    subtitle = "github.com/ccwan-mamoon/seektop",
                     icon = PlazaIcons.Code,
                     external = true,
                     onClick = { onOpenUri(AppLinks.PROJECT_HOME) },
@@ -587,30 +587,13 @@ private fun UnofficialNotice() {
 private const val UPDATE_NOTES_MAX_LINES = 8
 
 internal object AppLinks {
-    const val PROJECT_HOME = "https://github.com/5151561/nodyssey"
-    const val ISSUES = "https://github.com/5151561/nodyssey/issues"
-    const val RELEASES = "https://github.com/5151561/nodyssey/releases"
+    const val PROJECT_HOME = "https://github.com/ccwan-mamoon/seektop"
+    const val ISSUES = "$PROJECT_HOME/issues"
+    const val RELEASES = "$PROJECT_HOME/releases"
 
-    /**
-     * The project's own Telegram channel — where `release.yml` posts every build.
-     *
-     * One-way, so it is the row for people who only want to hear that a version exists; [TELEGRAM_GROUP]
-     * is the one where anything is discussed back.
-     */
-    const val TELEGRAM_CHANNEL = "https://t.me/nodyssey_official"
-
-    /**
-     * The project's own Telegram group — Nodyssey's, not the forum's.
-     *
-     * NodeSeek's channel and group are on 关于 · 社区 under [CommunityLinks]; this one is where the app
-     * itself is discussed, so it belongs beside 项目主页 and 问题反馈 instead. The invite link is the
-     * published form of it: the group has no public username to link by name.
-     *
-     * Deliberately *not* the invite link the README publishes, and the two must not be merged: Telegram
-     * counts joins per invite link, and keeping this one to itself is what makes "came in from the app"
-     * a number that can be read at all.
-     */
-    const val TELEGRAM_GROUP = "https://t.me/+0mY1RaPADJMwNTdl"
+    // Desktop support lives in the fork repository; keep the existing screen hooks.
+    const val TELEGRAM_CHANNEL = RELEASES
+    const val TELEGRAM_GROUP = ISSUES
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 800, name = "f1 关于 Nodyssey")

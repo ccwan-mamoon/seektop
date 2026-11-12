@@ -1,73 +1,57 @@
-<div align="center">
+# SeekTop · 寻桌
 
-# Nodyssey
+NodeSeek 的非官方 Windows 桌面客户端，基于 [Nodyssey](https://github.com/5151561/nodyssey) 二次开发与桌面移植。
 
-[NodeSeek](https://www.nodeseek.com/) 的非官方开源 Android 客户端，Kotlin + Jetpack Compose，帖子渲染为原生 Compose 内容。
+采用 Kotlin Multiplatform 和 Compose，复用上游界面、导航、富文本、内容解析及共享业务逻辑，并补充 Windows 平台实现。项目采用 **GPL-3.0**，保留上游版权与贡献归属。与 NodeSeek 官方及 Nodyssey 上游维护者无隶属或背书关系。
 
-> 因个人原因项目整体暂停维护一段时间。预计12月底回归。期间无暇顾及issue和pr。
+## 下载与启动
 
-[![Release](https://img.shields.io/github/v/release/5151561/nodyssey?include_prereleases&sort=semver&label=Release&color=2C6E7F)](https://github.com/5151561/nodyssey/releases)
-[![Downloads](https://img.shields.io/github/downloads/5151561/nodyssey/total?label=Downloads&color=2C6E7F)](https://github.com/5151561/nodyssey/releases)
-[![Stars](https://img.shields.io/github/stars/5151561/nodyssey?style=flat&logo=github&label=Stars)](https://github.com/5151561/nodyssey/stargazers)
-[![CI](https://img.shields.io/github/actions/workflow/status/5151561/nodyssey/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white)](https://github.com/5151561/nodyssey/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/5151561/nodyssey?label=License)](LICENSE)
+在本仓库 [Releases](https://github.com/ccwan-mamoon/seektop/releases) 下载 `SeekTop-0.1.0-windows-x64.zip`，解压整个目录后双击 **`SeekTop.exe`**。请保留完整目录；无需另外安装 Java、Node.js 或 Python。
 
-[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://github.com/5151561/nodyssey/releases)
-[![Kotlin](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Compose](https://img.shields.io/badge/Jetpack_Compose-M3_Expressive-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
+这是首个 Windows 移植原型。发布页应标记为 **Pre-release**。
 
-[![Website](https://img.shields.io/badge/宣传页-nodyssey-2C6E7F?logo=githubpages&logoColor=white)](https://5151561.github.io/nodyssey/)
-[![Telegram Channel](https://img.shields.io/badge/Telegram-Channel-26A5E4?logo=telegram&logoColor=white)](https://t.me/nodyssey_official)
-[![Telegram Group](https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white)](https://t.me/+97ANIwVaCYk1MjQ1)
+## 已验证与当前范围
 
-<img src="docs/screenshots/post-list-light.png" width="200" alt="帖子列表" />
-<img src="docs/screenshots/post-detail-dark.png" width="200" alt="帖子详情" />
-<img src="docs/screenshots/notifications-light.png" width="200" alt="消息通知" />
-<img src="docs/screenshots/profile-light.png" width="200" alt="我的" />
+- 原版宽屏双栏首页、真实帖子列表、正文、评论和头像显示已在 Windows 窗口中验证。
+- 共享业务与桌面模块共 **381 项 JVM 测试通过**，源码格式检查通过。
+- 浏览器桥接的鉴权、Cookie 域隔离、清除和代理重置检查通过。
+- 登录请使用“改用网页登录”，完成后在登录窗口选择“完成并返回应用”。登录后的发帖、回复、点赞、签到和转账等操作未实际提交验证。
+- Windows 自动更新、系统推送、头像更换、图片保存、系统分享和退出应用后的后台下载尚未接入。离线 Wi-Fi 限制尚未适配 Windows 网络计费状态。
 
-</div>
+应用数据保存在 `%LOCALAPPDATA%/SeekTop`。请勿将登录数据、Cookie、令牌或个人数据库上传到仓库。
 
-## 下载
+## 来源与修改
 
-到 [Releases](https://github.com/5151561/nodyssey/releases) 下载最新 APK，应用内也可以检查更新。各版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+上游：[`5151561/nodyssey`](https://github.com/5151561/nodyssey)，基线提交 `495997983257a83d47a3c01ffbbe4fbe7205db14`。
 
-> **关于 iOS**：项目只维护 Android。。
+桌面移植修改始于 **2026-11-12**，由本仓库维护者维护。新增 `:desktop` 壳、JVM 数据库初始化、Chromium 登录与网络共享会话、桌面文件选择及导入导出适配。代码包名与上游模块名保留，便于核对来源和后续同步。
 
-## 功能
+完整说明见 [NOTICE.md](NOTICE.md)。上游原始 README、更新记录、贡献指南和工作流保存在 [docs/upstream](docs/upstream/)。本仓库的问题和建议请提交到本仓库 Issues。
 
-- **浏览与互动**：发帖、评论、编辑；点赞 / 反对 / 投喂鸡腿、收藏、签到；投票帖阅读与投票
-- **消息与社交**：通知与未读数、私信、关注 / 粉丝、用户空间
-- **账号**：鸡腿与星辰流水、星辰转账与收款码、等级进度、账号设置
-- **阅读体验**：离线缓存、已读标记、浏览历史与阅读位置、图片预览 / 保存 / 分享、六种图床上传
-- **界面**：Material 3 Expressive，宽屏自动换侧边栏；简体 / 繁體 / English 三语
+## 从源码构建
 
-## 构建
+准备 JDK 21 和 Python 3.11+，使用仓库 Gradle wrapper：
 
-需要 JDK 21 和 Android SDK 37。
-
-```bash
-./gradlew :app:assembleDebug
+```powershell
+python desktop/provision-browser.py
+./gradlew :desktop:compileKotlinJvm
+./gradlew :desktop:jvmTest :shared:jvmTest :designsys:jvmTest :richtext:jvmTest spotlessCheck
+./gradlew :desktop:createDistributable
 ```
 
-模块划分和架构约定见 [docs/architecture.md](docs/architecture.md) 与 [docs/README.md](docs/README.md)。
+运行时下载较慢时可指定镜像：
 
-## 参与
+```powershell
+python desktop/provision-browser.py --mirror https://npmmirror.com/mirrors/electron
+```
 
-- 反馈问题：[Issues](https://github.com/5151561/nodyssey/issues/new/choose)，请带上 App 版本、机型和 Android 版本
-- 用法提问：[Telegram 群组](https://t.me/+97ANIwVaCYk1MjQ1)
-- 提 PR 前请先读 [CONTRIBUTING.md](CONTRIBUTING.md)
+应用目录位于 `desktop/build/compose/binaries/main/app/SeekTop`。更多平台实现和本机打包说明见 [desktop/README.md](desktop/README.md)。版本目录和 Gradle 锁文件应一同提交。
+
+## 许可与第三方组件
+
+本项目按 [GNU GPL v3.0](LICENSE) 发布。分发修改版时请保留版权和许可声明、注明修改，并提供对应源码及构建脚本。Electron/Chromium、Java 及其他组件保留各自的许可证，详见 [NOTICE.md](NOTICE.md)。
 
 ## 致谢
 
-- [tyrad/nodeseek](https://github.com/tyrad/nodeseek)（iOS 客户端，MIT）—— 站点结构的逆向参考
-- [mrzhiin/seekmate](https://github.com/mrzhiin/seekmate)（React Native 客户端，MIT）—— 部分 JSON 端点的发现来源
-
-本项目独立实现，不共享代码。
-
-## 说明
-
-本项目与 NodeSeek 官方无关，是社区自制客户端。请求频率保持克制，不做自动化刷分；仓库中不保存任何 Cookie 或凭据。
-
-## 许可
-
-[GPL-3.0](LICENSE)
+- [Nodyssey 作者及贡献者](https://github.com/5151561/nodyssey)：本桌面移植的代码基础。
+- 上游所列的相关项目与开源组件：详见 [上游 README](docs/upstream/README.md)。
