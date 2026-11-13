@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: Publish the Windows package and matching source as a prerelease
+        description: Publish the Windows package and matching source
         required: true
         type: boolean
         default: false
@@ -54,7 +54,7 @@ jobs:
           name: SeekTop-${{ env.SEEKTOP_VERSION }}-windows-x64
           path: release/*
           if-no-files-found: error
-      - name: Publish prerelease
+      - name: Publish GitHub Release
         if: ${{ inputs.publish_release }}
         env:
           GH_TOKEN: ${{ github.token }}

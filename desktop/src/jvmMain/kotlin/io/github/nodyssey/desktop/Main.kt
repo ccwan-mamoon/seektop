@@ -47,7 +47,7 @@ private fun launchDesktop() {
     val windowIcon = javax.imageio.ImageIO.read(checkNotNull(object {}.javaClass.getResource("/seektop.png")))
     try {
         application {
-            Window(onCloseRequest = ::exitApplication, title = "SeekTop · 寻桌 — 本地验收版", state = rememberWindowState(width = 1280.dp, height = 860.dp)) {
+            Window(onCloseRequest = ::exitApplication, title = "SeekTop · 寻桌 ${container.appVersion.name}", state = rememberWindowState(width = 1280.dp, height = 860.dp)) {
                 SideEffect {
                     window.iconImage = windowIcon
                     container.desktopUpdateInstaller.requestExit = { exitApplication() }

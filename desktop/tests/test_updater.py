@@ -131,7 +131,7 @@ if args.app_dir:
     old = subprocess.Popen([str(target / "SeekTop.exe")], env=env)
     # Process lifecycle control targets only children of the launcher we just created.
     powershell = "powershell.exe"
-    query = f"Get-CimInstance Win32_Process -Filter \"ParentProcessId={old.pid} AND Name='SeekTop.exe'\" | ForEach-Object {{ $p=Get-Process -Id $_.ProcessId; if ($p.MainWindowTitle -like '*本地验收版*') {{ $p.Id }} }}"
+    query = f"Get-CimInstance Win32_Process -Filter \"ParentProcessId={old.pid} AND Name='SeekTop.exe'\" | ForEach-Object {{ $p=Get-Process -Id $_.ProcessId; if ($p.MainWindowTitle -like 'SeekTop*0.4.*') {{ $p.Id }} }}"
     child = None
     for _ in range(40):
         result = subprocess.check_output([powershell, "-NoProfile", "-Command", query], text=True).strip()
@@ -157,7 +157,7 @@ if args.app_dir:
     assert not (profile / "SeekTop/startup-error.log").exists()
     # Close only the restarted app in this exact isolated installation directory.
     path = str(target / "SeekTop.exe").replace("'", "''")
-    close = f"Get-CimInstance Win32_Process -Filter \"Name='SeekTop.exe'\" | Where-Object {{ $_.ExecutablePath -eq '{path}' }} | ForEach-Object {{ $p=Get-Process -Id $_.ProcessId; if ($p.MainWindowTitle -like '*本地验收版*') {{ $p.CloseMainWindow() | Out-Null }} }}"
+    close = f"Get-CimInstance Win32_Process -Filter \"Name='SeekTop.exe'\" | Where-Object {{ $_.ExecutablePath -eq '{path}' }} | ForEach-Object {{ $p=Get-Process -Id $_.ProcessId; if ($p.MainWindowTitle -like 'SeekTop*0.4.*') {{ $p.CloseMainWindow() | Out-Null }} }}"
     subprocess.run([powershell, "-NoProfile", "-Command", close], check=True)
     print("PASS: actual packaged SeekTop exited, upgraded 0.4.0 -> fixture 0.4.1, restarted and acknowledged startup", flush=True)
 print("Updater smoke fixtures: " + str(root), flush=True)
