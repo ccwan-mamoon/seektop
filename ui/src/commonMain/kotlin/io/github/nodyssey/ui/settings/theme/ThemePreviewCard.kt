@@ -4,9 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
@@ -60,6 +63,10 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun ThemePreviewCard(modifier: Modifier = Modifier) {
+    if (io.github.nodyssey.LocalDesktopExperience.current) {
+        DesktopThemePreview(modifier)
+        return
+    }
     val scheme = MaterialTheme.colorScheme
     val layers = LocalPlazaLayers.current
     val shape = LayerCardShape
@@ -155,4 +162,28 @@ private fun PreviewPill(
             .padding(horizontal = horizontal)
             .wrapContentHeight(Alignment.CenterVertically),
     )
+}
+
+@Composable
+private fun DesktopThemePreview(modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Surface(modifier.fillMaxWidth(), color = colors.surface, shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp), border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant)) {
+        Row(Modifier.height(210.dp)) {
+            Column(Modifier.width(140.dp).fillMaxHeight().background(colors.surfaceContainerLow).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                androidx.compose.foundation.Image(io.github.nodyssey.seekTopIconPainter(), null, Modifier.size(32.dp))
+                Text("SeekTop", style = MaterialTheme.typography.titleSmall)
+                Surface(color = colors.primaryContainer, shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)) { Text(stringResource(Res.string.settings_theme_preview_primary), color = colors.onPrimaryContainer, modifier = Modifier.padding(8.dp)) }
+            }
+            Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(Res.string.settings_theme_preview_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Button(onClick = {}) { Text(stringResource(Res.string.settings_theme_preview_accent)) }
+                }
+                repeat(3) {
+                    Text(stringResource(Res.string.settings_theme_preview_secondary), style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider(color = colors.outlineVariant)
+                }
+            }
+        }
+    }
 }

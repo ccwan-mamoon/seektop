@@ -297,7 +297,7 @@ fun BookmarksScreen(
             }
         },
         floatingActionButton = {
-            if (!state.inSelection && state.offlineAvailable && state.pendingDownloadCount > 0) {
+            if (!io.github.nodyssey.LocalDesktopExperience.current && !state.inSelection && state.offlineAvailable && state.pendingDownloadCount > 0) {
                 PlazaExtendedFab(
                     text = stringResource(Res.string.bookmarks_download_all, state.pendingDownloadCount),
                     icon = PlazaIcons.DownloadForOffline,
@@ -314,6 +314,9 @@ fun BookmarksScreen(
             // the title heads this list rather than sitting a few hundred dp in from it.
             Column(Modifier.fillMaxSize().readableWidth()) {
                 if (!state.inSelection) {
+                    if (io.github.nodyssey.LocalDesktopExperience.current && state.offlineAvailable && state.pendingDownloadCount > 0) {
+                        TextButton(onClick = onDownloadPending) { Text(stringResource(Res.string.bookmarks_download_all, state.pendingDownloadCount)) }
+                    }
                     BookmarkFilterRow(state = state, onFilter = onFilter)
                     // Not while a selection is up: that mode has its own toolbar and its own bar, and
                     // the strip is about a list the reader is reading rather than one they are acting on.

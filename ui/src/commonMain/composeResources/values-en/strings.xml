@@ -1311,7 +1311,7 @@
     <string name="sign_in_verify_not_required">No human check needed this time</string>
 
     <string name="sign_in_2fa_title">Two-step verification</string>
-    <string name="sign_in_2fa_body">Open your authenticator and enter the current code for %1$s. Codes change every 30 seconds.</string>
+    <string name="sign_in_2fa_body">Open your authenticator and enter the current code for %1$s. Codes change at their configured intervals.</string>
     <string name="sign_in_2fa_countdown">%1$d seconds left on this code</string>
     <string name="sign_in_2fa_submit">Verify and sign in</string>
     <string name="sign_in_2fa_rejected">That code is wrong — try again</string>
@@ -1617,7 +1617,7 @@
     <string name="messages_scam_caution_general">Private message scams are common, and even high-level or older accounts may be compromised. Avoid advance payments, off-site chats, or unverified transfers, and use an official forum escrow for large trades.</string>
     <string name="desktop_workspace">Workspace</string>
     <string name="desktop_open_browser">Open in browser</string>
-    <string name="desktop_help_body">Use the sidebar for Home, Notifications and Account. Click a topic to read it in the right pane. The toolbar provides search, refresh and a new topic. Click a board to switch feeds, scroll with the mouse wheel, or use the page buttons below.</string>
+    <string name="desktop_help_body">Use the plus button by Boards to choose sidebar favorites. Click a post to open it; click again or close the reader to collapse it. Refresh icons are at the lower right of each pane; click a page number to jump.</string>
     <string name="desktop_board_previous">Scroll boards left</string>
     <string name="desktop_board_next">Scroll boards right</string>
     <string name="desktop_boards">Boards</string>
@@ -1629,4 +1629,29 @@
     <string name="desktop_verify_retry">Verify again</string>
     <string name="desktop_verify_unavailable">Verification unavailable. Restart the app.</string>
     <string name="desktop_sign_in_hint">Enter your account and password, then complete verification to sign in.</string>
+    <string name="desktop_search_login_required">NodeSeek search requires sign-in. This search will resume after you sign in.</string>
+    <string name="desktop_browser_loading">Opening the official sign-in and verification page…</string>
+    <string name="desktop_browser_failed">The page could not load. Please retry.</string>
+    <string name="desktop_verify_timeout">Verification timed out. Check your connection and retry, or use web sign-in.</string>
+    <string name="desktop_account_overview">Overview</string>
+    <string name="desktop_verify_title">Security verification</string>
+    <string name="desktop_verify_loading">Preparing security verification…</string>
+    <string name="desktop_manage_boards">Favorite boards</string>
+    <string name="desktop_boards_hint">Selected boards appear in the sidebar. Deselect to remove. The front page always remains.</string>
+    <string name="desktop_page_title">Go to page</string>
+    <string name="desktop_page_range">Enter a page from 1 to %1$d</string>
+    <string name="desktop_menu_collapse">Collapse menu</string>
+    <string name="desktop_menu_expand">Expand menu</string>
+    <string name="desktop_notify_description">While running or minimized, check interactions and messages at their configured intervals and update unread badges (sign-in required). New messages trigger Windows notifications. Checks stop when you exit. The first check records a baseline without notifying about old messages. Windows Do Not Disturb may hide alerts.</string>
+    <string name="desktop_notify_enable">Desktop notifications</string>
+    <string name="desktop_notify_categories">Message categories</string>
+    <string name="desktop_notify_subscriptions">Subscriptions</string>
+    <string name="desktop_notify_public_hint">Keywords and followed threads are checked at their configured intervals, including when signed out. Thread checks cover the first two pages sorted by latest reply; threads that leave this range between checks may be missed.</string>
+    <string name="desktop_notify_unavailable">System tray notifications are unavailable. Unread badges still update, but system alerts cannot be shown.</string>
+    <string name="desktop_notify_seconds">Every %1$d seconds</string>
+    <string name="desktop_notify_minutes">Every %1$d minutes</string>
+    <string name="desktop_update_action">Upgrade now</string>
+    <string name="desktop_update_title">Start upgrade?</string>
+    <string name="desktop_update_confirm">The app will download and verify the new version, exit, replace its files, and restart. Save unsent content first. Sign-in data and settings are kept, and the old application directory is backed up.</string>
+    <string name="desktop_update_install">Restart and upgrade</string>
 </resources>

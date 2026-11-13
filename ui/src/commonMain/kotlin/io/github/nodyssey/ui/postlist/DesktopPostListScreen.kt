@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
@@ -50,8 +51,10 @@ import io.github.nodyssey.ui.common.SiteErrorState
 import io.github.nodyssey.ui.common.shortMessage
 import io.github.nodyssey.ui.common.webViewUrl
 import io.github.nodyssey.ui.resources.Res
-import io.github.nodyssey.ui.resources.action_refresh
+import io.github.nodyssey.ui.resources.action_search
+import io.github.nodyssey.ui.resources.action_sign_in
 import io.github.nodyssey.ui.resources.desktop_open_browser
+import io.github.nodyssey.ui.resources.desktop_search_login_required
 import io.github.nodyssey.ui.resources.sort_by_post_time
 import io.github.nodyssey.ui.resources.sort_by_reply_time
 import io.github.nodyssey.ui.resources.tab_home
@@ -75,11 +78,20 @@ internal fun DesktopPostListScreen(
     refreshRequests: Int,
     modifier: Modifier = Modifier,
 ) {
+    val search = io.github.nodyssey.LocalDesktopSearch.current
+    val searchVm = search?.viewModel
+    val searchState = searchVm?.uiState?.collectAsStateWithLifecycle()?.value
     val scope = rememberCoroutineScope()
     var topRequest by rememberSaveable { mutableIntStateOf(0) }
     fun refreshFromTop() {
         topRequest++
-        if (state.startPage != 1) onGoToPage(1) else posts.refresh()
+        if (search?.active == true) {
+            if (searchState?.target == io.github.nodyssey.model.SearchTarget.USERS) searchVm?.retryUsers() else posts.refresh()
+        } else if (state.startPage != 1) {
+            onGoToPage(1)
+        } else {
+            posts.refresh()
+        }
         scope.launch { listState.scrollToItem(0) }
     }
     io.github.nodyssey.DesktopRefreshTarget(priority = 1, onRefresh = ::refreshFromTop)
@@ -108,17 +120,27 @@ internal fun DesktopPostListScreen(
             refreshFromTop()
         }
     }
-    var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var answeredSearch by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(search?.generation) {
+        val generation = search?.generation ?: 0
+        if (answeredSearch != generation) {
+            answeredSearch = generation
+            listState.scrollToItem(0)
+        }
+    }
+    var jumpOpen by remember { mutableStateOf(false) }
+    val selectedId = io.github.nodyssey.LocalDesktopSelectedPost.current
     val refresh = posts.loadState.refresh
     val error = (refresh as? LoadState.Error)?.error?.toSiteError()
     val page = if (listState.firstVisibleItemIndex < posts.itemCount) posts.peek(listState.firstVisibleItemIndex)?.page ?: state.startPage else state.startPage
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(state.selectedBoardTitle ?: stringResource(Res.string.tab_home), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
-            TextButton(onClick = { onSortChange(if (state.sort == FeedSort.LAST_REPLY) FeedSort.POST_TIME else FeedSort.LAST_REPLY) }) {
-                Text(stringResource(if (state.sort == FeedSort.LAST_REPLY) Res.string.sort_by_reply_time else Res.string.sort_by_post_time))
+            Text(if (search?.active == true) stringResource(io.github.nodyssey.ui.resources.Res.string.action_search) + " · " + search.submitted else state.selectedBoardTitle ?: stringResource(Res.string.tab_home), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+            if (search?.active != true) {
+                TextButton(onClick = { onSortChange(if (state.sort == FeedSort.LAST_REPLY) FeedSort.POST_TIME else FeedSort.LAST_REPLY) }) {
+                    Text(stringResource(if (state.sort == FeedSort.LAST_REPLY) Res.string.sort_by_reply_time else Res.string.sort_by_post_time))
+                }
             }
-            TextButton(onClick = ::refreshFromTop, enabled = refresh !is LoadState.Loading) { Text(stringResource(Res.string.action_refresh)) }
         }
         HorizontalDivider()
         if (refresh is LoadState.Loading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -130,12 +152,23 @@ internal fun DesktopPostListScreen(
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
+                search?.awaitingSignIn == true -> Column(Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(stringResource(Res.string.desktop_search_login_required), style = MaterialTheme.typography.bodyMedium)
+                    androidx.compose.material3.Button(onClick = onSignIn) { Text(stringResource(Res.string.action_sign_in)) }
+                }
+
+                search?.active == true && searchState?.target == io.github.nodyssey.model.SearchTarget.USERS -> io.github.nodyssey.ui.search.SearchResults(
+                    target = searchState.target, state = searchState, queryState = search.query,
+                    onPostClick = {}, onUserClick = search.onUserClick, postResults = null,
+                    onRetry = { searchVm?.retryUsers() }, onSignIn = onSignIn, onVerify = onVerify,
+                )
+
                 error != null && posts.itemCount == 0 -> SiteErrorState(error = error, onRetry = posts::refresh, onVerify = onVerify, onSignIn = onSignIn, onOpenBrowser = { onVerify(error.webViewUrl(NodeSeekSite.BASE_URL)) })
 
                 refresh is LoadState.NotLoading && posts.itemCount == 0 -> EmptyFeedState()
 
                 else -> DesktopScrollbars(listState) {
-                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(state = listState, contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 64.dp), modifier = Modifier.fillMaxSize()) {
                         items(posts.itemCount, key = posts.itemKey { it.summary.postId }) { index ->
                             val post = posts[index]
                             if (post == null) {
@@ -153,9 +186,8 @@ internal fun DesktopPostListScreen(
                                                 else -> MaterialTheme.colorScheme.surface
                                             },
                                         ).hoverable(interaction).clickable(interactionSource = interaction, indication = LocalIndication.current) {
-                                            selectedId = summary.postId
                                             onPostClick(post)
-                                        }.padding(horizontal = 16.dp, vertical = 16.dp),
+                                        }.padding(horizontal = 18.dp, vertical = 14.dp),
                                         verticalAlignment = Alignment.Top,
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
@@ -163,7 +195,7 @@ internal fun DesktopPostListScreen(
                                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                             Text(summary.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, fontWeight = if (post.isRead) FontWeight.Normal else FontWeight.SemiBold, color = if (post.isRead) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
                                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                Text(summary.authorName, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+                                                Text(summary.authorName, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                                 summary.categoryTitle?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
                                                 Icon(PlazaIcons.Reply, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                                 Text(summary.commentCount?.toString() ?: "—", style = MaterialTheme.typography.labelSmall)
@@ -183,12 +215,22 @@ internal fun DesktopPostListScreen(
                     }
                 }
             }
+            io.github.nodyssey.ui.common.DesktopRefreshButton(::refreshFromTop, Modifier.align(Alignment.BottomEnd).padding(16.dp), enabled = refresh !is LoadState.Loading)
         }
         HorizontalDivider()
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { onGoToPage((page - 1).coerceAtLeast(1)) }, enabled = page > 1) { Text("‹") }
-            Text("$page / ${state.totalPages}", style = MaterialTheme.typography.labelMedium)
-            TextButton(onClick = { onGoToPage((page + 1).coerceAtMost(state.totalPages)) }, enabled = page < state.totalPages) { Text("›") }
+        if (search?.active != true) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { onGoToPage((page - 1).coerceAtLeast(1)) }, enabled = page > 1) { Text("‹") }
+                TextButton(onClick = { jumpOpen = true }) { Text("$page / ${state.totalPages}", style = MaterialTheme.typography.labelMedium) }
+                TextButton(onClick = { onGoToPage((page + 1).coerceAtMost(state.totalPages)) }, enabled = page < state.totalPages) { Text("›") }
+            }
         }
+    }
+    if (jumpOpen) {
+        io.github.nodyssey.ui.common.DesktopPageJumpDialog(page, state.totalPages, onDismiss = { jumpOpen = false }, onGo = { target ->
+            jumpOpen = false
+            onGoToPage(target)
+            scope.launch { listState.scrollToItem(0) }
+        })
     }
 }

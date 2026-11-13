@@ -545,10 +545,12 @@ private fun VerificationBlock(verification: VerificationState, turnstile: @Compo
             turnstile()
             when (verification) {
                 VerificationState.Expired ->
-                    VerificationNotice(
-                        Icons.Default.Refresh,
-                        stringResource(Res.string.sign_in_verify_expired),
-                    )
+                    if (!io.github.nodyssey.LocalDesktopExperience.current) {
+                        VerificationNotice(
+                            Icons.Default.Refresh,
+                            stringResource(Res.string.sign_in_verify_expired),
+                        )
+                    }
 
                 VerificationState.NotRequired ->
                     VerificationNotice(

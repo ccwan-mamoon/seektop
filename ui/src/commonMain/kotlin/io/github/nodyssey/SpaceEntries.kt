@@ -35,6 +35,7 @@ import io.github.nodyssey.ui.space.UserSpaceViewModel
  */
 internal fun EntryProviderScope<NavKey>.spaceEntries(nav: StackEntryScope) = with(nav) {
     entry<UserSpaceKey> { key ->
+        val desktop = LocalDesktopExperience.current
         val viewModel: UserSpaceViewModel =
             viewModel(
                 // The landing tab is part of the identity: 我的主页 and 我的收藏 are the same
@@ -46,7 +47,7 @@ internal fun EntryProviderScope<NavKey>.spaceEntries(nav: StackEntryScope) = wit
         UserSpaceRoute(
             viewModel = viewModel,
             onBack = { backStack.removeLastOrNull() },
-            onPostClick = { postId, floor -> backStack.add(PostDetailKey(postId, floor)) },
+            onPostClick = { postId, floor -> if (desktop) backStack.toggleDesktopDetail(PostDetailKey(postId, floor)) else backStack.add(PostDetailKey(postId, floor)) },
             // The same conversation screen 私信 opens from the notification tab (board 7f).
             // It reads and writes this thread through the site's own message endpoints, so
             // there is nothing here the web view was needed for.
@@ -61,12 +62,13 @@ internal fun EntryProviderScope<NavKey>.spaceEntries(nav: StackEntryScope) = wit
     }
 
     entry<BookmarksKey> {
+        val desktop = LocalDesktopExperience.current
         val viewModel: BookmarksViewModel =
             viewModel(factory = BookmarksViewModel.factory(container))
         BookmarksRoute(
             viewModel = viewModel,
             onBack = { backStack.removeLastOrNull() },
-            onPostClick = { postId -> backStack.add(PostDetailKey(postId)) },
+            onPostClick = { postId -> if (desktop) backStack.toggleDesktopDetail(PostDetailKey(postId)) else backStack.add(PostDetailKey(postId)) },
             onOpenBrowser = openWebUrl,
             onSignIn = { backStack.add(SignInKey) },
             onVerify = { url ->
@@ -76,22 +78,24 @@ internal fun EntryProviderScope<NavKey>.spaceEntries(nav: StackEntryScope) = wit
     }
 
     entry<ReadHistoryKey> {
+        val desktop = LocalDesktopExperience.current
         val viewModel: ReadHistoryViewModel =
             viewModel(factory = ReadHistoryViewModel.factory(container))
         ReadHistoryRoute(
             viewModel = viewModel,
             onBack = { backStack.removeLastOrNull() },
-            onPostClick = { postId -> backStack.add(PostDetailKey(postId)) },
+            onPostClick = { postId -> if (desktop) backStack.toggleDesktopDetail(PostDetailKey(postId)) else backStack.add(PostDetailKey(postId)) },
         )
     }
 
     entry<MyTopicsKey> {
+        val desktop = LocalDesktopExperience.current
         val viewModel: MyTopicsViewModel =
             viewModel(factory = MyTopicsViewModel.factory(container))
         MyTopicsRoute(
             viewModel = viewModel,
             onBack = { backStack.removeLastOrNull() },
-            onPostClick = { postId -> backStack.add(PostDetailKey(postId)) },
+            onPostClick = { postId -> if (desktop) backStack.toggleDesktopDetail(PostDetailKey(postId)) else backStack.add(PostDetailKey(postId)) },
             onBrowseFeed = openHomeTab,
             // `/space` needs the session's cookies, so a wall here is cleared in the app's own web
             // view rather than in the cookie-less system browser.
@@ -102,13 +106,14 @@ internal fun EntryProviderScope<NavKey>.spaceEntries(nav: StackEntryScope) = wit
     }
 
     entry<MyCommentsKey> {
+        val desktop = LocalDesktopExperience.current
         val viewModel: MyCommentsViewModel =
             viewModel(factory = MyCommentsViewModel.factory(container))
         MyCommentsRoute(
             viewModel = viewModel,
             onBack = { backStack.removeLastOrNull() },
             // The floor rides along, so the thread opens on the comment rather than at its top.
-            onCommentClick = { postId, floor -> backStack.add(PostDetailKey(postId, floor)) },
+            onCommentClick = { postId, floor -> if (desktop) backStack.toggleDesktopDetail(PostDetailKey(postId, floor)) else backStack.add(PostDetailKey(postId, floor)) },
             onBrowseFeed = openHomeTab,
             onOpenBrowser = { backStack.add(WebKey(NodeSeekSite.BASE_URL, siteTitle, WebViewGoal.CHALLENGE)) },
             onSignIn = { backStack.add(SignInKey) },

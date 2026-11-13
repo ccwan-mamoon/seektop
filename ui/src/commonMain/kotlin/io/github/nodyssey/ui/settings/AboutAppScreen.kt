@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,7 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -38,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.nodyssey.LocalDesktopExperience
 import io.github.nodyssey.ui.common.describedAsLoading
 import io.github.nodyssey.ui.common.rememberFileSizeLabel
 import io.github.nodyssey.ui.common.rememberShareText
@@ -90,6 +94,11 @@ import io.github.nodyssey.ui.resources.about_update_retry
 import io.github.nodyssey.ui.resources.about_update_unknown
 import io.github.nodyssey.ui.resources.about_version
 import io.github.nodyssey.ui.resources.action_back
+import io.github.nodyssey.ui.resources.action_cancel
+import io.github.nodyssey.ui.resources.desktop_update_action
+import io.github.nodyssey.ui.resources.desktop_update_confirm
+import io.github.nodyssey.ui.resources.desktop_update_install
+import io.github.nodyssey.ui.resources.desktop_update_title
 import io.github.nodyssey.ui.resources.settings_licenses
 import io.github.plaza.core.TimeFormat
 import io.github.plaza.core.crash.CrashReport
@@ -170,6 +179,22 @@ fun AboutAppScreen(
     onClearCrashReport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val desktop = LocalDesktopExperience.current
+    var upgradeAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    upgradeAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { upgradeAction = null },
+            title = { Text(stringResource(Res.string.desktop_update_title)) },
+            text = { Text(stringResource(Res.string.desktop_update_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    upgradeAction = null
+                    action()
+                }) { Text(stringResource(Res.string.desktop_update_action)) }
+            },
+            dismissButton = { TextButton(onClick = { upgradeAction = null }) { Text(stringResource(Res.string.action_cancel)) } },
+        )
+    }
     val appBarState = rememberOneHandAppBarState()
     Scaffold(
         modifier = modifier.nestedScroll(appBarState.nestedScrollConnection),
@@ -210,9 +235,9 @@ fun AboutAppScreen(
                     download = state.update.download,
                     installFailure = state.update.installFailure,
                     needsInstallPermission = state.needsInstallPermission,
-                    onDownload = onDownloadUpdate,
+                    onDownload = { if (desktop) upgradeAction = onDownloadUpdate else onDownloadUpdate() },
                     onCancelDownload = onCancelDownload,
-                    onInstall = onInstallUpdate,
+                    onInstall = { if (desktop) upgradeAction = onInstallUpdate else onInstallUpdate() },
                     onGrantInstallPermission = onGrantInstallPermission,
                     onOpenRelease = { onOpenUri(release.htmlUrl) },
                 )
@@ -477,7 +502,7 @@ private fun UpdateCard(
 
                 is UpdateDownload.Ready ->
                     Button(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(Res.string.about_update_install))
+                        Text(stringResource(if (LocalDesktopExperience.current) Res.string.desktop_update_install else Res.string.about_update_install))
                     }
 
                 else -> {
@@ -500,7 +525,7 @@ private fun UpdateCard(
                                 if (download is UpdateDownload.Failed) {
                                     Res.string.about_update_retry
                                 } else {
-                                    Res.string.about_update_download
+                                    if (LocalDesktopExperience.current) Res.string.desktop_update_action else Res.string.about_update_download
                                 },
                             ),
                         )
@@ -596,7 +621,7 @@ internal object AppLinks {
     const val TELEGRAM_GROUP = ISSUES
 }
 
-@Preview(showBackground = true, widthDp = 360, heightDp = 800, name = "f1 关于 Nodyssey")
+@Preview(showBackground = true, widthDp = 360, heightDp = 800, name = "f1 关于 SeekTop")
 @Composable
 private fun AboutAppPreview() {
     PlazaTheme {
@@ -629,7 +654,7 @@ private fun AboutAppPreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 840, heightDp = 800, name = "f1 关于 Nodyssey · 840dp")
+@Preview(showBackground = true, widthDp = 840, heightDp = 800, name = "f1 关于 SeekTop · 840dp")
 @Composable
 private fun AboutAppWidePreview() {
     PlazaTheme {
@@ -651,7 +676,7 @@ private fun AboutAppWidePreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 360, heightDp = 800, name = "f1 关于 Nodyssey · 有新版本")
+@Preview(showBackground = true, widthDp = 360, heightDp = 800, name = "f1 关于 SeekTop · 有新版本")
 @Composable
 private fun AboutAppUpdatePreview() {
     PlazaTheme {

@@ -58,3 +58,5 @@ __pycache__/
 # Platform browser binary is provisioned separately; source is in desktop/browser.
 /desktop/browser-runtime/
 /desktop/resources/windows/browser-runtime/
+
+/desktop/resources/windows/SeekTopUpdater.exe

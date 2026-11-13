@@ -62,6 +62,8 @@ val LocalOneHandMode = staticCompositionLocalOf { true }
  */
 val LocalEinkMode = staticCompositionLocalOf { false }
 
+val LocalCompactLayout = androidx.compose.runtime.staticCompositionLocalOf { false }
+
 @Composable
 fun PlazaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -110,6 +112,8 @@ fun PlazaTheme(
      * have to pass both.
      */
     einkMode: Boolean = false,
+    compactLayout: Boolean = false,
+    colorSchemeOverride: androidx.compose.material3.ColorScheme? = null,
     content: @Composable () -> Unit,
 ) {
     // Asked for only when it could win: 角色预设 beats it, and building a scheme that is about to be
@@ -124,6 +128,8 @@ fun PlazaTheme(
     val baseScheme =
         when {
             einkMode -> EInkColorScheme
+
+            colorSchemeOverride != null -> colorSchemeOverride
 
             characterPalette != null -> characterPalette.colorScheme(darkTheme)
 
@@ -144,6 +150,7 @@ fun PlazaTheme(
     // The amber board-tag pair has no Material role, so it rides alongside the scheme rather than
     // being read from a global — otherwise it would not follow the theme.
     CompositionLocalProvider(
+        LocalCompactLayout provides compactLayout,
         LocalPlazaExtraColors provides
             when {
                 einkMode -> EInkExtraColors

@@ -5,15 +5,19 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.github.nodyssey.DesktopRefreshTargets
 import io.github.nodyssey.LocalDesktopExperience
 import io.github.nodyssey.LocalDesktopRefreshTargets
 import io.github.nodyssey.model.PostContent
+import io.github.plaza.core.richtext.InlineNode
+import io.github.plaza.core.richtext.RichNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -31,7 +35,7 @@ class DesktopDetailRefreshTest {
                 CompositionLocalProvider(LocalDesktopExperience provides true, LocalDesktopRefreshTargets provides targets) {
                     PostDetailScreen(state, "https://www.nodeseek.com/post-7-9", {}, {}, {}, {}, {}, onRefreshPage = { page ->
                         requestedPage = page
-                        state = state.copy(firstLoadedPage = page, lastLoadedPage = page, commentPages = List(80) { page }, body = comments[0].copy(floor = "0"))
+                        state = state.copy(firstLoadedPage = page, lastLoadedPage = page, commentPages = List(80) { page }, body = comments[0].copy(floor = "0", nodes = (1..40).map { RichNode.Paragraph(listOf(InlineNode.Text("Paragraph $it: this is selectable content for mouse drag regression. ".repeat(3)))) }))
                     }, onVerify = {})
                 }
             }
@@ -43,5 +47,13 @@ class DesktopDetailRefreshTest {
         waitForIdle()
         assertEquals(1, requestedPage)
         assertEquals(0f, onNode(hasScrollAction()).fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value())
+        onNode(hasScrollAction()).performMouseInput {
+            moveTo(center)
+            press()
+            repeat(5) { moveBy(Offset(0f, -40f), delayMillis = 20) }
+            release()
+        }
+        waitForIdle()
+        assertTrue(onNode(hasScrollAction()).fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() > 0f, "Dragging rich text must scroll the desktop reader")
     }
 }

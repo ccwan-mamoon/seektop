@@ -128,6 +128,12 @@ app.whenReady().then(() => {
                 case "/verify":
                     value = await verification.verify(q);
                     break;
+                case "/verification-window":
+                    value = verification.windowHandle(q.id);
+                    break;
+                case "/verification-show":
+                    value = verification.show(q.id);
+                    break;
                 case "/verification-close":
                     verification.close(q.id);
                     value = {};
@@ -162,16 +168,23 @@ app.whenReady().then(() => {
                     login.webContents.setWindowOpenHandler(() => ({
                         action: "deny",
                     }));
-                    login.webContents.on("will-navigate", (e, url) => {
-                        if (!allowed(url)) e.preventDefault();
+                    login.webContents.on("will-navigate", (event) => {
+                        if (!allowed(event.url)) event.preventDefault();
+                    });
+                    login.webContents.on("will-redirect", (event) => {
+                        if (event.isMainFrame !== false && !allowed(event.url)) event.preventDefault();
                     });
                     const closed = new Promise((resolve) =>
                         login.once("closed", resolve),
                     );
-                    login.loadURL(q.url).catch(() => {});
-                    await closed;
-                    login = null;
-                    await forum.cookies.flushStore();
+                    try {
+                        await login.loadURL(q.url);
+                        await closed;
+                    } finally {
+                        if (login && !login.isDestroyed()) login.destroy();
+                        login = null;
+                        await forum.cookies.flushStore();
+                    }
                     value = {};
                     break;
                 }
@@ -184,7 +197,9 @@ app.whenReady().then(() => {
                         throw Error(
                             "Forum session cannot be sent to another host",
                         );
-                    const headers = { ...q.headers };
+                    // Chromium owns fetch metadata; forwarding mobile Sec-Fetch-* values makes
+                    // session.fetch reject otherwise valid XHRs with ERR_INVALID_ARGUMENT.
+                    const headers = Object.fromEntries(Object.entries(q.headers || {}).filter(([name]) => !/^sec-fetch-/i.test(name)));
                     if (
                         q.forum &&
                         !Object.keys(headers).some(
@@ -234,7 +249,7 @@ app.whenReady().then(() => {
                     const bytes = Buffer.concat(chunks);
                     value = {
                         code: response.status,
-                        url: response.url,
+                        url: response.url || q.url,
                         headers: Object.fromEntries(response.headers),
                         body: q.binary
                             ? bytes.toString("base64")

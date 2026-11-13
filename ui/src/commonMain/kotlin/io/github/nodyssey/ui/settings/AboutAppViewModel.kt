@@ -129,7 +129,7 @@ class AboutAppViewModel(
 
 data class AboutAppUiState(
     /** What this build calls itself — see [AppVersion.label] for why it is not a string resource. */
-    val appName: String = "Nodyssey",
+    val appName: String = "SeekTop",
     val versionName: String = "—",
     val versionCode: Long = 0L,
     val update: AppUpdateState = AppUpdateState(),

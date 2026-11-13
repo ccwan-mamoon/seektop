@@ -15,10 +15,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.nodyssey.LocalDesktopExperience
 import io.github.nodyssey.ui.common.rememberFileSizeLabel
 import io.github.nodyssey.ui.resources.Res
 import io.github.nodyssey.ui.resources.about_update_download
 import io.github.nodyssey.ui.resources.about_update_prerelease_hint
+import io.github.nodyssey.ui.resources.desktop_update_action
+import io.github.nodyssey.ui.resources.desktop_update_confirm
 import io.github.nodyssey.ui.resources.update_reminder_later
 import io.github.nodyssey.ui.resources.update_reminder_size
 import io.github.nodyssey.ui.resources.update_reminder_title
@@ -65,6 +68,7 @@ fun UpdateReminderDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                if (LocalDesktopExperience.current) Text(stringResource(Res.string.desktop_update_confirm))
                 // A test build says so before the 下载并安装 button, not after: it is the one thing
                 // about this release the reader cannot get from the notes, which a dev tag does not
                 // have — `release.yml` gives it a placeholder line instead of a CHANGELOG section.
@@ -101,7 +105,7 @@ fun UpdateReminderDialog(
         },
         confirmButton = {
             TextButton(onClick = onDownload) {
-                Text(stringResource(Res.string.about_update_download))
+                Text(stringResource(if (LocalDesktopExperience.current) Res.string.desktop_update_action else Res.string.about_update_download))
             }
         },
         dismissButton = {

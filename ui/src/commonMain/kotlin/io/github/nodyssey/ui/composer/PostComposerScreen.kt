@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -347,23 +348,49 @@ fun PostComposerScreen(
         } else if (state.viewMode == ComposerViewMode.PREVIEW) {
             PreviewContent(state = state, modifier = Modifier.padding(padding))
         } else {
-            EditorContent(
-                state = state,
-                titleState = titleState,
-                bodyState = bodyState,
-                onBoardSelect = onBoardSelect,
-                onPermissionSelect = onPermissionSelect,
-                onPickImages = onPickImages,
-                onRemoveAttachment = onRemoveAttachment,
-                onRetryAttachment = onRetryAttachment,
-                onToolbarChange = onToolbarChange,
-                onToolbarReset = onToolbarReset,
-                onCreateVote = onCreateVote,
-                onDismissVoteCreation = onDismissVoteCreation,
-                payeeUid = payeeUid,
-                onInsertReceiveCode = onInsertReceiveCode,
-                modifier = Modifier.paddingWithKeyboard(padding),
-            )
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.paddingWithKeyboard(padding).fillMaxSize()) {
+                if (io.github.nodyssey.LocalDesktopExperience.current && maxWidth >= 960.dp) {
+                    Row(Modifier.fillMaxSize()) {
+                        EditorContent(
+                            state = state,
+                            titleState = titleState,
+                            bodyState = bodyState,
+                            onBoardSelect = onBoardSelect,
+                            onPermissionSelect = onPermissionSelect,
+                            onPickImages = onPickImages,
+                            onRemoveAttachment = onRemoveAttachment,
+                            onRetryAttachment = onRetryAttachment,
+                            onToolbarChange = onToolbarChange,
+                            onToolbarReset = onToolbarReset,
+                            onCreateVote = onCreateVote,
+                            onDismissVoteCreation = onDismissVoteCreation,
+                            payeeUid = payeeUid,
+                            onInsertReceiveCode = onInsertReceiveCode,
+                            modifier = Modifier.weight(1f),
+                        )
+                        androidx.compose.material3.VerticalDivider(Modifier.fillMaxHeight())
+                        PreviewContent(state, Modifier.weight(1f))
+                    }
+                } else {
+                    EditorContent(
+                        state = state,
+                        titleState = titleState,
+                        bodyState = bodyState,
+                        onBoardSelect = onBoardSelect,
+                        onPermissionSelect = onPermissionSelect,
+                        onPickImages = onPickImages,
+                        onRemoveAttachment = onRemoveAttachment,
+                        onRetryAttachment = onRetryAttachment,
+                        onToolbarChange = onToolbarChange,
+                        onToolbarReset = onToolbarReset,
+                        onCreateVote = onCreateVote,
+                        onDismissVoteCreation = onDismissVoteCreation,
+                        payeeUid = payeeUid,
+                        onInsertReceiveCode = onInsertReceiveCode,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
         }
     }
 

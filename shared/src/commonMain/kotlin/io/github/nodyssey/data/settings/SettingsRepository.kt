@@ -101,11 +101,13 @@ class SettingsRepository(
                     // store (a renamed slug, a bad write) must not silently thin out the feed.
                     .filter { it in OPTIONAL_HOME_BOARD_SLUGS }
                     .toSet(),
+                desktopBoardSlugs = preferences[KEY_DESKTOP_BOARDS]?.let(::decodeValues) ?: listOf("daily", "tech"),
                 homeBoardOrder = decodeValues(preferences[KEY_HOME_BOARD_ORDER]),
                 disabledHomeBoards = decodeValues(preferences[KEY_DISABLED_HOME_BOARDS]).toSet(),
                 postToolbarActions = decodeValues(preferences[KEY_POST_TOOLBAR]),
                 replyToolbarActions = decodeValues(preferences[KEY_REPLY_TOOLBAR]),
                 messageToolbarActions = decodeValues(preferences[KEY_MESSAGE_TOOLBAR]),
+                desktopNotificationSeconds = DesktopNotificationKind.entries.associateWith { kind -> kind.normalize(preferences[intPreferencesKey("desktop_notify_${kind.storageName}_seconds")] ?: kind.defaultSeconds) },
                 notificationsEnabled = preferences[KEY_NOTIFICATIONS_ENABLED] ?: false,
                 notificationPollMinutes =
                 (preferences[KEY_NOTIFICATION_POLL_MINUTES] ?: DEFAULT_POLL_MINUTES)
@@ -294,6 +296,9 @@ class SettingsRepository(
     suspend fun setUpdateDevChannel(enabled: Boolean) =
         edit { it[KEY_UPDATE_DEV_CHANNEL] = enabled }
 
+    suspend fun setDesktopNotificationSeconds(kind: DesktopNotificationKind, seconds: Int) =
+        edit { it[intPreferencesKey("desktop_notify_${kind.storageName}_seconds")] = kind.normalize(seconds) }
+
     suspend fun setNotificationsEnabled(enabled: Boolean) =
         edit { it[KEY_NOTIFICATIONS_ENABLED] = enabled }
 
@@ -416,6 +421,10 @@ class SettingsRepository(
      * and can only touch three boards; this one is local, covers every board, and is reversible from
      * the strip itself. The two narrow the list independently and on purpose.
      */
+    suspend fun setDesktopBoardSlugs(slugs: List<String>) {
+        dataStore.edit { it[KEY_DESKTOP_BOARDS] = encodeValues(slugs.filter(String::isNotBlank).distinct(), MAX_HOME_BOARDS) }
+    }
+
     suspend fun setHomeBoardArrangement(
         order: List<String>,
         disabled: Set<String>,
@@ -658,6 +667,7 @@ class SettingsRepository(
          */
         private val boardKeySuffix = ActiveSite.current.storageSuffix
         private val KEY_HIDDEN_HOME_BOARDS = stringPreferencesKey("hidden_home_boards$boardKeySuffix")
+        private val KEY_DESKTOP_BOARDS = stringPreferencesKey("desktop_boards$boardKeySuffix")
         private val KEY_HOME_BOARD_ORDER = stringPreferencesKey("home_board_order$boardKeySuffix")
         private val KEY_DISABLED_HOME_BOARDS = stringPreferencesKey("disabled_home_boards$boardKeySuffix")
         private val KEY_POST_TOOLBAR = stringPreferencesKey("post_toolbar_actions")
@@ -866,6 +876,7 @@ data class UserSettings(
      * The strip's arrangement, as edited by long-pressing it. Empty means "never customised": the
      * boards keep the order the API returned them in and none of them are parked.
      */
+    val desktopBoardSlugs: List<String> = listOf("daily", "tech"),
     val homeBoardOrder: List<String> = emptyList(),
     /** Boards parked at the tail of the strip. A subset of [homeBoardOrder]; see `setHomeBoardArrangement`. */
     val disabledHomeBoards: Set<String> = emptySet(),
@@ -883,6 +894,7 @@ data class UserSettings(
      * App notification polling (board f4). Off by default: polling costs battery and needs the
      * POST_NOTIFICATIONS runtime permission, so it starts only when the user asks for it.
      */
+    val desktopNotificationSeconds: Map<DesktopNotificationKind, Int> = emptyMap(),
     val notificationsEnabled: Boolean = false,
     val notificationPollMinutes: Int = SettingsRepository.DEFAULT_POLL_MINUTES,
     val notificationsWifiOnly: Boolean = false,

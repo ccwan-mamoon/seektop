@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import io.github.nodyssey.ui.resources.Res
 import io.github.nodyssey.ui.resources.action_back
 import io.github.nodyssey.ui.resources.action_create_post
-import io.github.nodyssey.ui.resources.action_refresh
 import io.github.nodyssey.ui.resources.action_search
 import io.github.nodyssey.ui.resources.desktop_help_body
 import io.github.nodyssey.ui.resources.help_title
@@ -30,7 +29,7 @@ internal fun DesktopHelpScreen(onBack: () -> Unit, modifier: Modifier = Modifier
         Text(stringResource(Res.string.help_title), style = MaterialTheme.typography.headlineSmall)
         Text(stringResource(Res.string.desktop_help_body), style = MaterialTheme.typography.bodyLarge)
         HorizontalDivider()
-        listOf("Ctrl K" to Res.string.action_search, "Ctrl N" to Res.string.action_create_post, "F5" to Res.string.action_refresh, "Alt ←" to Res.string.action_back, "Ctrl ," to Res.string.settings_title).forEach { (shortcut, label) ->
+        listOf("Ctrl K" to Res.string.action_search, "Ctrl N" to Res.string.action_create_post, "Alt ←" to Res.string.action_back, "Ctrl ," to Res.string.settings_title).forEach { (shortcut, label) ->
             Row(Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
                 Text(stringResource(label), Modifier.weight(1f))
                 Text(shortcut, color = MaterialTheme.colorScheme.primary)

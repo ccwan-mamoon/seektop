@@ -10,6 +10,7 @@ import io.github.plaza.core.net.SiteError
 import io.github.plaza.core.net.SiteException
 import io.github.plaza.core.net.UploadProgress
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -67,20 +68,39 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
     }
 
     /** A scoped, cancellable verification request; no credentials are given to the widget window. */
-    suspend fun verify(document: String, dark: Boolean): String? {
+    suspend fun verify(dark: Boolean, host: java.awt.Component): String? {
         val id = UUID.randomUUID().toString()
         try {
-            val result = kotlinx.coroutines.runInterruptible(Dispatchers.IO) {
-                call(
-                    "verify",
-                    buildJsonObject {
-                        put("id", id)
-                        put("origin", io.github.nodyssey.core.NodeSeekSite.BASE_URL)
-                        put("document", document)
-                        put("dark", dark)
-                    },
-                )
+            while (!host.isShowing || host.width <= 0 || host.height <= 0) kotlinx.coroutines.delay(16)
+            val result = kotlinx.coroutines.coroutineScope {
+                val request = async(Dispatchers.IO) {
+                    kotlinx.coroutines.runInterruptible {
+                        call(
+                            "verify",
+                            buildJsonObject {
+                                put("id", id)
+                                put("origin", io.github.nodyssey.core.NodeSeekSite.BASE_URL)
+                                put("dark", dark)
+                                put("embedded", true)
+                            },
+                        )
+                    }
+                }
+                var attached = false
+                while (!request.isCompleted) {
+                    val handle = withContext(Dispatchers.IO) { call("verification-window", buildJsonObject { put("id", id) })["handle"]?.jsonPrimitive?.content.orEmpty() }
+                    if (handle.isNotBlank()) {
+                        withContext(Dispatchers.Main) { EmbeddedVerification.resize(handle, host, !attached) }
+                        if (!attached) {
+                            withContext(Dispatchers.IO) { call("verification-show", buildJsonObject { put("id", id) }) }
+                            attached = true
+                        }
+                    }
+                    kotlinx.coroutines.delay(150)
+                }
+                request.await()
             }
+            if (result["kind"]?.jsonPrimitive?.content == "error") throw IllegalStateException(result["value"]?.jsonPrimitive?.content?.take(160)?.ifBlank { "verification-error" } ?: "verification-error")
             return result["value"]?.jsonPrimitive?.content?.takeIf { result["kind"]?.jsonPrimitive?.content == "token" && it.isNotBlank() }
         } finally {
             withContext(kotlinx.coroutines.NonCancellable + Dispatchers.IO) { runCatching { call("verification-close", buildJsonObject { put("id", id) }) } }

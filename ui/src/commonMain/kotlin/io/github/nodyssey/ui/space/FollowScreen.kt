@@ -128,7 +128,7 @@ fun FollowScreen(
             // count once its list has loaded: the endpoint answers with the whole list, so its length
             // is the site's own number, not a page's worth.
             UnderlineTabRow(
-                selectedTabIndex = pagerState.currentPage,
+                selectedTabIndex = if (io.github.nodyssey.LocalDesktopExperience.current) tabs.indexOf(state.selectedTab) else pagerState.currentPage,
                 tabs = tabs.map { TabLabel(it.label(state.listFor(it))) },
                 onSelect = { onTabSelected(tabs[it]) },
                 modifier = Modifier.padding(bottom = Spacing.md),
@@ -136,19 +136,23 @@ fun FollowScreen(
 
             // 左右滑动切换. Each page draws its own tab's list, so the neighbour slides in with the
             // finger; one not fetched yet shows as loading until the swipe settles and asks for it.
-            TabPager(
-                state = pagerState,
-                key = { tabs[it].name },
-                modifier = Modifier.fillMaxSize(),
-            ) { index ->
-                FollowPage(
-                    tab = tabs[index],
-                    list = state.listFor(tabs[index]),
-                    onUserClick = onUserClick,
-                    onRetry = onRetry,
-                    onOpenBrowser = onOpenBrowser,
-                    onSignIn = onSignIn,
-                )
+            if (io.github.nodyssey.LocalDesktopExperience.current) {
+                FollowPage(state.selectedTab, state.listFor(state.selectedTab), onUserClick, onRetry, onOpenBrowser, onSignIn)
+            } else {
+                TabPager(
+                    state = pagerState,
+                    key = { tabs[it].name },
+                    modifier = Modifier.fillMaxSize(),
+                ) { index ->
+                    FollowPage(
+                        tab = tabs[index],
+                        list = state.listFor(tabs[index]),
+                        onUserClick = onUserClick,
+                        onRetry = onRetry,
+                        onOpenBrowser = onOpenBrowser,
+                        onSignIn = onSignIn,
+                    )
+                }
             }
         }
     }

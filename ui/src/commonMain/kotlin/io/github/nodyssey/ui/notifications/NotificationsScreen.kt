@@ -1,11 +1,13 @@
 package io.github.nodyssey.ui.notifications
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -266,6 +269,10 @@ fun NotificationsScreen(
     modifier: Modifier = Modifier,
     scrollToTopRequests: Int = 0,
 ) {
+    if (io.github.nodyssey.LocalDesktopExperience.current) {
+        DesktopNotifications(state, onSignIn, onVerify, onTabChange, onRetry, onMarkAllRead, onNotificationClick, onConversationClick, onNewConversation, onNewConversationQueryChange, onNewConversationSearch, onNewConversationDismiss, onRecipientClick, modifier, scrollToTopRequests)
+        return
+    }
     val appBarState = rememberOneHandAppBarState()
     // One list state per group rather than one shared: 通知 and 私信 are different lists of different
     // things, and returning to a group ought to return to where it was left.
@@ -649,6 +656,17 @@ private fun NotificationRow(
     nowMillis: Long,
     onClick: () -> Unit,
 ) {
+    if (io.github.nodyssey.LocalDesktopExperience.current) {
+        androidx.compose.material3.ListItem(
+            headlineContent = { Text(notificationSentence(item), style = MaterialTheme.typography.bodyMedium, fontWeight = if (item.isUnread) FontWeight.SemiBold else FontWeight.Normal) },
+            supportingContent = { timestampLabel(item.createdAtMillis, item.createdAtText, nowMillis)?.let { Text(it, style = MaterialTheme.typography.labelSmall) } },
+            leadingContent = { UserAvatar(url = item.avatarUrl, name = item.actorName, size = 30.dp) },
+            trailingContent = { if (item.isUnread) Box(Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)) },
+            modifier = Modifier.clickable(enabled = item.postId != null, onClick = onClick),
+        )
+        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        return
+    }
     val sentenceStyle = MaterialTheme.typography.bodySmall
     GroupedListItem(
         first = first,
@@ -887,3 +905,67 @@ private fun NotificationsPreview() {
 
 /** Fixed so the preview's relative labels do not drift with the render clock. */
 internal const val PREVIEW_NOW = 1_785_000_000_000L
+
+@Composable
+private fun DesktopNotifications(
+    state: NotificationsUiState,
+    onSignIn: () -> Unit,
+    onVerify: (String) -> Unit,
+    onTabChange: (NotificationTab) -> Unit,
+    onRetry: () -> Unit,
+    onMarkAllRead: () -> Unit,
+    onNotificationClick: (ForumNotification) -> Unit,
+    onConversationClick: (MessageConversation) -> Unit,
+    onNewConversation: () -> Unit,
+    onNewConversationQueryChange: (String) -> Unit,
+    onNewConversationSearch: () -> Unit,
+    onNewConversationDismiss: () -> Unit,
+    onRecipientClick: (UserSearchResult) -> Unit,
+    modifier: Modifier,
+    scrollToTopRequests: Int,
+) {
+    val notifications = rememberLazyListState()
+    val conversations = rememberLazyListState()
+    val selectedState = if (state.selectedTab == NotificationTab.MESSAGES) conversations else notifications
+    val scope = rememberCoroutineScope()
+    var answered by rememberSaveable { mutableIntStateOf(scrollToTopRequests) }
+    LaunchedEffect(scrollToTopRequests) {
+        if (answered != scrollToTopRequests) {
+            answered = scrollToTopRequests
+            selectedState.scrollToItem(0)
+        }
+    }
+    fun refresh() {
+        onRetry()
+        scope.launch { selectedState.scrollToItem(0) }
+    }
+    io.github.nodyssey.DesktopRefreshTarget(1, ::refresh)
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(Res.string.tab_notifications), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            TextButton(onClick = onMarkAllRead, enabled = state.hasUnread) { Text(stringResource(Res.string.notifications_mark_all_read)) }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NotificationTab.entries.forEach { tab ->
+                androidx.compose.material3.FilterChip(selected = state.selectedTab == tab, onClick = { onTabChange(tab) }, label = { Text(tab.label() + state.counts.forTab(tab).takeIf { it > 0 }?.let { " · $it" }.orEmpty()) })
+            }
+        }
+        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            if (!state.isSignedIn) {
+                SignedOutState(onSignIn = onSignIn)
+            } else {
+                io.github.nodyssey.ui.common.DesktopScrollbars(selectedState) {
+                    Box(Modifier.fillMaxSize()) {
+                        NotificationGroup(
+                            state.selectedTab, state, notifications, conversations, onSignIn, onVerify, onRetry,
+                            onNotificationClick, onConversationClick, onNewConversation, onNewConversationQueryChange, onNewConversationSearch,
+                            onNewConversationDismiss, onRecipientClick, 0.dp,
+                        )
+                    }
+                }
+            }
+            io.github.nodyssey.ui.common.DesktopRefreshButton(::refresh, Modifier.align(Alignment.BottomEnd).padding(16.dp), enabled = !state.isLoading)
+        }
+    }
+}

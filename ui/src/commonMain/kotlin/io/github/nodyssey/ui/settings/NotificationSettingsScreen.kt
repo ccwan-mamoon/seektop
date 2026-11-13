@@ -104,6 +104,7 @@ fun NotificationSettingsRoute(
             if (enabled) requestNotificationPermission()
             viewModel.setEnabled(enabled)
         },
+        onDesktopIntervalChange = viewModel::setDesktopInterval,
         onPollMinutesChange = viewModel::setPollMinutes,
         onWifiOnlyChange = viewModel::setWifiOnly,
         onQuietHoursChange = viewModel::setQuietHours,
@@ -139,12 +140,17 @@ fun NotificationSettingsScreen(
     onNotifyMessagesChange: (Boolean) -> Unit,
     onOpenTelegram: () -> Unit,
     modifier: Modifier = Modifier,
+    onDesktopIntervalChange: (io.github.nodyssey.data.settings.DesktopNotificationKind, Int) -> Unit = { _, _ -> },
     alertCounts: AlertCounts = AlertCounts(),
     onNotifyKeywordAlertsChange: (Boolean) -> Unit = {},
     onNotifyTrackedThreadsChange: (Boolean) -> Unit = {},
     onOpenAlertKeywords: () -> Unit = {},
     onOpenTrackedThreads: () -> Unit = {},
 ) {
+    if (io.github.nodyssey.LocalDesktopExperience.current) {
+        DesktopNotificationSettings(settings, onEnabledChange, onQuietHoursChange, onNotifyInteractionsChange, onNotifyMessagesChange, onNotifyKeywordAlertsChange, onNotifyTrackedThreadsChange, onOpenAlertKeywords, onOpenTrackedThreads, onDesktopIntervalChange, modifier)
+        return
+    }
     val enabled = settings.notificationsEnabled
     val appBarState = rememberOneHandAppBarState()
     var frequencySheet by remember { mutableStateOf(false) }

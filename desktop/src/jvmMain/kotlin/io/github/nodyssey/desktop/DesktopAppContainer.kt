@@ -306,6 +306,15 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
         )
     }
 
+    internal val backgroundAlerts by lazy {
+        io.github.nodyssey.data.BackgroundAlertChecker(
+            loadList = { sort, page -> remotePosts.loadList(categorySlug = null, page = page, sort = sort).posts },
+            keywords = titleKeywordStore,
+            tracked = trackedThreadStore,
+            settings = settingsRepository,
+        )
+    }
+
     override val sessionRepository: SessionRepository by lazy { SessionRepository(sessionCookies) }
 
     override val accountSignOut: AccountSignOut by lazy {
@@ -322,11 +331,16 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
 
     override val signInRepository: SignInRepository by lazy { NodeSeekSignInRepository(jsonClient) }
 
-    override val appVersion: AppVersion by lazy { AppVersion(System.getProperty("jpackage.app-version") ?: "development", 4, "SeekTop · 寻桌") }
+    override val appVersion: AppVersion by lazy { AppVersion(System.getProperty("jpackage.app-version") ?: "development", 6, "SeekTop · 寻桌") }
 
-    override val appUpdateRepository: AppUpdateRepository get() = NoAppUpdates
+    internal val desktopUpdateInstaller by lazy {
+        DesktopUpdateInstaller(File(directory, "updates"), System.getProperty("compose.application.resources.dir")?.let(::File), appVersion.name)
+    }
+    override val appUpdateRepository: AppUpdateRepository by lazy {
+        DesktopUpdateRepository(settingsRepository, appVersion.name, File(directory, "updates"), appScope, desktopUpdateInstaller)
+    }
 
-    override val apkInstaller: ApkInstaller get() = NoApkInstaller
+    override val apkInstaller: ApkInstaller get() = desktopUpdateInstaller
 
     // Not wired yet, not can't-be-wired: capture here means `setUnhandledExceptionHook` for the
     // Kotlin side plus something for NSException/signal crashes, and neither exists today. The

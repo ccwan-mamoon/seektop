@@ -24,12 +24,29 @@ with (data/'stderr.log').open('w') as err:
   assert 'bridge_test' not in call('cookies',{'url':'https://example.com'})['header']
   try:call('fetch',{'url':'https://example.com','method':'GET','forum':True});raise AssertionError('cross origin session accepted')
   except urllib.error.HTTPError as e:assert e.code==500
-  verified = call('verify', {
-   'id':'11111111-1111-1111-1111-111111111111',
-   'origin':'https://www.nodeseek.com',
-   'document':"<html><head></head><body><script>__nsBridge.post('token',document.cookie.includes('bridge_test=example')?'shared-session-fixture':'missing-cookie')</script></body></html>"
-  })
-  assert verified == {'kind':'token','value':'shared-session-fixture'}
+  from concurrent.futures import ThreadPoolExecutor
+  import time
+  with ThreadPoolExecutor(max_workers=1) as executor:
+   request_id='11111111-1111-1111-1111-111111111111'
+   pending=executor.submit(call,'verify',{'id':request_id,'origin':'https://www.nodeseek.com','embedded':True})
+   for _ in range(50):
+    if call('verification-window',{'id':request_id})['handle']:break
+    time.sleep(.1)
+   else:raise AssertionError('Verification native window did not appear')
+   call('verification-close',{'id':request_id})
+   assert pending.result(timeout=10)['kind']=='cancelled'
+  # Real Chromium regression: forwarding mobile fetch metadata rejected every XHR.
+  from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+  class Echo(BaseHTTPRequestHandler):
+   def do_GET(self):
+    self.send_response(200);self.end_headers();self.wfile.write(b'{"ok":true}')
+   def log_message(self,*args):pass
+  echo=ThreadingHTTPServer(('127.0.0.1',0),Echo)
+  threading.Thread(target=echo.serve_forever,daemon=True).start()
+  try:
+   response=call('fetch',{'url':f'http://127.0.0.1:{echo.server_port}/fixture','method':'GET','forum':False,'headers':{'Sec-Fetch-Dest':'empty','Sec-Fetch-Mode':'cors','Sec-Fetch-Site':'same-origin','X-Requested-With':'XMLHttpRequest'}})
+   assert response['code']==200 and json.loads(response['body'])=={'ok':True},'XHR metadata must not cause ERR_INVALID_ARGUMENT'
+  finally:echo.shutdown();echo.server_close()
   call('clear-cookies');assert not call('cookies',{'url':'https://www.nodeseek.com'})['header']
   call('proxy',{'enabled':False,'scope':'EVERYTHING'})
   print('PASS: bridge authentication, origin isolation, cookie operations and proxy reset',flush=True)

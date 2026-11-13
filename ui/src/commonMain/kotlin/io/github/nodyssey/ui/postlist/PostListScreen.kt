@@ -183,10 +183,19 @@ fun PostListRoute(
     reselectRequests: Int = 0,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val desktopSearch = io.github.nodyssey.LocalDesktopSearch.current
     PostListScreen(
         state = state,
         // One stream per board, so the page sliding in beside the selected one has rows of its own.
-        postsFor = { slug -> viewModel.feed(slug).collectAsLazyPagingItems() },
+        postsFor = { slug ->
+            if (desktopSearch?.awaitingSignIn == true) {
+                remember { flowOf(io.github.nodyssey.data.emptyLoadedPagingData()) }.collectAsLazyPagingItems()
+            } else if (desktopSearch?.active == true) {
+                desktopSearch.results.collectAsLazyPagingItems()
+            } else {
+                viewModel.feed(slug).collectAsLazyPagingItems()
+            }
+        },
         feedStates = feedStates,
         onPostClick = onPostClick,
         onCreatePost = onCreatePost,

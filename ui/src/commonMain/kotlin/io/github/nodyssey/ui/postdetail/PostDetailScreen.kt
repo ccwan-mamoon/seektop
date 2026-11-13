@@ -30,6 +30,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ThumbUp
@@ -141,6 +142,7 @@ import io.github.nodyssey.ui.composer.ReplyComposerViewModel
 import io.github.nodyssey.ui.resources.Res
 import io.github.nodyssey.ui.resources.action_back
 import io.github.nodyssey.ui.resources.action_cancel
+import io.github.nodyssey.ui.resources.action_close
 import io.github.nodyssey.ui.resources.action_copy_link
 import io.github.nodyssey.ui.resources.action_more
 import io.github.nodyssey.ui.resources.action_open_in_browser
@@ -453,7 +455,7 @@ fun PostDetailScreen(
      *
      * [ThreadBottomBarRoom] is the first frame's answer, before there is anything to measure.
      */
-    var bottomActionsHeight by remember(density) { mutableStateOf(ThreadBottomBarRoom) }
+    var bottomActionsHeight by remember(density, desktop) { mutableStateOf(if (desktop) 0.dp else ThreadBottomBarRoom) }
     // How far into the opening post's card its title ends, which is how far that card has to scroll
     // before the bar takes the title over. Measured, because the board tags above it and the title's
     // own line count move it: the fixed 72dp that stood here dated from when the title was an item of
@@ -783,7 +785,7 @@ fun PostDetailScreen(
                                 ThreadList(
                                     state = state,
                                     listState = listState,
-                                    bottomRoom = bottomActionsHeight,
+                                    bottomRoom = if (desktop) bottomActionsHeight + 64.dp else bottomActionsHeight,
                                     onOpenOriginalPost = openOriginalPost,
                                     onOpenBrowser = onLinkClick,
                                     onImageClick = onImageClick,
@@ -835,6 +837,13 @@ fun PostDetailScreen(
                 )
             }
 
+            if (desktop && !replyOpen) {
+                io.github.nodyssey.ui.common.DesktopRefreshButton(
+                    ::refreshDesktopFromTop,
+                    Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = bottomActionsHeight + 12.dp),
+                    enabled = !state.isRefreshing,
+                )
+            }
             if (state.hasContent && !replyOpen) {
                 DetailBottomActions(
                     toolbarExpanded = toolbarExpanded,
@@ -848,7 +857,7 @@ fun PostDetailScreen(
                         .align(Alignment.BottomEnd)
                         .onSizeChanged { size ->
                             val measured = with(density) { size.height.toDp() }
-                            if (measured > bottomActionsHeight) bottomActionsHeight = measured
+                            if (desktop || measured > bottomActionsHeight) bottomActionsHeight = measured
                         },
                 )
             }
@@ -939,54 +948,61 @@ fun PostDetailScreen(
         // survives closing the thread, and a thread opened for the first time has neither until it
         // has been scrolled.
         val resume = state.resumePosition
-        PageJumpSheet(
-            page = visiblePage,
-            totalPages = state.totalPages,
-            note = stringResource(Res.string.post_page_progress, loadedFloors),
-            onDismiss = { showPageSheet = false },
-            onGo = { target ->
+        if (desktop) {
+            io.github.nodyssey.ui.common.DesktopPageJumpDialog(visiblePage, state.totalPages, onDismiss = { showPageSheet = false }, onGo = { target ->
                 showPageSheet = false
-                goToPage(target.coerceIn(1, state.totalPages.coerceAtLeast(1)))
-            },
-            // Clamped so a place left in a thread that has since lost pages still resolves to a
-            // chip that goes somewhere — the ViewModel lands it on the last page for the same reason.
-            resume =
-            (resume?.page ?: state.lastLoadedPage)
-                .coerceIn(1, state.totalPages.coerceAtLeast(1))
-                .takeIf { it != visiblePage }
-                ?.let { target ->
-                    JumpDestination(
-                        label = stringResource(Res.string.page_jump_resume_title),
-                        detail =
-                        resume?.floor?.let { stringResource(Res.string.page_jump_at_page_floor, target, it) }
-                            ?: stringResource(Res.string.page_jump_at_page, target),
-                        icon = PlazaIcons.Bookmark,
-                        onGo = {
-                            showPageSheet = false
-                            if (resume != null) onResumeReading() else goToPage(state.lastLoadedPage)
-                        },
-                    )
-                },
-            // The thread's newest is the foot of its last page, which is not where 最后一页 lands.
-            newest =
-            JumpDestination(
-                label = stringResource(Res.string.page_jump_latest),
-                detail = stringResource(Res.string.page_jump_at_page, state.totalPages.coerceAtLeast(1)),
-                icon = PlazaIcons.VerticalAlignBottom,
-                onGo = {
+                goToPage(target)
+            })
+        } else {
+            PageJumpSheet(
+                page = visiblePage,
+                totalPages = state.totalPages,
+                note = stringResource(Res.string.post_page_progress, loadedFloors),
+                onDismiss = { showPageSheet = false },
+                onGo = { target ->
                     showPageSheet = false
-                    goToLatest()
+                    goToPage(target.coerceIn(1, state.totalPages.coerceAtLeast(1)))
                 },
-            ),
-            numberEntry = NumberEntry.Floor,
-            // The floor's page is arithmetic the site fixes — see NodeSeekSite.COMMENTS_PER_PAGE —
-            // and [onJumpToFloor] already fetches that page and lands on the floor, which is the same
-            // trip a notification about it makes.
-            onGoToFloor = { floor ->
-                showPageSheet = false
-                onJumpToFloor("#$floor")
-            },
-        )
+                // Clamped so a place left in a thread that has since lost pages still resolves to a
+                // chip that goes somewhere — the ViewModel lands it on the last page for the same reason.
+                resume =
+                (resume?.page ?: state.lastLoadedPage)
+                    .coerceIn(1, state.totalPages.coerceAtLeast(1))
+                    .takeIf { it != visiblePage }
+                    ?.let { target ->
+                        JumpDestination(
+                            label = stringResource(Res.string.page_jump_resume_title),
+                            detail =
+                            resume?.floor?.let { stringResource(Res.string.page_jump_at_page_floor, target, it) }
+                                ?: stringResource(Res.string.page_jump_at_page, target),
+                            icon = PlazaIcons.Bookmark,
+                            onGo = {
+                                showPageSheet = false
+                                if (resume != null) onResumeReading() else goToPage(state.lastLoadedPage)
+                            },
+                        )
+                    },
+                // The thread's newest is the foot of its last page, which is not where 最后一页 lands.
+                newest =
+                JumpDestination(
+                    label = stringResource(Res.string.page_jump_latest),
+                    detail = stringResource(Res.string.page_jump_at_page, state.totalPages.coerceAtLeast(1)),
+                    icon = PlazaIcons.VerticalAlignBottom,
+                    onGo = {
+                        showPageSheet = false
+                        goToLatest()
+                    },
+                ),
+                numberEntry = NumberEntry.Floor,
+                // The floor's page is arithmetic the site fixes — see NodeSeekSite.COMMENTS_PER_PAGE —
+                // and [onJumpToFloor] already fetches that page and lands on the floor, which is the same
+                // trip a notification about it makes.
+                onGoToFloor = { floor ->
+                    showPageSheet = false
+                    onJumpToFloor("#$floor")
+                },
+            )
+        }
     }
 }
 
@@ -1056,6 +1072,7 @@ private fun DetailTopBar(
     tracked: Boolean? = null,
     onToggleTrack: () -> Unit = {},
 ) {
+    val closeDesktopDetail = io.github.nodyssey.LocalDesktopCloseDetail.current ?: onBack
     var menuOpen by remember { mutableStateOf(false) }
     val shareText = rememberShareText()
     val copy = rememberClipboardCopy()
@@ -1084,7 +1101,7 @@ private fun DetailTopBar(
             )
         },
         navigationIcon = {
-            if (showBackButton) {
+            if (showBackButton && !io.github.nodyssey.LocalDesktopExperience.current) {
                 IconButton(onClick = onBack) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
@@ -1148,6 +1165,9 @@ private fun DetailTopBar(
                         )
                     }
                 }
+            }
+            if (io.github.nodyssey.LocalDesktopExperience.current) {
+                IconButton(onClick = closeDesktopDetail) { Icon(Icons.Default.Close, stringResource(Res.string.action_close)) }
             }
         },
         // Flush with the page: the bar is part of the grey the cards sit on, not a band of its own.

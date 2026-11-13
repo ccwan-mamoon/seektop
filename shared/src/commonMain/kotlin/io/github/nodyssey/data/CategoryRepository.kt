@@ -41,7 +41,7 @@ class CategoryRepository(
      */
     val boards: Flow<List<Board>> =
         boardDao.observeBoards().map { entities ->
-            listOf(FRONT_PAGE) + entities.map { it.toBoard() }
+            if (entities.isEmpty()) initialBoards else listOf(FRONT_PAGE) + entities.map { it.toBoard() }
         }
 
     private val refreshMutex = Mutex()
@@ -88,6 +88,9 @@ class CategoryRepository(
             .map { Board(slug = it.slug, title = it.title, description = null) }
 
     companion object {
+        val initialBoards: List<Board>
+            get() = listOf(FRONT_PAGE) + NodeSeekSite.categories.filter { it.slug != null }.map { Board(it.slug, it.title, null) }
+
         /** The mixed front page is not a board, so the API never returns it. */
         val FRONT_PAGE = Board(slug = null, title = "综合", description = null)
 

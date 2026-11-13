@@ -18,39 +18,34 @@ python desktop/provision-browser.py --mirror https://npmmirror.com/mirrors/elect
 
 桌面壳组装原 Repository；Room 使用 JVM SQLite 驱动，设置使用原 DataStore。应用数据位于 `%LOCALAPPDATA%/SeekTop`。
 
-网页验证和登录由打包的 Chromium 辅助进程显示。原 `HttpTransport` 通过带随机鉴权令牌的回环接口调用同一会话，Cookie 留在浏览器存储内。论坛请求与第三方图床使用不同的 Chromium session。登录窗口中完成操作后点击“完成并返回应用”，原 `SessionRepository` 将同步状态并通知页面刷新。
+原生账号密码及两步验证表单由 Compose 显示；Turnstile 由打包的沙箱 Chromium 辅助进程加载官方 `/signIn.html`，通过公开 `turnstile.getResponse()` 回传结果；通过 JNA/Win32 子窗口嵌入应用所属的验证对话框，并在宿主显示后加载。不再安装共享会话的 HTTPS 协议拦截器，保留完整浏览器网络上下文。网页登录入口作为备用。原 `HttpTransport` 通过带随机鉴权令牌的回环接口调用同一会话，Cookie 留在浏览器存储内。论坛请求与第三方图床使用不同的 Chromium session。登录窗口中完成操作后点击“完成并返回应用”，原 `SessionRepository` 将同步状态并通知页面刷新。
 
 图片、头像和图床上传同样由平台网络通道服务。文件选择和文本导入导出使用桌面文件选择器。
 
-## 当前范围
+## 当前桌面版 0.4.0
 
-这是一版桌面交互预览版。Windows 自动更新、系统推送、应用退出后的离线后台任务、头像更换、图片保存及系统分享面板尚未接入。离线任务只在进程存活时执行；Wi-Fi 限制尚未适配 Windows 网络计费状态。原生表单内的 Turnstile 小组件仍沿用上游的 JVM 降级处理，请使用页面提供的网页登录入口。
+可折叠菜单、常用板块管理、分隔线调宽、整合搜索、列表与详情浮动刷新、可输入页码、主题和统一图标均已接入。
+“我的”、通知、设置与宽屏编辑器使用桌面布局。人机验证仅在官方验证区域准备好后显示，未准备好或存在账号表单的容器不会直接展示。
 
-项目沿用上游 GPL-3.0 许可，保留上游版权；Electron 自带的许可证位于浏览器运行时目录。
+Windows 通知已接入，四类提醒各自选择检查间隔；运行或最小化期间检查，完全退出后停止。通知采用定时检查，并受系统勿扰设置影响。
+一键升级已接入，流程与验证方法见下文。登录后写入操作仍需真实账号验收；完全退出后的离线后台任务、头像更换、图片保存和系统分享面板尚未完整适配。
 
-## 0.3.0 验证记录
+项目沿用上游 GPL-3.0，保留上游版权。Android 与 Apple 模块和历史文档保留供参考，本次发布目标为 Windows。
 
-- 竖向滚轮横移板块栏、鼠标左键拖动、边界钳制和滚动不误选的输入回归测试通过。
-- 浅色与深色桌面布局已用真实 Compose 组件及示例数据渲染检查；临时渲染脚手架不进入发布源码。
-- UI 与桌面 JVM 编译、Windows app-image 生成通过。
-- 全应用逐页实机回归及真实账号写入操作未在本轮执行。
+## Windows 一键升级
 
-## 0.2.0 验证记录
+桌面端已使用独立的 `DesktopUpdateRepository` 和 `DesktopUpdateInstaller`，不再连接空更新实现。
+应用启动时按用户设置检查 GitHub Releases；关于页可手动检查，下载时显示进度并支持取消。
+点击“一键升级”会先说明自动重启，下载并校验 SHA-256 后，独立 .NET 更新程序等待旧进程退出，替换完整 app-image 并重启。
+新应用完成首帧后确认启动；替换或启动进程失败时恢复旧目录。若新进程仍运行但迟迟未确认启动，不强制结束它，而是保留旧目录供恢复并报告状态。
+登录会话与偏好在 `%LOCALAPPDATA%/SeekTop`，不会随应用目录替换；旧目录保留为同级备份。
+更新程序需要应用所在目录及其父目录可写。另一实例占用文件时不会强制结束该实例，无法替换就保持旧版。
 
-- UI 和桌面 JVM 模块编译通过，Windows app-image 已生成。
-- Compose 桌面导航点击、返回与 Ctrl+N 快捷键测试通过。
-- 当前帖子优先刷新、退出详情后恢复列表刷新测试通过。
-- 桌面模块运行时及离线文件用例通过，Spotless 检查通过。
-- 本轮未提交真实账号操作；全应用逐页实机点击回归尚未完成。
+版本号统一位于 `gradle/libs.versions.toml` 的 `versions.seektop`。打包版本、ZIP 名称与发布标签必须一致。
+客户端仅接收本仓库 `desktop-vX.Y.Z` 发布中对应的 Windows x64 ZIP，且必须有 GitHub SHA-256 摘要；源代码 ZIP 和上游 Android 包不会参与升级。
+默认仅检查稳定版，预览版需要开启接收测试更新。发布工作流可选择稳定版或预览版，发布新版本前递增桌面版本号。
+0.4.0 是含更新功能的初始版本；不含更新代码的旧版本需要先切换到此版本。
 
-## 0.1.0 验证记录（2026-11-12）
-
-- Windows app-image 成功生成并实际启动。
-- 实际窗口中确认原版宽屏双栏首页、真实帖子列表、正文、评论和头像正常显示。
-- desktop/shared/designsys/richtext 的 JVM 测试共 381 项通过；ui 的 JVM 测试目标无独立用例，已完成 JVM 编译。
-- Spotless 格式检查通过。
-- 浏览器桥接的鉴权、Cookie 域隔离、清除和代理重置检查通过；读取公开首页返回 HTTP 200。
-- 未登录真实账号，也未提交发帖、回复、点赞、签到或转账。
-- Android 和 Apple 平台的构建与测试未在本次 Windows 移植中执行。
-
-本机打包时 GitHub 的 WiX 下载通道异常，使用 `-x :unzipWix` 并准备其声明的空工具目录生成 app-image。app-image 不调用 WiX，当前输出不含 MSI 安装器。常规网络环境可使用上面的标准命令。
+原生更新程序由构建任务使用 Windows .NET Framework 编译器生成，无需在用户电脑安装开发工具。
+测试：`./gradlew :desktop:jvmTest :ui:jvmTest`、`python desktop/tests/test_updater.py`。
+完整 app-image 重启演练：`python desktop/tests/test_updater.py --app-dir desktop/build/compose/binaries/main/app/SeekTop`，全程使用临时空配置和测试副本。

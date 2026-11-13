@@ -40,6 +40,10 @@ class NotificationSettingsViewModel(
                 initialValue = UserSettings(),
             )
 
+    fun setDesktopInterval(kind: io.github.nodyssey.data.settings.DesktopNotificationKind, seconds: Int) {
+        viewModelScope.launch { settings.setDesktopNotificationSeconds(kind, seconds) }
+    }
+
     fun setEnabled(value: Boolean) {
         viewModelScope.launch { settings.setNotificationsEnabled(value) }
     }

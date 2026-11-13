@@ -3,7 +3,12 @@ package io.github.nodyssey.ui.login
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -24,9 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.nodyssey.ui.resources.Res
 import io.github.nodyssey.ui.resources.action_close
+import io.github.nodyssey.ui.resources.desktop_verify_loading
 import io.github.nodyssey.ui.resources.desktop_verify_passed
 import io.github.nodyssey.ui.resources.desktop_verify_retry
 import io.github.nodyssey.ui.resources.desktop_verify_start
+import io.github.nodyssey.ui.resources.desktop_verify_timeout
+import io.github.nodyssey.ui.resources.desktop_verify_title
 import io.github.nodyssey.ui.resources.desktop_verify_unavailable
 import io.github.nodyssey.ui.resources.desktop_verify_working
 import io.github.plaza.core.net.UserAgent
@@ -35,7 +43,7 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
 /** The shell supplies the same Chromium session used by native sign-in requests. */
-val LocalDesktopVerification = staticCompositionLocalOf<(suspend (String, Boolean) -> String?)?> { null }
+val LocalDesktopVerification = staticCompositionLocalOf<(suspend (Boolean, java.awt.Component) -> String?)?> { null }
 
 @Composable
 actual fun TurnstileWidget(
@@ -48,12 +56,21 @@ actual fun TurnstileWidget(
     onUnavailable: () -> Unit,
     modifier: Modifier,
 ) {
+    val timeoutMessage = stringResource(Res.string.desktop_verify_timeout)
+    val loadingLabel = stringResource(Res.string.desktop_verify_loading)
+    val host = remember {
+        java.awt.Panel(java.awt.BorderLayout()).apply {
+            background = java.awt.Color.WHITE
+            add(java.awt.Label(loadingLabel, java.awt.Label.CENTER), java.awt.BorderLayout.CENTER)
+        }
+    }
     val verify = LocalDesktopVerification.current
     val currentToken by rememberUpdatedState(onToken)
     val currentExpired by rememberUpdatedState(onExpired)
     var attempt by remember(resetSignal, sitekey, darkTheme) { mutableIntStateOf(0) }
     var busy by remember(resetSignal, sitekey, darkTheme) { mutableStateOf(false) }
     var passed by remember(resetSignal, sitekey, darkTheme) { mutableStateOf(false) }
+    var failureMessage by remember(resetSignal, sitekey, darkTheme) { mutableStateOf<String?>(null) }
     var failed by remember(resetSignal, sitekey, darkTheme) { mutableStateOf(false) }
     DisposableEffect(sitekey, darkTheme, resetSignal) { onDispose { if (passed) currentExpired() } }
     LaunchedEffect(verify) { if (verify == null) onUnavailable() }
@@ -61,7 +78,7 @@ actual fun TurnstileWidget(
         if (attempt == 0 || verify == null) return@LaunchedEffect
         busy = true
         try {
-            val token = verify(turnstileDocument(sitekey, darkTheme), darkTheme)
+            val token = verify(darkTheme, host)
             busy = false
             if (token.isNullOrBlank()) {
                 failed = true
@@ -76,17 +93,38 @@ actual fun TurnstileWidget(
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            failureMessage = if (failure.message == "verification-timeout" || failure.message == "widget-not-ready") timeoutMessage else failure.message?.take(160)
             failed = true
             currentExpired()
         } finally {
             busy = false
         }
     }
+    if (busy) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = {
+            attempt = 0
+            currentExpired()
+        }) {
+            androidx.compose.material3.Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
+                Column(Modifier.width(420.dp).height(280.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(Res.string.desktop_verify_title), modifier = Modifier.weight(1f).padding(start = 16.dp), style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = {
+                            attempt = 0
+                            currentExpired()
+                        }) { Text(stringResource(Res.string.action_close)) }
+                    }
+                    androidx.compose.ui.awt.SwingPanel(factory = { javax.swing.JPanel(java.awt.BorderLayout()).apply { add(host, java.awt.BorderLayout.CENTER) } }, modifier = Modifier.fillMaxSize())
+                }
+            }
+        }
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = {
                 passed = false
+                failureMessage = null
                 failed = false
                 currentExpired()
                 attempt++
@@ -113,7 +151,7 @@ actual fun TurnstileWidget(
         }
         if (verify == null || busy || failed) {
             Text(
-                stringResource(
+                failureMessage ?: stringResource(
                     if (verify == null) {
                         Res.string.desktop_verify_unavailable
                     } else if (busy) {

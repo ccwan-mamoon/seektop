@@ -708,7 +708,7 @@ private fun ResultScopeRow(
 }
 
 @Composable
-private fun SearchResults(
+internal fun SearchResults(
     target: SearchTarget,
     state: SearchUiState,
     queryState: TextFieldState,

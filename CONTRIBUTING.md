@@ -7,7 +7,7 @@
 提交前运行：
 
 ```powershell
-./gradlew spotlessCheck :desktop:jvmTest :shared:jvmTest :designsys:jvmTest :richtext:jvmTest
+./gradlew spotlessCheck :desktop:jvmTest :shared:jvmTest :ui:jvmTest :designsys:jvmTest :richtext:jvmTest
 ./gradlew :desktop:createDistributable
 ./gradlew --stop
 ```

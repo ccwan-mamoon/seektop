@@ -1,5 +1,5 @@
 name: 功能建议
-description: 希望 App 多做点什么，或者某个地方换个做法
+description: 希望 SeekTop 桌面端增加功能，或者某个地方换个做法
 title: "[建议] "
 labels: ["enhancement"]
 body:
@@ -22,7 +22,7 @@ body:
   - type: textarea
     id: proposal
     attributes:
-      label: 希望 App 怎么做
+      label: 希望 SeekTop 怎么做
       description: 有具体想法就写；想不清楚也没关系，上一栏写明白就够了。
     validations:
       required: false

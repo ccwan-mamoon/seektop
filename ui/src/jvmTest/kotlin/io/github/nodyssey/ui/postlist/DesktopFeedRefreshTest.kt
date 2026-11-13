@@ -5,9 +5,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.paging.LoadState
 import androidx.paging.LoadStates
@@ -50,7 +53,7 @@ class DesktopFeedRefreshTest {
         runOnIdle { listState.requestScrollToItem(30) }
         waitForIdle()
         assertTrue(listState.firstVisibleItemIndex >= 30)
-        onNodeWithText("刷新").performClick()
+        onNodeWithContentDescription("刷新").performClick()
         waitForIdle()
         assertEquals(1, requestedPage)
         assertEquals(0, listState.firstVisibleItemIndex)
@@ -60,5 +63,13 @@ class DesktopFeedRefreshTest {
         runOnIdle { state = state.copy(categorySlug = "tech") }
         waitForIdle()
         assertEquals(0, listState.firstVisibleItemIndex, "Changing board must not restore its old scroll position")
+        onNode(hasScrollAction()).performMouseInput {
+            moveTo(center)
+            press()
+            repeat(5) { moveBy(Offset(0f, -40f), delayMillis = 20) }
+            release()
+        }
+        waitForIdle()
+        assertTrue(listState.firstVisibleItemIndex > 0, "Mouse dragging must scroll the desktop feed")
     }
 }

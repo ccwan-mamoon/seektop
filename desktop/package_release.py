@@ -5,18 +5,21 @@ from pathlib import Path
 import re
 import subprocess
 import zipfile
+import tomllib
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--app-dir", required=True, type=Path)
 parser.add_argument("--output-dir", required=True, type=Path)
-parser.add_argument("--version", default="0.4.0")
+parser.add_argument("--version")
 parser.add_argument("--source-ref", default="HEAD")
 args = parser.parse_args()
+if args.version is None:
+    args.version = tomllib.loads((Path(__file__).resolve().parents[1] / "gradle/libs.versions.toml").read_text(encoding="utf-8"))["versions"]["seektop"]
 if not re.fullmatch(r"\d+\.\d+\.\d+", args.version):
     raise SystemExit("Version must use major.minor.patch")
 repo = Path(__file__).resolve().parents[1]
 application = args.app_dir.resolve()
-if not (application / "SeekTop.exe").is_file() or not (application / "runtime/release").is_file():
+if not (application / "app/resources/SeekTopUpdater.exe").is_file() or not (application / "SeekTop.exe").is_file() or not (application / "runtime/release").is_file():
     raise SystemExit("Expected a complete SeekTop Windows app-image")
 args.output_dir.mkdir(parents=True, exist_ok=True)
 output = args.output_dir.resolve()

@@ -117,6 +117,16 @@ fun OneHandTopAppBar(
     blankAccessory: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    if (io.github.plaza.designsys.theme.LocalCompactLayout.current) {
+        androidx.compose.material3.TopAppBar(
+            title = { Text(title, style = MaterialTheme.typography.titleMedium) },
+            modifier = modifier,
+            navigationIcon = {},
+            actions = actions,
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+        )
+        return
+    }
     val density = LocalDensity.current
     state.maxHeightPx = with(density) { expandedBlank.toPx() }
 

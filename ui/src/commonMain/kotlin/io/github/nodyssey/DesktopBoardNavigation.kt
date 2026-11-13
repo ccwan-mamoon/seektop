@@ -11,7 +11,7 @@ import io.github.nodyssey.data.Board
 
 /** A view of the home feed's state for the persistent desktop navigation, not a second repository. */
 internal class DesktopBoardNavigation {
-    var boards by mutableStateOf<List<Board>>(emptyList())
+    var boards by mutableStateOf(io.github.nodyssey.data.CategoryRepository.initialBoards)
         private set
     var selectedSlug by mutableStateOf<String?>(null)
         private set

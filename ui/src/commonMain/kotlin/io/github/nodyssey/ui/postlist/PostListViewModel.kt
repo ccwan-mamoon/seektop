@@ -351,7 +351,7 @@ data class HomeAccount(
 data class PostListUiState(
     /** Null while signed out, or until 我的 has loaded the profile once. */
     val account: HomeAccount? = null,
-    val boards: List<Board> = listOf(CategoryRepository.FRONT_PAGE),
+    val boards: List<Board> = CategoryRepository.initialBoards,
     /**
      * Boards the user parked at the tail of the strip.
      *

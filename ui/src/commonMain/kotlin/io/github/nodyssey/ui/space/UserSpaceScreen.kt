@@ -283,6 +283,28 @@ fun UserSpaceScreen(
             return@Scaffold
         }
 
+        if (io.github.nodyssey.LocalDesktopExperience.current) {
+            Column(Modifier.padding(padding).fillMaxSize()) {
+                Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    UserAvatar(url = state.avatarUrl, name = state.name, size = 44.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(state.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(Res.string.space_uid, state.uid), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        state.bio?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    }
+                    if (!state.isSelf) {
+                        if (state.canFollow) FollowButton(state.followed == true, onToggleFollow)
+                        TextButton(onClick = onMessage) { Text(stringResource(Res.string.space_message)) }
+                    }
+                }
+                SpaceStatsRow(state)
+                SpaceTabs(state, state.tabs.indexOf(state.selectedTab).coerceAtLeast(0), onTabSelected, Modifier.fillMaxWidth())
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    SpaceTabPage(state.selectedTab, state, topics, comments, collections, onPostClick, onOpenBrowser, onLinkClick, onSignIn, onVerify)
+                }
+            }
+            return@Scaffold
+        }
         /*
          * The header card scrolls away and the tabs stay (3a): the card grew the bio, the stats and
          * both actions, and pinned above a list it would leave the list a strip.

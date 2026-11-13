@@ -6,12 +6,16 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
@@ -22,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
+import androidx.compose.material3.adaptive.layout.rememberPaneExpansionState
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
@@ -41,6 +46,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
@@ -114,6 +120,8 @@ fun MainNavigation(
     onLaunchRequestHandled: () -> Unit = {},
 ) {
     val desktop = LocalDesktopExperience.current
+    val desktopSearchVm: io.github.nodyssey.ui.search.SearchViewModel = viewModel(factory = io.github.nodyssey.ui.search.SearchViewModel.factory(container))
+    val desktopSearch = remember(desktopSearchVm) { DesktopSearchSession(androidx.compose.foundation.text.input.TextFieldState(), desktopSearchVm.postResults, desktopSearchVm) }
     // Hoisted out of the navigation lambdas below, which are not composable.
     val siteTitle = appName()
     val aboutSiteTitle = stringResource(Res.string.about_site)
@@ -222,14 +230,29 @@ fun MainNavigation(
         }
 
     val windowAdaptiveInfo = currentWindowAdaptiveInfoV2()
-    val paneDirective = remember(windowAdaptiveInfo) {
-        calculatePaneScaffoldDirective(windowAdaptiveInfo).copy(horizontalPartitionSpacerSize = 0.dp)
+    val paneDirective = remember(windowAdaptiveInfo, desktop, backStack.lastOrNull()) {
+        calculatePaneScaffoldDirective(windowAdaptiveInfo).copy(horizontalPartitionSpacerSize = if (desktop) 12.dp else 0.dp, defaultPanePreferredWidth = if (desktop) 560.dp else 360.dp).let { directive ->
+            if (desktop && backStack.lastOrNull() !is PostDetailKey && backStack.lastOrNull() !is MessageThreadKey) directive.copy(maxHorizontalPartitions = 1) else directive
+        }
     }
     val isListDetailExpanded = paneDirective.maxHorizontalPartitions > 1
     val currentListDetailExpanded by rememberUpdatedState(isListDetailExpanded)
     val currentEinkMode by rememberUpdatedState(LocalEinkMode.current)
+    val paneExpansionState = rememberPaneExpansionState()
     val listDetailSceneStrategy =
-        rememberListDetailSceneStrategy<NavKey>(directive = paneDirective)
+        rememberListDetailSceneStrategy<NavKey>(
+            directive = paneDirective,
+            paneExpansionState = if (desktop) paneExpansionState else null,
+            paneExpansionDragHandle = if (desktop) {
+                { state ->
+                    Box(Modifier.paneExpansionDraggable(state, 24.dp, remember { MutableInteractionSource() }).fillMaxHeight().width(12.dp).pointerHoverIcon(LocalDesktopResizePointerIcon.current), contentAlignment = Alignment.Center) {
+                        Box(Modifier.fillMaxHeight().width(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                    }
+                }
+            } else {
+                null
+            },
+        )
 
     // The bar belongs to the top-level destinations only. A thread, the image viewer and the web
     // view are full-screen by design — showing a tab bar under them would invite leaving mid-read.
@@ -251,6 +274,7 @@ fun MainNavigation(
         if (showNavigationSuite) navigationSuiteState.show() else navigationSuiteState.hide()
     }
 
+    val desktopPreferences by container.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = io.github.nodyssey.data.settings.UserSettings())
     val scope = rememberCoroutineScope()
 
     /*
@@ -520,8 +544,35 @@ fun MainNavigation(
         )
     }
 
+    val desktopSession by container.sessionRepository.state.collectAsStateWithLifecycle()
+    val executeDesktopSearch = {
+        desktopSearchVm.query.edit { replace(0, length, desktopSearch.submitted) }
+        desktopSearchVm.submitSearch()
+    }
+    LaunchedEffect(desktopSession.isSignedIn) { desktopSearch.resumeAfterSignIn(desktopSession.isSignedIn, executeDesktopSearch) }
+    desktopSearch.onUserClick = { backStack.add(UserSpaceKey(it)) }
+    desktopSearch.submit = {
+        desktopSearch.submitRequest(desktopSession.isSignedIn, executeDesktopSearch)
+        currentTab = TopLevelDestination.HOME
+        while (homeStack.size > 1) homeStack.removeLastOrNull()
+    }
+    LaunchedEffect(desktop, backStack.lastOrNull()) {
+        val request = backStack.lastOrNull() as? SearchKey
+        if (desktop && request != null) {
+            backStack.removeLastOrNull()
+            if (!request.query.isNullOrBlank()) {
+                desktopSearch.query.edit { replace(0, length, request.query) }
+                desktopSearch.submit()
+            } else {
+                desktopSearch.focusRequests++
+            }
+        }
+    }
     DesktopAwareNavigationFrame(
         desktop = desktop,
+        searchSession = desktopSearch,
+        pinnedBoards = desktopPreferences.desktopBoardSlugs,
+        onPinnedBoardsChange = { slugs -> scope.launch { container.settingsRepository.setDesktopBoardSlugs(slugs) } },
         current = currentTab,
         unreadCount = notificationsState.counts.all,
         onSelect = { currentTab = it },
@@ -531,6 +582,7 @@ fun MainNavigation(
         onCreatePost = { backStack.add(PostComposerKey()) },
         onSettings = { if (backStack.lastOrNull() != SettingsKey) backStack.add(SettingsKey) },
         onOpenBoard = {
+            desktopSearch.exitSearch()
             currentTab = TopLevelDestination.HOME
             while (homeStack.size > 1) homeStack.removeLastOrNull()
         },
@@ -628,35 +680,39 @@ fun MainNavigation(
                     // 表情管理, 添加表情 and 图床 from an editor's emoji panel, onto whichever tab the editor is in.
                     LocalStickerNavigation provides stickerNavigation,
                 ) {
-                    NavDisplay(
-                        entries = entries,
-                        // The current tab first, and only when it is spent does back mean "leave this
-                        // tab". `NavDisplay` handles back whenever there is more than one entry, and
-                        // with 首页 underneath there always is — so popping blindly would empty a
-                        // secondary tab's stack.
-                        onBack = {
-                            if (backStack.size > 1) {
-                                backStack.removeLastOrNull()
-                            } else {
-                                currentTab = TopLevelDestination.HOME
-                            }
-                        },
-                        sceneStrategies = listOf(listDetailSceneStrategy),
-                        sharedTransitionScope = this@SharedTransitionLayout,
-                        // Nav3's own defaults are a 700ms slide built from `tween` and `spring`, written
-                        // out rather than taken from the motion scheme — so `PlazaTheme`'s snapped scheme,
-                        // which silences everything else, does not reach them. On paper a slide is the
-                        // whole screen redrawing for two thirds of a second; a cut is one refresh.
-                        transitionSpec = if (eink) SNAP_TRANSITION else defaultTransitionSpec(),
-                        popTransitionSpec =
-                        if (eink) SNAP_TRANSITION else defaultPopTransitionSpec(),
-                        predictivePopTransitionSpec =
-                        if (eink) {
-                            { _ -> SNAP_CONTENT_TRANSFORM }
-                        } else {
-                            defaultPredictivePopTransitionSpec()
-                        },
-                    )
+                    CompositionLocalProvider(LocalDesktopSelectedPost provides (backStack.lastOrNull() as? PostDetailKey)?.postId, LocalDesktopCloseDetail provides { backStack.closeDesktopDetails() }) {
+                        DesktopWorkspace(desktop, currentTab, if (backStack.lastOrNull() is PostDetailKey) backStack.dropLast(1).lastOrNull() else backStack.lastOrNull(), onSelect = { key -> backStack.bringToTop(key) }) {
+                            NavDisplay(
+                                entries = entries,
+                                // The current tab first, and only when it is spent does back mean "leave this
+                                // tab". `NavDisplay` handles back whenever there is more than one entry, and
+                                // with 首页 underneath there always is — so popping blindly would empty a
+                                // secondary tab's stack.
+                                onBack = {
+                                    if (backStack.size > 1) {
+                                        backStack.removeLastOrNull()
+                                    } else {
+                                        currentTab = TopLevelDestination.HOME
+                                    }
+                                },
+                                sceneStrategies = listOf(listDetailSceneStrategy),
+                                sharedTransitionScope = this@SharedTransitionLayout,
+                                // Nav3's own defaults are a 700ms slide built from `tween` and `spring`, written
+                                // out rather than taken from the motion scheme — so `PlazaTheme`'s snapped scheme,
+                                // which silences everything else, does not reach them. On paper a slide is the
+                                // whole screen redrawing for two thirds of a second; a cut is one refresh.
+                                transitionSpec = if (eink) SNAP_TRANSITION else defaultTransitionSpec(),
+                                popTransitionSpec =
+                                if (eink) SNAP_TRANSITION else defaultPopTransitionSpec(),
+                                predictivePopTransitionSpec =
+                                if (eink) {
+                                    { _ -> SNAP_CONTENT_TRANSFORM }
+                                } else {
+                                    defaultPredictivePopTransitionSpec()
+                                },
+                            )
+                        }
+                    }
                 }
             }
             SnackbarHost(

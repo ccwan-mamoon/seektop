@@ -42,8 +42,7 @@ internal fun EntryProviderScope<NavKey>.tabRootEntries(nav: StackEntryScope) = w
             // draws these four before the network answers, and they are what the row's own
             // title, avatar, name and board tag fly into.
             onPostClick = { post ->
-                if (desktop && backStack.lastOrNull() is PostDetailKey) backStack.removeLastOrNull()
-                backStack.add(
+                val detail =
                     PostDetailKey(
                         post.summary.postId,
                         preview =
@@ -55,8 +54,8 @@ internal fun EntryProviderScope<NavKey>.tabRootEntries(nav: StackEntryScope) = w
                             categorySlug = post.summary.categorySlug,
                             isAwarded = post.summary.isAwarded,
                         ),
-                    ),
-                )
+                    )
+                if (desktop) backStack.toggleDesktopDetail(detail) else backStack.add(detail)
             },
             onCreatePost = { backStack.add(PostComposerKey()) },
             onSearch = { backStack.add(SearchKey()) },

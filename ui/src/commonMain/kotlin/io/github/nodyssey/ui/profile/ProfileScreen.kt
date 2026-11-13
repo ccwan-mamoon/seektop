@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
@@ -27,12 +29,14 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -77,8 +81,10 @@ import io.github.nodyssey.ui.common.describedAsLoading
 import io.github.nodyssey.ui.common.siteName
 import io.github.nodyssey.ui.common.withoutBottom
 import io.github.nodyssey.ui.resources.Res
+import io.github.nodyssey.ui.resources.action_sign_in
 import io.github.nodyssey.ui.resources.assets_signed_in
 import io.github.nodyssey.ui.resources.assets_signing_in
+import io.github.nodyssey.ui.resources.desktop_account_overview
 import io.github.nodyssey.ui.resources.profile_attendance_board
 import io.github.nodyssey.ui.resources.profile_attendance_checking
 import io.github.nodyssey.ui.resources.profile_attendance_done
@@ -269,18 +275,24 @@ fun ProfileScreen(
         // screen, which used to carry 设置 as a row because it had no bar, now reaches it the same way
         // the signed-in one does.
         topBar = {
-            TopAppBar(
-                title = {},
-                actions = { SettingsAction(hasAppUpdate = hasAppUpdate, onClick = destinations.settings) },
-                colors =
-                TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
+            if (!io.github.nodyssey.LocalDesktopExperience.current) {
+                TopAppBar(
+                    title = {},
+                    actions = { SettingsAction(hasAppUpdate = hasAppUpdate, onClick = destinations.settings) },
+                    colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background,
+                    ),
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
+        if (io.github.nodyssey.LocalDesktopExperience.current) {
+            DesktopProfileOverview(state, destinations, onSignIn, onRetry, onAttendance, onAttendanceBoard, onVerify, Modifier.padding(padding))
+            return@Scaffold
+        }
         if (!state.isSignedIn) {
             SignedOutProfile(
                 onSignIn = onSignIn,
@@ -828,6 +840,8 @@ private fun SignedOutProfile(
                 // 邀请好友, which a guest used to reach through it and still should.
                 ProfileGridCard(
                     listOf(
+                        ProfileTile(Res.string.profile_tile_collections, PlazaIcons.Bookmark, destinations.collections),
+                        ProfileTile(Res.string.profile_tile_history, PlazaIcons.History, destinations.history),
                         ProfileTile(Res.string.profile_tile_award, PlazaIcons.MenuBook, destinations.award),
                         ProfileTile(Res.string.profile_tile_ruling, PlazaIcons.Gavel, destinations.ruling),
                         ProfileTile(Res.string.profile_tile_lucky, PlazaIcons.Casino, destinations.lucky),
@@ -943,5 +957,53 @@ private fun ProfileSignedOutPreview() {
             onAttendance = {},
             onAttendanceBoard = {},
         )
+    }
+}
+
+@Composable
+private fun DesktopProfileOverview(state: ProfileUiState, destinations: ProfileDestinations, onSignIn: () -> Unit, onRetry: () -> Unit, onAttendance: () -> Unit, onAttendanceBoard: () -> Unit, onVerify: (String) -> Unit, modifier: Modifier) {
+    if (state.isLoading && !state.hasProfile) {
+        LoadingState(modifier)
+        return
+    }
+    if (state.isSignedIn && state.error != null && !state.hasProfile) {
+        SiteErrorState(error = state.error, onRetry = onRetry, onSignIn = onSignIn, onVerify = onVerify, onOpenBrowser = { onVerify(io.github.nodyssey.core.NodeSeekSite.BASE_URL) }, modifier = modifier)
+        return
+    }
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Text(stringResource(io.github.nodyssey.ui.resources.Res.string.desktop_account_overview), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+            Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                io.github.plaza.designsys.component.UserAvatar(url = state.avatarUrl, name = state.displayName, size = 48.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(if (state.isSignedIn) state.displayName else stringResource(Res.string.action_sign_in), style = MaterialTheme.typography.titleMedium)
+                    state.level?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                if (!state.isSignedIn) {
+                    Button(onClick = onSignIn, shape = RoundedCornerShape(6.dp)) { Text(stringResource(Res.string.action_sign_in)) }
+                } else {
+                    TextButton(onClick = onAttendanceBoard) { Text(stringResource(Res.string.profile_attendance_board)) }
+                    Button(onClick = onAttendance, shape = RoundedCornerShape(6.dp), enabled = !state.hasSignedInToday && !state.isSigningIn && !state.isAttendanceUnknown) { Text(stringResource(if (state.hasSignedInToday) Res.string.profile_attendance_done else Res.string.profile_attendance_title)) }
+                }
+            }
+        }
+        if (state.isSignedIn) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = destinations.credit, modifier = Modifier.weight(1f), shape = RoundedCornerShape(6.dp)) { Text(stringResource(Res.string.profile_chicken) + "  " + (state.chickenCount?.toString() ?: "—")) }
+                OutlinedButton(onClick = destinations.stardust, modifier = Modifier.weight(1f), shape = RoundedCornerShape(6.dp)) { Text(stringResource(Res.string.profile_stars) + "  " + (state.starCount?.toString() ?: "—")) }
+                OutlinedButton(onClick = destinations.assets, modifier = Modifier.weight(1f), shape = RoundedCornerShape(6.dp)) { Text(stringResource(Res.string.profile_level) + "  " + (state.level ?: "—")) }
+            }
+        }
+        profileSections(destinations).filter { it.title == Res.string.profile_section_community }.forEach { section ->
+            Text(stringResource(section.title), style = MaterialTheme.typography.titleSmall)
+            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column {
+                    section.tiles.forEach { tile ->
+                        androidx.compose.material3.ListItem(headlineContent = { Text(stringResource(tile.label)) }, leadingContent = { Icon(tile.icon, null) }, modifier = Modifier.clickable(onClick = tile.onClick))
+                        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
+            }
+        }
     }
 }
