@@ -17,6 +17,9 @@ app.on("before-quit", () => notifications.dispose());
 app.whenReady().then(() => {
     const forum = session.fromPartition("persist:nodyssey");
     const third = session.fromPartition("persist:third-party");
+    const updatesSession = session.fromPartition("updates");
+    const updates = require("./updater.cjs").createUpdateService(updatesSession, require("node:path").join(process.env.NODYSSEY_BROWSER_DATA, "../updates/downloads"));
+    app.on("before-quit", () => updates.dispose());
     let login = null;
     const verification = require("./verification.cjs").createVerificationService(forum, BrowserWindow);
     const allowed = (u) => {
@@ -55,6 +58,10 @@ app.whenReady().then(() => {
             const q = body ? JSON.parse(body) : {};
             let value;
             switch (req.url) {
+                case "/update-releases": value = await updates.releases(); break;
+                case "/update-start": value = await updates.start(q); break;
+                case "/update-status": value = updates.status(q.id); break;
+                case "/update-cancel": value = await updates.cancel(q.id); break;
                 case "/notification-configure":
                     value = notifications.configure();
                     break;
@@ -83,6 +90,8 @@ app.whenReady().then(() => {
                     await third.setProxy(
                         q.scope === "FORUM_ONLY" ? { mode: "system" } : config,
                     );
+                    await updatesSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
+                    await updatesSession.closeAllConnections();
                     await forum.closeAllConnections();
                     await third.closeAllConnections();
                     value = {};

@@ -47,6 +47,8 @@ jobs:
         run: python desktop/tests/test_updater.py
       - name: Test session bridge without account sign-in
         run: python desktop/tests/test_browser.py
+      - name: Test resumable update transfers
+        run: node desktop/tests/test_update_transfer.cjs
       - name: Test Windows Toast lifecycle
         run: node desktop/tests/test_notifications.cjs
       - name: Build Windows app-image

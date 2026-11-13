@@ -87,7 +87,7 @@ class DesktopUpdateTest {
         assertTrue(trustedUpdateConnection("https://release-assets.githubusercontent.com/file?token=fixture"))
     }
 
-    @Test fun `check caches by channel and verified download hands off automatically`() = runBlocking {
+    @Test fun `check caches by channel and verified download waits for explicit restart`() = runBlocking {
         fixture { settings, scope, wait, root ->
             val payload = File(root, "fixture.zip").apply { writeBytes("verified update fixture".toByteArray()) }
             val transport = FakeTransport("[${updateFixture(digest = sha256(payload), size = payload.length())}]", payload.readBytes())
@@ -103,7 +103,7 @@ class DesktopUpdateTest {
             repository.download()
             wait()
             assertIs<UpdateDownload.Ready>(repository.state.value.download)
-            assertEquals(1, applier.installs)
+            assertEquals(0, applier.installs)
             assertEquals(sha256(payload), sha256(checkNotNull(applier.archive)))
             transport.body = "[${updateFixture("0.5.0-dev.1", preview = true)}]"
             settings.setUpdateDevChannel(true)

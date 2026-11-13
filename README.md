@@ -4,13 +4,15 @@
 
 **NodeSeek 非官方 Windows 桌面客户端**，基于 [Nodyssey](https://github.com/5151561/nodyssey) 二次开发与桌面移植，采用 GPL-3.0，保留上游版权与贡献归属。
 
-[下载 Windows x64 版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.0/SeekTop-1.0.0-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)
+[下载 Windows x64 版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.1/SeekTop-1.0.1-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)
 
 ## 下载与启动
 
-当前版本为 **1.0.0**。首次使用请从本仓库 [Releases](https://github.com/ccwan-mamoon/seektop/releases) 下载 `SeekTop-1.0.0-windows-x64.zip`，完整解压后打开 **SeekTop.exe**。请保留整个目录，无需另外安装 Java、Node.js 或 Python。
+当前版本为 **1.0.1**。首次使用请从本仓库 [Releases](https://github.com/ccwan-mamoon/seektop/releases) 下载 `SeekTop-1.0.1-windows-x64.zip`，完整解压后打开 **SeekTop.exe**。请保留整个目录，无需另外安装 Java、Node.js 或 Python。
 
-本版已支持一键升级：有更高版本时，在应用内确认后自动下载、校验、退出替换并重启。登录资料和设置保留，旧版目录留作备份。不含更新代码的旧版本需要先切换到 0.4.0。
+本版已支持一键升级：有更高版本时，在应用内下载、校验后点击重启，自动退出替换并重新打开。登录资料和设置保留，旧版目录留作备份。不含更新代码的旧版本需要先切换到 0.4.0。
+
+1.0.1 已优化更新下载：支持代理、断点续传、取消后继续，以及速度和剩余时间显示。下载完成后点击重启，避免重复确认。
 
 ## 为桌面重新设计
 

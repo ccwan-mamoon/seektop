@@ -11,6 +11,8 @@ import io.github.plaza.core.net.SiteException
 import io.github.plaza.core.net.UploadProgress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -68,7 +70,7 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
         Unit
     }
 
-    private fun call(operation: String, body: JsonObject = buildJsonObject {}): JsonObject {
+    internal fun call(operation: String, body: JsonObject = buildJsonObject {}): JsonObject {
         val builder = JdkRequest.newBuilder(URI("http://127.0.0.1:$port/$operation"))
             .header("Authorization", "Bearer $token").header("Content-Type", "application/json")
             .POST(JdkRequest.BodyPublishers.ofString(body.toString()))
@@ -144,20 +146,27 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
     suspend fun clearCache() {
         withContext(Dispatchers.IO) { call("clear-cache") }
     }
+    private val proxyMutex = Mutex()
+    private var appliedProxy: ProxyConfig? = null
+
     suspend fun applyProxy(config: ProxyConfig) = withContext(Dispatchers.IO) {
-        call(
-            "proxy",
-            buildJsonObject {
-                put("enabled", config.enabled && config.isUsable)
-                put("type", config.type.name)
-                put("host", config.host)
-                put("port", config.port)
-                put("scope", config.scope.name)
-                put("username", config.username)
-                put("password", config.password)
-            },
-        )
-        Unit
+        proxyMutex.withLock {
+            if (appliedProxy == config) return@withLock
+            call(
+                "proxy",
+                buildJsonObject {
+                    put("enabled", config.enabled && config.isUsable)
+                    put("type", config.type.name)
+                    put("host", config.host)
+                    put("port", config.port)
+                    put("scope", config.scope.name)
+                    put("username", config.username)
+                    put("password", config.password)
+                },
+            )
+            appliedProxy = config
+            Unit
+        }
     }
 
     fun transport(forum: Boolean): HttpTransport = object : HttpTransport {

@@ -337,7 +337,7 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
         DesktopUpdateInstaller(File(directory, "updates"), System.getProperty("compose.application.resources.dir")?.let(::File), appVersion.name)
     }
     override val appUpdateRepository: AppUpdateRepository by lazy {
-        DesktopUpdateRepository(settingsRepository, appVersion.name, File(directory, "updates"), appScope, desktopUpdateInstaller)
+        DesktopUpdateRepository(settingsRepository, appVersion.name, File(directory, "updates"), appScope, desktopUpdateInstaller, BrowserDesktopUpdateTransport(browser, proxySettings))
     }
 
     override val apkInstaller: ApkInstaller get() = desktopUpdateInstaller

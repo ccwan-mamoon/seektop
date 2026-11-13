@@ -688,7 +688,7 @@
     <string name="about_app_channel">版本发布</string>
     <string name="about_app_channel_hint">查看 SeekTop 的 GitHub Releases</string>
     <string name="about_app_group">讨论与反馈</string>
-    <string name="about_app_group_hint">在 SeekTop 仓库提交问题与建议</string>
+    <string name="about_app_group_hint">加入 SeekTop Telegram 群交流问题与建议</string>
     <string name="about_changelog">更新日志</string>
     <string name="about_help">使用帮助</string>
     <string name="about_help_hint">被当成 bug 的那几件事，和不容易撞见的用法</string>
@@ -1920,8 +1920,11 @@
     <string name="desktop_notify_minutes">每 %1$d 分钟</string>
     <string name="desktop_update_action">一键升级</string>
     <string name="desktop_update_title">开始升级？</string>
-    <string name="desktop_update_confirm">程序会下载并校验新版，然后自动退出、替换文件并重新打开。请先保存尚未发送的内容。登录资料和设置会保留；旧版目录会留作备份。</string>
+    <string name="desktop_update_confirm">程序会先下载并校验新版，完成后点击“重启并完成升级”安装。登录资料和设置会保留；旧版目录会留作备份。重启前请保存尚未发送的内容。</string>
     <string name="desktop_update_install">重启并完成升级</string>
     <string name="desktop_notify_windows_toast">使用 Windows 原生通知</string>
     <string name="desktop_notify_windows_toast_hint">通过 Windows 通知中心接收提醒，点击通知返回 SeekTop。关闭后使用托盘提醒；通知受系统勿扰模式和应用通知权限控制。</string>
+    <string name="desktop_update_transfer">%1$s / %2$s · %3$s/s · 剩余 %4$s</string>
+    <string name="desktop_update_resume">取消或断网后保留下载进度，再次下载可继续。</string>
+    <string name="desktop_update_installing">正在准备重启…</string>
 </resources>

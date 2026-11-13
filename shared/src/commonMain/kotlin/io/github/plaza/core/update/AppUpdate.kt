@@ -108,6 +108,7 @@ sealed interface UpdateDownload {
     data class Running(
         val downloadedBytes: Long,
         val totalBytes: Long,
+        val bytesPerSecond: Long = 0,
     ) : UpdateDownload {
         /** Null when the response declared no length, which is what an indeterminate bar means. */
         val fraction: Float?

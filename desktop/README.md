@@ -22,7 +22,7 @@ python desktop/provision-browser.py --mirror https://npmmirror.com/mirrors/elect
 
 图片、头像和图床上传同样由平台网络通道服务。文件选择和文本导入导出使用桌面文件选择器。
 
-## 当前桌面版 1.0.0
+## 当前桌面版 1.0.1
 
 Windows 原生 Toast 独立开关默认开启，通知进入系统通知中心，点击可唤回应用；关闭此开关则使用托盘提醒。
 启动时左侧菜单默认折叠，保留常用板块简称与完整名称提示，仍可点击切换和管理。通知总开关保留用户原有选择。
@@ -52,3 +52,5 @@ Windows 通知已接入，四类提醒各自选择检查间隔；运行或最小
 原生更新程序由构建任务使用 Windows .NET Framework 编译器生成，无需在用户电脑安装开发工具。
 测试：`./gradlew :desktop:jvmTest :ui:jvmTest`、`python desktop/tests/test_updater.py`。
 完整 app-image 重启演练：`python desktop/tests/test_updater.py --app-dir desktop/build/compose/binaries/main/app/SeekTop`，全程使用临时空配置和测试副本。
+
+更新下载使用独立 Chromium 会话，支持代理范围、续传和有限重试。下载校验后由用户点击重启，安装准备中阻止重复提交。

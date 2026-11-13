@@ -38,9 +38,10 @@ class AboutAppViewModel(
 
     /** Read once when the screen opens; a crash cannot happen while the user is looking at 关于. */
     private val crashReport = MutableStateFlow<CrashReport?>(null)
+    private val installing = MutableStateFlow(false)
 
     val uiState: StateFlow<AboutAppUiState> =
-        combine(updates.state, needsInstallPermission, crashReport) { update, blocked, crash ->
+        combine(updates.state, needsInstallPermission, crashReport, installing) { update, blocked, crash, busy ->
             AboutAppUiState(
                 appName = appVersion.label,
                 versionName = appVersion.name.ifBlank { "—" },
@@ -48,6 +49,7 @@ class AboutAppViewModel(
                 update = update,
                 needsInstallPermission = blocked,
                 crashReport = crash,
+                installing = busy,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -92,17 +94,25 @@ class AboutAppViewModel(
      * `rememberInstallPermissionRequest`, which the route wires to [onInstallPermissionResult].
      */
     fun install() {
+        if (installing.value) return
         val ready = updates.state.value.download as? UpdateDownload.Ready ?: return
         if (!installer.canInstallPackages()) {
             needsInstallPermission.value = true
             return
         }
         needsInstallPermission.value = false
+        installing.value = true
         viewModelScope.launch {
-            val committed = installer.install(ready.apkPath)
-            // Nothing will arrive at the receiver if the session never got written, so an unnamed
-            // failure stands in for it and the screen still says something.
-            if (!committed) updates.onInstallOutcome(InstallOutcome.Failed(InstallFailure.UNKNOWN))
+            try {
+                val committed = installer.install(ready.apkPath)
+                if (!committed) updates.onInstallOutcome(InstallOutcome.Failed(InstallFailure.UNKNOWN))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                updates.onInstallOutcome(InstallOutcome.Failed(InstallFailure.UNKNOWN))
+            } finally {
+                installing.value = false
+            }
         }
     }
 
@@ -134,6 +144,7 @@ data class AboutAppUiState(
     val versionCode: Long = 0L,
     val update: AppUpdateState = AppUpdateState(),
     val needsInstallPermission: Boolean = false,
+    val installing: Boolean = false,
     /** The last crash, when one is on record — see [CrashReportStore]. Null hides the 导出 rows. */
     val crashReport: CrashReport? = null,
 )

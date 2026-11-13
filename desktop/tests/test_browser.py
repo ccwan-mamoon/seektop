@@ -2,7 +2,7 @@ import os,subprocess,json,urllib.request,pathlib,tempfile,shutil,threading
 root=pathlib.Path(__file__).resolve().parents[1] / 'resources/windows/browser-runtime'
 root=pathlib.Path(os.environ.get('SEEKTOP_TEST_RUNTIME',str(root)))
 data=pathlib.Path(tempfile.mkdtemp(prefix='nodyssey-browser-test-'))
-env=os.environ.copy();env['NODYSSEY_BRIDGE_TOKEN']='local-test-only';env['NODYSSEY_BROWSER_DATA']=str(data)
+env=os.environ.copy();env['NODYSSEY_BRIDGE_TOKEN']='local-test-only';env['NODYSSEY_BROWSER_DATA']=str(data/'browser')
 with (data/'stderr.log').open('w') as err:
  p=subprocess.Popen([str(root/'SeekTopBrowser.exe')],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=err,env=env,text=True)
  startup_timer=threading.Timer(25,p.terminate);startup_timer.start()
@@ -17,6 +17,33 @@ with (data/'stderr.log').open('w') as err:
    req=urllib.request.Request(f'http://127.0.0.1:{port}/{path}',data=json.dumps(body).encode(),headers={'Authorization':'Bearer local-test-only' if auth else ''})
    return json.load(urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req,timeout=75))
   assert call('info')['userAgent']
+  # Real Chromium integration: both metadata and binary requests must use the app proxy.
+  from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+  import time
+  proxy_hosts=[]
+  class RejectProxy(BaseHTTPRequestHandler):
+   def do_CONNECT(self):
+    proxy_hosts.append(self.path);self.send_response(502);self.end_headers()
+   def log_message(self,*args):pass
+  proxy=ThreadingHTTPServer(('127.0.0.1',0),RejectProxy)
+  threading.Thread(target=proxy.serve_forever,daemon=True).start()
+  try:
+   call('proxy',{'enabled':True,'type':'HTTP','host':'127.0.0.1','port':proxy.server_port,'scope':'EVERYTHING'})
+   try:call('update-releases');raise AssertionError('Proxy rejection should fail update metadata')
+   except urllib.error.HTTPError as e:assert e.code==500
+   assert 'api.github.com:443' in proxy_hosts,'Update checks bypassed configured proxy'
+   request=call('update-start',{'url':'https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v2.0.0/SeekTop-2.0.0-windows-x64.zip','digest':'a'*64,'size':8})
+   for _ in range(200):
+    status=call('update-status',request)
+    if status['error']:break
+    time.sleep(.05)
+   assert status['error'] and not status['done']
+   assert 'github.com:443' in proxy_hosts,'Update downloads bypassed configured proxy'
+   call('update-cancel',request)
+   print('PASS: actual Chromium update metadata and downloads honor the app proxy',flush=True)
+  finally:
+   call('proxy',{'enabled':False,'scope':'EVERYTHING'})
+   proxy.shutdown();proxy.server_close()
   try:call('info',auth=False);raise AssertionError('unauthorized accepted')
   except urllib.error.HTTPError as e:assert e.code==403
   call('set-cookie',{'url':'https://www.nodeseek.com','cookie':'bridge_test=example; Path=/'})

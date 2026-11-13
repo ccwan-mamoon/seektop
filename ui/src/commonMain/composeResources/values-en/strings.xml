@@ -556,7 +556,7 @@
     <string name="about_app_channel">Releases</string>
     <string name="about_app_channel_hint">View SeekTop releases on GitHub</string>
     <string name="about_app_group">Discussion and feedback</string>
-    <string name="about_app_group_hint">Report problems and suggestions in the SeekTop repository</string>
+    <string name="about_app_group_hint">Discuss problems and suggestions in the SeekTop Telegram group</string>
     <string name="about_changelog">Changelog</string>
     <string name="about_help">How to use this app</string>
     <string name="about_help_hint">The things that look like bugs, and the ones nobody stumbles onto</string>
@@ -1652,8 +1652,11 @@
     <string name="desktop_notify_minutes">Every %1$d minutes</string>
     <string name="desktop_update_action">Upgrade now</string>
     <string name="desktop_update_title">Start upgrade?</string>
-    <string name="desktop_update_confirm">The app will download and verify the new version, exit, replace its files, and restart. Save unsent content first. Sign-in data and settings are kept, and the old application directory is backed up.</string>
+    <string name="desktop_update_confirm">The app downloads and verifies the update first. Then choose Restart and upgrade to install it. Sign-in data and settings are kept, and the old application directory is backed up. Save unsent content before restarting.</string>
     <string name="desktop_update_install">Restart and upgrade</string>
     <string name="desktop_notify_windows_toast">Use Windows native notifications</string>
     <string name="desktop_notify_windows_toast_hint">Receive reminders in Windows Notification Center. Click a notification to return to SeekTop. Turn off to use tray alerts. Windows permissions and Do Not Disturb apply.</string>
+    <string name="desktop_update_transfer">%1$s / %2$s · %3$s/s · Remaining %4$s</string>
+    <string name="desktop_update_resume">Progress is kept after cancellation or a network interruption. Retry to resume.</string>
+    <string name="desktop_update_installing">Preparing to restart…</string>
 </resources>

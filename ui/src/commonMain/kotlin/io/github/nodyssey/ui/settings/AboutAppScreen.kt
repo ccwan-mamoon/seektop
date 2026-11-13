@@ -98,7 +98,10 @@ import io.github.nodyssey.ui.resources.action_cancel
 import io.github.nodyssey.ui.resources.desktop_update_action
 import io.github.nodyssey.ui.resources.desktop_update_confirm
 import io.github.nodyssey.ui.resources.desktop_update_install
+import io.github.nodyssey.ui.resources.desktop_update_installing
+import io.github.nodyssey.ui.resources.desktop_update_resume
 import io.github.nodyssey.ui.resources.desktop_update_title
+import io.github.nodyssey.ui.resources.desktop_update_transfer
 import io.github.nodyssey.ui.resources.settings_licenses
 import io.github.plaza.core.TimeFormat
 import io.github.plaza.core.crash.CrashReport
@@ -237,7 +240,8 @@ fun AboutAppScreen(
                     needsInstallPermission = state.needsInstallPermission,
                     onDownload = { if (desktop) upgradeAction = onDownloadUpdate else onDownloadUpdate() },
                     onCancelDownload = onCancelDownload,
-                    onInstall = { if (desktop) upgradeAction = onInstallUpdate else onInstallUpdate() },
+                    onInstall = onInstallUpdate,
+                    installing = state.installing,
                     onGrantInstallPermission = onGrantInstallPermission,
                     onOpenRelease = { onOpenUri(release.htmlUrl) },
                 )
@@ -446,6 +450,7 @@ private fun UpdateCard(
     onInstall: () -> Unit,
     onGrantInstallPermission: () -> Unit,
     onOpenRelease: () -> Unit,
+    installing: Boolean = false,
 ) {
     LayerCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -501,8 +506,18 @@ private fun UpdateCard(
                 is UpdateDownload.Running -> DownloadProgress(download, onCancelDownload)
 
                 is UpdateDownload.Ready ->
-                    Button(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(if (LocalDesktopExperience.current) Res.string.desktop_update_install else Res.string.about_update_install))
+                    Button(onClick = onInstall, enabled = !installing, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            stringResource(
+                                if (LocalDesktopExperience.current && installing) {
+                                    Res.string.desktop_update_installing
+                                } else if (LocalDesktopExperience.current) {
+                                    Res.string.desktop_update_install
+                                } else {
+                                    Res.string.about_update_install
+                                },
+                            ),
+                        )
                     }
 
                 else -> {
@@ -562,6 +577,13 @@ private fun DownloadProgress(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth().describedAsLoading())
         } else {
             LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().describedAsLoading())
+        }
+        if (io.github.nodyssey.LocalDesktopExperience.current) {
+            val rate = download.bytesPerSecond
+            val seconds = if (rate > 0) ((download.totalBytes - download.downloadedBytes).coerceAtLeast(0) + rate - 1) / rate else null
+            val eta = seconds?.let { "${it / 60}:${(it % 60).toString().padStart(2, '0')}" } ?: "—"
+            Text(stringResource(Res.string.desktop_update_transfer, transferBytes(download.downloadedBytes), transferBytes(download.totalBytes), transferBytes(rate), eta), style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(Res.string.desktop_update_resume), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -715,4 +737,10 @@ private fun AboutAppUpdatePreview() {
             onClearCrashReport = {},
         )
     }
+}
+
+private fun transferBytes(bytes: Long): String {
+    val unit = if (bytes >= 1048576) 1048576L else 1024L
+    val tenths = bytes.coerceAtLeast(0) * 10 / unit
+    return "${tenths / 10}.${tenths % 10} ${if (unit == 1048576L) "MiB" else "KiB"}"
 }

@@ -5,7 +5,6 @@ import io.github.nodyssey.data.update.AppUpdateRepository
 import io.github.plaza.core.update.AppRelease
 import io.github.plaza.core.update.AppUpdateException
 import io.github.plaza.core.update.AppUpdateState
-import io.github.plaza.core.update.InstallFailure
 import io.github.plaza.core.update.InstallOutcome
 import io.github.plaza.core.update.ReleaseNote
 import io.github.plaza.core.update.UpdateCheck
@@ -190,19 +189,21 @@ internal class DesktopUpdateRepository(
     override fun download() {
         val release = state.value.available ?: return
         if (downloadJob?.isActive == true) return
+        val previousDownload = downloadJob
         downloadJob = scope.launch(Dispatchers.IO) {
+            previousDownload?.join()
             val transaction = File(directory, UUID.randomUUID().toString()).apply { mkdirs() }
             val archive = File(transaction, "bundle.zip")
             var keepArchive = false
             mutableState.update { it.copy(download = UpdateDownload.Running(0, release.sizeBytes), installFailure = null) }
             try {
-                transport.download(release, archive) { count -> mutableState.update { it.copy(download = UpdateDownload.Running(count, release.sizeBytes)) } }
+                val meter = DesktopDownloadMeter()
+                transport.download(release, archive) { count -> mutableState.update { it.copy(download = UpdateDownload.Running(count, release.sizeBytes, meter.sample(count))) } }
                 currentCoroutineContext().ensureActive()
                 if (archive.length() != release.sizeBytes || sha256(archive) != release.sha256) throw AppUpdateException(UpdateFailure.Checksum)
                 installer.register(archive, release)
                 keepArchive = true
                 mutableState.update { it.copy(download = UpdateDownload.Ready(archive.absolutePath, release.versionName)) }
-                if (!installer.install(archive.absolutePath)) onInstallOutcome(InstallOutcome.Failed(InstallFailure.UNKNOWN))
             } catch (cancelled: CancellationException) {
                 keepArchive = false
                 throw cancelled
@@ -221,7 +222,6 @@ internal class DesktopUpdateRepository(
 
     override fun cancelDownload() {
         downloadJob?.cancel()
-        downloadJob = null
         mutableState.update { it.copy(download = UpdateDownload.Idle) }
     }
 
