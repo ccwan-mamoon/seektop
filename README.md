@@ -4,7 +4,7 @@
 
 **NodeSeek 非官方 Windows 桌面客户端**，基于 [Nodyssey](https://github.com/5151561/nodyssey) 二次开发与桌面移植，采用 GPL-3.0，保留上游版权与贡献归属。
 
-[下载 Windows x64 版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.1/SeekTop-1.0.1-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)
+[下载 Windows x64 版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.1/SeekTop-1.0.1-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
 
 ## 下载与启动
 
