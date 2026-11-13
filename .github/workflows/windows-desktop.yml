@@ -1,6 +1,8 @@
 name: SeekTop Windows
 
 on:
+  push:
+    branches: ["release/**"]
   workflow_dispatch:
     inputs:
       publish_release:
@@ -45,6 +47,8 @@ jobs:
         run: python desktop/tests/test_updater.py
       - name: Test session bridge without account sign-in
         run: python desktop/tests/test_browser.py
+      - name: Test Windows Toast lifecycle
+        run: node desktop/tests/test_notifications.cjs
       - name: Build Windows app-image
         run: ./gradlew.bat :desktop:createDistributable --no-daemon --max-workers=4
       - name: Package app and matching source
@@ -55,7 +59,7 @@ jobs:
           path: release/*
           if-no-files-found: error
       - name: Publish GitHub Release
-        if: ${{ inputs.publish_release }}
+        if: ${{ github.event_name == 'push' || inputs.publish_release }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

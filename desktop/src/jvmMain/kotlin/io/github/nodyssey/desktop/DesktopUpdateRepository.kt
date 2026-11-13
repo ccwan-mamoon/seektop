@@ -22,7 +22,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -132,7 +131,9 @@ internal class DesktopUpdateRepository(
         val release = if (!force && fresh && valid && cached.devChannel == preview) {
             cachedRelease
         } else {
-            val list = desktopReleaseList(transport.releases(), preview)
+            val response = transport.releases()
+            currentCoroutineContext().ensureActive()
+            val list = desktopReleaseList(response, preview)
             lastList = list
             listAt = System.currentTimeMillis()
             listPreview = preview
@@ -154,7 +155,6 @@ internal class DesktopUpdateRepository(
     private fun checkInternal(force: Boolean, atLaunch: Boolean) {
         if (checkJob?.isActive == true || downloadJob?.isActive == true) return
         checkJob = scope.launch(Dispatchers.IO) {
-            if (atLaunch && !settings.settings.first().updateCheckOnLaunch) return@launch
             mutableState.update { it.copy(check = UpdateCheck.Checking) }
             try {
                 checkNow(force)
@@ -170,7 +170,13 @@ internal class DesktopUpdateRepository(
     }
 
     override fun check(force: Boolean) = checkInternal(force, false)
-    override fun checkOnLaunch() = checkInternal(false, true)
+    override fun checkOnLaunch() = checkInternal(true, true)
+
+    fun cancelCheck() {
+        checkJob?.cancel()
+        checkJob = null
+        mutableState.update { it.copy(check = UpdateCheck.Idle) }
+    }
     override fun acceptLaunchReminder() {
         reminder.value = null
         download()

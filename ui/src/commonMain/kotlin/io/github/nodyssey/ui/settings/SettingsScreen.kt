@@ -552,13 +552,15 @@ fun SettingsScreen(
                     icon = Icons.Default.Info,
                     trailing = { if (state.updateVersionName != null) UpdateDot() },
                 )
-                GroupedRow(
-                    icon = PlazaIcons.Update,
-                    title = stringResource(Res.string.settings_update_on_launch),
-                    checked = state.settings.updateCheckOnLaunch,
-                    onCheckedChange = onUpdateCheckOnLaunchChange,
-                    trailing = { GroupedListItemSwitch(checked = state.settings.updateCheckOnLaunch) },
-                )
+                if (!io.github.nodyssey.LocalDesktopExperience.current) {
+                    GroupedRow(
+                        icon = PlazaIcons.Update,
+                        title = stringResource(Res.string.settings_update_on_launch),
+                        checked = state.settings.updateCheckOnLaunch,
+                        onCheckedChange = onUpdateCheckOnLaunchChange,
+                        trailing = { GroupedListItemSwitch(checked = state.settings.updateCheckOnLaunch) },
+                    )
+                }
                 GroupedRow(
                     icon = PlazaIcons.Science,
                     title = stringResource(Res.string.settings_update_dev_channel),

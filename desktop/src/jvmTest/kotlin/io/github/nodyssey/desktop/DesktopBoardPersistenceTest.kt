@@ -24,6 +24,10 @@ class DesktopBoardPersistenceTest {
         fun repository() = SettingsRepository(PreferenceDataStoreFactory.createWithPath(scope = CoroutineScope(Dispatchers.IO + job), produceFile = { file }))
         try {
             val first = repository()
+            // Existing 0.4 settings have no Toast preference. They must migrate
+            // to native delivery, without overwriting an explicit opt-out later.
+            assertEquals(true, first.settings.first().desktopWindowsToast)
+            first.setDesktopWindowsToast(false)
             first.setDesktopNotificationSeconds(DesktopNotificationKind.INTERACTIONS, 120)
             first.setDesktopNotificationSeconds(DesktopNotificationKind.MESSAGES, 60)
             first.setDesktopNotificationSeconds(DesktopNotificationKind.KEYWORDS, 900)
@@ -34,6 +38,7 @@ class DesktopBoardPersistenceTest {
             job.cancelAndJoin()
             job = SupervisorJob()
             val restored = repository().settings.first()
+            assertEquals(false, restored.desktopWindowsToast)
             assertEquals(emptyList(), restored.desktopBoardSlugs)
             assertEquals(120, DesktopNotificationKind.INTERACTIONS.seconds(restored))
             assertEquals(60, DesktopNotificationKind.MESSAGES.seconds(restored))

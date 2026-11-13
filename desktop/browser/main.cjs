@@ -1,8 +1,19 @@
 const { app, BrowserWindow, session, Menu } = require("electron");
 const http = require("http");
 const token = process.env.NODYSSEY_BRIDGE_TOKEN;
-if (!token) process.exit(1);
+// A Start Menu / Action Center launch must open the desktop shell, rather than
+// leave an invisible Chromium helper running without its authenticated parent.
+if (!token) {
+    const path = require("node:path");
+    const launcher = path.resolve(process.resourcesPath, "../../../../SeekTop.exe");
+    if (require("node:fs").existsSync(launcher)) {
+        require("node:child_process").spawn(launcher, [], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+    }
+    app.quit();
+} else {
 app.setPath("userData", process.env.NODYSSEY_BROWSER_DATA);
+const notifications = require("./notifications.cjs").createNotificationService(require("electron"), process.env.SEEKTOP_DESKTOP_EXE);
+app.on("before-quit", () => notifications.dispose());
 app.whenReady().then(() => {
     const forum = session.fromPartition("persist:nodyssey");
     const third = session.fromPartition("persist:third-party");
@@ -44,6 +55,15 @@ app.whenReady().then(() => {
             const q = body ? JSON.parse(body) : {};
             let value;
             switch (req.url) {
+                case "/notification-configure":
+                    value = notifications.configure();
+                    break;
+                case "/notification-status":
+                    value = notifications.status();
+                    break;
+                case "/notification-show":
+                    value = await notifications.show(q);
+                    break;
                 case "/info":
                     value = { userAgent: forum.getUserAgent() };
                     break;
@@ -282,3 +302,4 @@ app.whenReady().then(() => {
         }, 3000);
 });
 app.on("window-all-closed", () => {});
+}

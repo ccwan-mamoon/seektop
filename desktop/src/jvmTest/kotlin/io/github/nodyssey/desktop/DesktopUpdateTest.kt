@@ -50,6 +50,29 @@ internal fun updateFixture(version: String = "0.4.1", digest: String = "a".repea
 }.toString()
 
 class DesktopUpdateTest {
+    @Test fun `every launch bypasses cache and a cancelled check cannot publish its late result`() = runBlocking {
+        fixture { settings, scope, wait, root ->
+            val entered = CompletableDeferred<Unit>()
+            val transport = object : DesktopUpdateTransport {
+                override suspend fun releases(): String {
+                    entered.complete(Unit)
+                    kotlinx.coroutines.awaitCancellation()
+                }
+                override suspend fun download(release: AppRelease, output: File, progress: (Long) -> Unit) = Unit
+            }
+            settings.setUpdateCheckOnLaunch(false)
+            settings.setUpdateCheckRecord(io.github.plaza.core.update.UpdateCheckRecord(System.currentTimeMillis(), null, false))
+            val repository = DesktopUpdateRepository(settings, "1.0.0", root, scope, FakeApplier(), transport)
+            repository.checkOnLaunch()
+            withTimeout(5000) { entered.await() }
+            assertIs<UpdateCheck.Checking>(repository.state.value.check)
+            repository.cancelCheck()
+            wait()
+            assertIs<UpdateCheck.Idle>(repository.state.value.check)
+            assertEquals(null, repository.launchReminder.value)
+        }
+    }
+
     @Test fun `release selection rejects downgrade source packages foreign URLs and wrong channels`() {
         val list = "[${updateFixture("0.3.0")},${updateFixture("0.4.1")},${updateFixture("0.5.0-dev.1", preview = true)}]"
         assertEquals("0.4.1", newestDesktopRelease(list, "0.4.0", false)?.versionName)

@@ -25,6 +25,8 @@ class DesktopNavigationFrameTest {
         var selected = TopLevelDestination.HOME
         var created = 0
         var wentBack = 0
+        var openedBoard = 0
+        var slug: String? = null
         setContent {
             MaterialTheme {
                 DesktopAwareNavigationFrame(
@@ -40,13 +42,22 @@ class DesktopNavigationFrameTest {
                     onBookmarks = {},
                     onHistory = {},
                     onRefresh = {},
+                    onOpenBoard = { openedBoard++ },
                     mobileNavigation = { error("Desktop must not use mobile navigation") },
-                ) { Text("Nested reader") }
+                ) {
+                    PublishDesktopBoards(io.github.nodyssey.data.CategoryRepository.initialBoards, slug) { slug = it }
+                    Text("Nested reader")
+                }
             }
         }
         onNodeWithText("Nested reader").assertIsDisplayed()
-        onNodeWithText("通知").performClick()
+        onNodeWithContentDescription("通知").performClick()
         assertEquals(TopLevelDestination.NOTIFICATIONS, selected)
+        // Compact board navigation must open Home as well as publish the slug:
+        // merely changing the board while a nested page is shown is invisible.
+        onNodeWithContentDescription("技术").performClick()
+        assertEquals(1, openedBoard)
+        assertEquals("tech", slug)
         onNodeWithText("发帖").performClick()
         assertEquals(1, created)
         onNodeWithContentDescription("返回").performClick()
@@ -57,6 +68,6 @@ class DesktopNavigationFrameTest {
             keyUp(Key.CtrlLeft)
         }
         assertEquals(2, created)
-        onNodeWithText("设置").assertIsDisplayed()
+        onNodeWithContentDescription("设置").assertIsDisplayed()
     }
 }

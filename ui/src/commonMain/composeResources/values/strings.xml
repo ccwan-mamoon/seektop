@@ -1915,11 +1915,13 @@
     <string name="desktop_notify_categories">消息类别</string>
     <string name="desktop_notify_subscriptions">订阅提醒</string>
     <string name="desktop_notify_public_hint">关键词和帖子追踪按各自设置的间隔检查，未登录也可用。追踪范围为按最新回复排序的前两页，可能漏掉两次检查之间滑出范围的帖子。</string>
-    <string name="desktop_notify_unavailable">系统通知图标不可用；未读角标仍会更新，但无法弹出系统提醒。</string>
+    <string name="desktop_notify_unavailable">当前通知方式不可用，请检查 Windows 通知权限，或切换通知方式。未读角标仍会更新。</string>
     <string name="desktop_notify_seconds">每 %1$d 秒</string>
     <string name="desktop_notify_minutes">每 %1$d 分钟</string>
     <string name="desktop_update_action">一键升级</string>
     <string name="desktop_update_title">开始升级？</string>
     <string name="desktop_update_confirm">程序会下载并校验新版，然后自动退出、替换文件并重新打开。请先保存尚未发送的内容。登录资料和设置会保留；旧版目录会留作备份。</string>
     <string name="desktop_update_install">重启并完成升级</string>
+    <string name="desktop_notify_windows_toast">使用 Windows 原生通知</string>
+    <string name="desktop_notify_windows_toast_hint">通过 Windows 通知中心接收提醒，点击通知返回 SeekTop。关闭后使用托盘提醒；通知受系统勿扰模式和应用通知权限控制。</string>
 </resources>

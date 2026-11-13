@@ -4,7 +4,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 
 @Composable
-internal actual fun DesktopScrollbars(state: LazyListState, content: @Composable () -> Unit) {
+internal actual fun DesktopScrollbars(state: LazyListState, reserveScrollbarSpace: Boolean, content: @Composable () -> Unit) {
     content()
 }
 

@@ -1647,11 +1647,13 @@
     <string name="desktop_notify_categories">Message categories</string>
     <string name="desktop_notify_subscriptions">Subscriptions</string>
     <string name="desktop_notify_public_hint">Keywords and followed threads are checked at their configured intervals, including when signed out. Thread checks cover the first two pages sorted by latest reply; threads that leave this range between checks may be missed.</string>
-    <string name="desktop_notify_unavailable">System tray notifications are unavailable. Unread badges still update, but system alerts cannot be shown.</string>
+    <string name="desktop_notify_unavailable">The selected notification method is unavailable. Check Windows notification permissions or switch notification methods. Unread badges still update.</string>
     <string name="desktop_notify_seconds">Every %1$d seconds</string>
     <string name="desktop_notify_minutes">Every %1$d minutes</string>
     <string name="desktop_update_action">Upgrade now</string>
     <string name="desktop_update_title">Start upgrade?</string>
     <string name="desktop_update_confirm">The app will download and verify the new version, exit, replace its files, and restart. Save unsent content first. Sign-in data and settings are kept, and the old application directory is backed up.</string>
     <string name="desktop_update_install">Restart and upgrade</string>
+    <string name="desktop_notify_windows_toast">Use Windows native notifications</string>
+    <string name="desktop_notify_windows_toast_hint">Receive reminders in Windows Notification Center. Click a notification to return to SeekTop. Turn off to use tray alerts. Windows permissions and Do Not Disturb apply.</string>
 </resources>

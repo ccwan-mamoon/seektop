@@ -37,6 +37,8 @@ import io.github.nodyssey.ui.resources.desktop_notify_public_hint
 import io.github.nodyssey.ui.resources.desktop_notify_seconds
 import io.github.nodyssey.ui.resources.desktop_notify_subscriptions
 import io.github.nodyssey.ui.resources.desktop_notify_unavailable
+import io.github.nodyssey.ui.resources.desktop_notify_windows_toast
+import io.github.nodyssey.ui.resources.desktop_notify_windows_toast_hint
 import io.github.nodyssey.ui.resources.keywords_alert_title
 import io.github.nodyssey.ui.resources.notifications_interactions
 import io.github.nodyssey.ui.resources.notifications_messages
@@ -61,6 +63,7 @@ internal fun DesktopNotificationSettings(
     openTracked: () -> Unit,
     onInterval: (DesktopNotificationKind, Int) -> Unit,
     modifier: Modifier = Modifier,
+    onWindowsToast: (Boolean) -> Unit = {},
 ) {
     val enabled = settings.notificationsEnabled
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -69,6 +72,7 @@ internal fun DesktopNotificationSettings(
             Text(stringResource(Res.string.desktop_notify_description), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (!LocalDesktopNotificationsAvailable.current) Text(stringResource(Res.string.desktop_notify_unavailable), color = MaterialTheme.colorScheme.error)
             DesktopNotificationSwitch(stringResource(Res.string.desktop_notify_enable), enabled, true, onEnabled)
+            DesktopNotificationSwitch(stringResource(Res.string.desktop_notify_windows_toast), settings.desktopWindowsToast, true, onWindowsToast, stringResource(Res.string.desktop_notify_windows_toast_hint))
             HorizontalDivider()
             Text(stringResource(Res.string.desktop_notify_categories), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             DesktopNotificationSwitch(stringResource(Res.string.notifications_interactions), settings.notifyInteractions, enabled, onInteractions, intervalKind = DesktopNotificationKind.INTERACTIONS, intervalSeconds = DesktopNotificationKind.INTERACTIONS.seconds(settings), onInterval = onInterval)

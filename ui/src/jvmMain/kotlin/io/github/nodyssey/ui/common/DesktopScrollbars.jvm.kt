@@ -24,11 +24,11 @@ import io.github.nodyssey.ui.resources.action_open_in_external_browser
 import kotlin.math.abs
 
 @Composable
-internal actual fun DesktopScrollbars(state: LazyListState, content: @Composable () -> Unit) {
+internal actual fun DesktopScrollbars(state: LazyListState, reserveScrollbarSpace: Boolean, content: @Composable () -> Unit) {
     // draggable's main-pass detector loses mouse drags to rich-text selection. Inspect slop
     // in the initial pass, consuming movement only after dragging starts, so clicks still work.
     Box(
-        Modifier.fillMaxSize().padding(end = 10.dp).pointerInput(state) {
+        Modifier.fillMaxSize().padding(end = if (reserveScrollbarSpace) 10.dp else 0.dp).pointerInput(state) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                 if (down.type != PointerType.Mouse || !currentEvent.buttons.isPrimaryPressed) return@awaitEachGesture

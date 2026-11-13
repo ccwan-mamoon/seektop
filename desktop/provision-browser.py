@@ -31,4 +31,5 @@ with zipfile.ZipFile(archive) as files:
     files.extractall(destination)
 (destination / "electron.exe").replace(destination / "SeekTopBrowser.exe")
 shutil.copytree(desktop / "browser", destination / "resources/app", dirs_exist_ok=True)
+shutil.copy2(desktop / "icons/seektop-1024.png", destination / "resources/app/seektop.png")
 print(f"Prepared verified Electron {version} runtime")

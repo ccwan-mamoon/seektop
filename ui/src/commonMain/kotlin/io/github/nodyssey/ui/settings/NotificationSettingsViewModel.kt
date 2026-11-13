@@ -44,6 +44,10 @@ class NotificationSettingsViewModel(
         viewModelScope.launch { settings.setDesktopNotificationSeconds(kind, seconds) }
     }
 
+    fun setDesktopWindowsToast(value: Boolean) {
+        viewModelScope.launch { settings.setDesktopWindowsToast(value) }
+    }
+
     fun setEnabled(value: Boolean) {
         viewModelScope.launch { settings.setNotificationsEnabled(value) }
     }

@@ -1639,11 +1639,13 @@
     <string name="desktop_notify_categories">訊息類別</string>
     <string name="desktop_notify_subscriptions">訂閱提醒</string>
     <string name="desktop_notify_public_hint">關鍵詞與追蹤文章依各自設定的間隔檢查，未登入也可用。追蹤範圍為依最新回覆排序的前兩頁，可能遺漏兩次檢查之間滑出範圍的文章。</string>
-    <string name="desktop_notify_unavailable">系統通知圖示無法使用；未讀標記仍會更新，但無法顯示系統提醒。</string>
+    <string name="desktop_notify_unavailable">目前的通知方式無法使用，請檢查 Windows 通知權限，或切換通知方式。未讀標記仍會更新。</string>
     <string name="desktop_notify_seconds">每 %1$d 秒</string>
     <string name="desktop_notify_minutes">每 %1$d 分鐘</string>
     <string name="desktop_update_action">一鍵升級</string>
     <string name="desktop_update_title">開始升級？</string>
     <string name="desktop_update_confirm">程式會下載並驗證新版，接著自動退出、替換檔案並重新開啟。請先儲存尚未傳送的內容。登入資料與設定會保留，舊版目錄也會備份。</string>
     <string name="desktop_update_install">重新啟動並完成升級</string>
+    <string name="desktop_notify_windows_toast">使用 Windows 原生通知</string>
+    <string name="desktop_notify_windows_toast_hint">透過 Windows 通知中心接收提醒，點擊通知返回 SeekTop。關閉後使用系統匣提醒；通知受系統勿擾模式和應用程式通知權限控制。</string>
 </resources>

@@ -38,6 +38,9 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
         environment()["NODYSSEY_BRIDGE_TOKEN"] = token
         environment()["NODYSSEY_BROWSER_DATA"] = directory.absolutePath
         environment()["NODYSSEY_PARENT_PID"] = ProcessHandle.current().pid().toString()
+        System.getProperty("compose.application.resources.dir")?.let {
+            environment()["SEEKTOP_DESKTOP_EXE"] = File(it, "../../SeekTop.exe").canonicalPath
+        }
         redirectError(File(directory.parentFile, "browser-error.log"))
     }.start()
     private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).proxy(object : java.net.ProxySelector() {
@@ -49,6 +52,21 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
             .let { Json.parseToJsonElement(it).jsonObject.getValue("port").jsonPrimitive.int }
     }.get(30, java.util.concurrent.TimeUnit.SECONDS)
     val userAgent = call("info").getValue("userAgent").jsonPrimitive.content
+
+    suspend fun configureNotifications(): JsonObject = withContext(Dispatchers.IO) { call("notification-configure") }
+
+    suspend fun notificationStatus(): JsonObject = withContext(Dispatchers.IO) { call("notification-status") }
+
+    suspend fun toast(title: String, body: String): Unit = withContext(Dispatchers.IO) {
+        call(
+            "notification-show",
+            buildJsonObject {
+                put("title", title)
+                put("body", body)
+            },
+        )
+        Unit
+    }
 
     private fun call(operation: String, body: JsonObject = buildJsonObject {}): JsonObject {
         val builder = JdkRequest.newBuilder(URI("http://127.0.0.1:$port/$operation"))

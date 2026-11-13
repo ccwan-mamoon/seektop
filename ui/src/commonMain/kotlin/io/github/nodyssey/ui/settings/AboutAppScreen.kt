@@ -618,7 +618,7 @@ internal object AppLinks {
 
     // Desktop support lives in the fork repository; keep the existing screen hooks.
     const val TELEGRAM_CHANNEL = RELEASES
-    const val TELEGRAM_GROUP = ISSUES
+    const val TELEGRAM_GROUP = "https://t.me/+okKu89QY-rI2NzQ1"
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 800, name = "f1 关于 SeekTop")

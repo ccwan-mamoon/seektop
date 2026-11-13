@@ -105,6 +105,7 @@ fun NotificationSettingsRoute(
             viewModel.setEnabled(enabled)
         },
         onDesktopIntervalChange = viewModel::setDesktopInterval,
+        onDesktopWindowsToastChange = viewModel::setDesktopWindowsToast,
         onPollMinutesChange = viewModel::setPollMinutes,
         onWifiOnlyChange = viewModel::setWifiOnly,
         onQuietHoursChange = viewModel::setQuietHours,
@@ -141,6 +142,7 @@ fun NotificationSettingsScreen(
     onOpenTelegram: () -> Unit,
     modifier: Modifier = Modifier,
     onDesktopIntervalChange: (io.github.nodyssey.data.settings.DesktopNotificationKind, Int) -> Unit = { _, _ -> },
+    onDesktopWindowsToastChange: (Boolean) -> Unit = {},
     alertCounts: AlertCounts = AlertCounts(),
     onNotifyKeywordAlertsChange: (Boolean) -> Unit = {},
     onNotifyTrackedThreadsChange: (Boolean) -> Unit = {},
@@ -148,7 +150,7 @@ fun NotificationSettingsScreen(
     onOpenTrackedThreads: () -> Unit = {},
 ) {
     if (io.github.nodyssey.LocalDesktopExperience.current) {
-        DesktopNotificationSettings(settings, onEnabledChange, onQuietHoursChange, onNotifyInteractionsChange, onNotifyMessagesChange, onNotifyKeywordAlertsChange, onNotifyTrackedThreadsChange, onOpenAlertKeywords, onOpenTrackedThreads, onDesktopIntervalChange, modifier)
+        DesktopNotificationSettings(settings, onEnabledChange, onQuietHoursChange, onNotifyInteractionsChange, onNotifyMessagesChange, onNotifyKeywordAlertsChange, onNotifyTrackedThreadsChange, onOpenAlertKeywords, onOpenTrackedThreads, onDesktopIntervalChange, modifier, onDesktopWindowsToastChange)
         return
     }
     val enabled = settings.notificationsEnabled

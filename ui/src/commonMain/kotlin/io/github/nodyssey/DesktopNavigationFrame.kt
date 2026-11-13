@@ -128,7 +128,7 @@ internal fun DesktopAwareNavigationFrame(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     val boardNavigation = remember { DesktopBoardNavigation() }
     var managingBoards by remember { mutableStateOf(false) }
-    var menuCollapsed by rememberSaveable { mutableStateOf(false) }
+    var menuCollapsed by rememberSaveable { mutableStateOf(true) }
     var boardsExpanded by rememberSaveable { mutableStateOf(true) }
     val boardListState = rememberLazyListState()
     val refreshTargets = remember { DesktopRefreshTargets() }
@@ -210,31 +210,42 @@ internal fun DesktopAwareNavigationFrame(
                     }
                 }
                 HorizontalDivider(Modifier.padding(horizontal = 10.dp, vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                if (!menuCollapsed) {
+                run {
                     Column(Modifier.weight(1f).fillMaxWidth()) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(stringResource(Res.string.desktop_boards), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f).padding(start = 12.dp))
-                            IconButton(onClick = { managingBoards = true }) { Icon(Icons.Default.Add, stringResource(Res.string.desktop_manage_boards), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                            IconButton(onClick = { boardsExpanded = !boardsExpanded }) {
-                                Icon(if (boardsExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(if (boardsExpanded) Res.string.desktop_boards_collapse else Res.string.desktop_boards_expand), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (menuCollapsed) {
+                            DesktopMenuIcon(stringResource(Res.string.desktop_manage_boards), false, { managingBoards = true }) { Icon(Icons.Default.Add, null) }
+                        } else {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text(stringResource(Res.string.desktop_boards), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                                IconButton(onClick = { managingBoards = true }) { Icon(Icons.Default.Add, stringResource(Res.string.desktop_manage_boards), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                IconButton(onClick = { boardsExpanded = !boardsExpanded }) {
+                                    Icon(if (boardsExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(if (boardsExpanded) Res.string.desktop_boards_collapse else Res.string.desktop_boards_expand), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
-                        if (boardsExpanded) {
+                        if (menuCollapsed || boardsExpanded) {
                             Box(Modifier.weight(1f).fillMaxWidth()) {
-                                io.github.nodyssey.ui.common.DesktopScrollbars(boardListState) {
-                                    LazyColumn(state = boardListState, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                io.github.nodyssey.ui.common.DesktopScrollbars(boardListState, reserveScrollbarSpace = !menuCollapsed) {
+                                    LazyColumn(modifier = Modifier.fillMaxWidth(), state = boardListState, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         items(boardNavigation.boards.filter { it.slug == null || it.slug in pinnedBoards }, key = { it.slug ?: "front" }) { board ->
-                                            NavigationDrawerItem(
-                                                selected = current == TopLevelDestination.HOME && boardNavigation.selectedSlug == board.slug,
-                                                onClick = {
+                                            if (menuCollapsed) {
+                                                DesktopMenuIcon(board.title, current == TopLevelDestination.HOME && boardNavigation.selectedSlug == board.slug, {
                                                     onOpenBoard()
                                                     boardNavigation.select(board.slug)
-                                                },
-                                                label = { Text(board.title, fontSize = 13.sp, maxLines = 1) },
-                                                modifier = Modifier.height(38.dp),
-                                                shape = RoundedCornerShape(4.dp),
-                                                colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer, unselectedContainerColor = Color.Transparent, selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer, unselectedTextColor = MaterialTheme.colorScheme.onSurface),
-                                            )
+                                                }) { Text(board.title.take(2), style = MaterialTheme.typography.labelMedium, maxLines = 1) }
+                                            } else {
+                                                NavigationDrawerItem(
+                                                    selected = current == TopLevelDestination.HOME && boardNavigation.selectedSlug == board.slug,
+                                                    onClick = {
+                                                        onOpenBoard()
+                                                        boardNavigation.select(board.slug)
+                                                    },
+                                                    label = { Text(board.title, fontSize = 13.sp, maxLines = 1) },
+                                                    modifier = Modifier.height(38.dp),
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer, unselectedContainerColor = Color.Transparent, selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer, unselectedTextColor = MaterialTheme.colorScheme.onSurface),
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -243,7 +254,6 @@ internal fun DesktopAwareNavigationFrame(
                     }
                 }
                 if (menuCollapsed) {
-                    Spacer(Modifier.weight(1f))
                     DesktopMenuIcon(stringResource(Res.string.settings_title), false, onSettings) { Icon(Icons.Default.Settings, null) }
                 } else {
                     TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
@@ -294,7 +304,7 @@ internal fun DesktopAwareNavigationFrame(
 @Composable
 private fun DesktopMenuIcon(label: String, selected: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit) {
     TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text(label) } }, state = rememberTooltipState()) {
-        IconButton(onClick = onClick, modifier = Modifier.size(48.dp), colors = IconButtonDefaults.iconButtonColors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)) {
+        IconButton(onClick = onClick, modifier = Modifier.size(48.dp), shape = RoundedCornerShape(6.dp), colors = IconButtonDefaults.iconButtonColors(containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else Color.Transparent, contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)) {
             Box(Modifier.semantics { contentDescription = label }, contentAlignment = Alignment.Center) { icon() }
         }
     }
