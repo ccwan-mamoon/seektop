@@ -1,0 +1,158 @@
+package io.github.seektop.core
+
+import io.github.seektop.model.FeedSort
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class NodeSeekSiteTest {
+    @Test
+    fun `feed paths name both orders so the site's sortBy cookie never decides`() {
+        // The bare URL is answered in whatever order the `sortBy` cookie last named, so 最新回复
+        // spelling itself out is the whole reason switching back from 最新发帖 works.
+        assertEquals("/?sortBy=replyTime", NodeSeekSite.listPath(null, page = 1, sort = FeedSort.LAST_REPLY))
+        assertEquals("/?sortBy=postTime", NodeSeekSite.listPath(null, page = 1, sort = FeedSort.POST_TIME))
+        assertEquals("/page-2?sortBy=replyTime", NodeSeekSite.listPath(null, page = 2, sort = FeedSort.LAST_REPLY))
+        assertEquals(
+            "/categories/daily/page-3?sortBy=postTime",
+            NodeSeekSite.listPath("daily", page = 3, sort = FeedSort.POST_TIME),
+        )
+        assertEquals("/categories/daily?sortBy=replyTime", NodeSeekSite.listPath("daily", page = 0))
+    }
+
+    @Test
+    fun `search paths encode query range page and sort`() {
+        assertEquals(
+            "/search?q=Android%20TV&page=2&category=tech&sortBy=postTime",
+            NodeSeekSite.postSearchPath("Android TV", page = 2, categorySlug = "tech", sort = FeedSort.POST_TIME),
+        )
+        // Same reason as the feed: bare `sortBy` hands the order to the site's cookie.
+        assertEquals(
+            "/search?q=Android%20TV&sortBy=replyTime",
+            NodeSeekSite.postSearchPath("Android TV"),
+        )
+        assertEquals("/member?q=%E8%8A%B1%E7%94%B0", NodeSeekSite.userSearchPath("花田"))
+        assertEquals("/api/account/find/%E8%8A%B1%E7%94%B0", NodeSeekSite.userSearchApiPath("花田"))
+    }
+
+    @Test
+    fun `authentication WebView accepts only HTTPS NodeSeek hosts`() {
+        assertTrue(NodeSeekSite.isTrustedWebViewUrl("https://www.nodeseek.com/signIn.html"))
+        assertTrue(NodeSeekSite.isTrustedWebViewUrl("https://nodeseek.com/"))
+
+        assertFalse(NodeSeekSite.isTrustedWebViewUrl("http://www.nodeseek.com/signIn.html"))
+        assertFalse(NodeSeekSite.isTrustedWebViewUrl("https://www.nodeseek.com.evil.example/"))
+        assertFalse(NodeSeekSite.isTrustedWebViewUrl("https://www.nodeseek.com@evil.example/"))
+        assertFalse(NodeSeekSite.isTrustedWebViewUrl("javascript:alert(1)"))
+        assertFalse(NodeSeekSite.isTrustedWebViewUrl("content://www.nodeseek.com/private"))
+    }
+
+    @Test
+    fun `ordinary web links can leave the app but non-web schemes cannot`() {
+        assertTrue(NodeSeekSite.isExternalWebUrl("https://example.com/article"))
+        assertTrue(NodeSeekSite.isExternalWebUrl("http://legacy.example.com/article"))
+
+        assertFalse(NodeSeekSite.isExternalWebUrl("javascript:alert(1)"))
+        assertFalse(NodeSeekSite.isExternalWebUrl("file:///data/data/io.github.seektop/file"))
+        assertFalse(NodeSeekSite.isExternalWebUrl("content://example.provider/item"))
+    }
+
+    /** The one non-web scheme a post may carry out of the app, and the shapes that only look like it. */
+    @Test
+    fun `an email address may leave the app but a scheme dressed as one may not`() {
+        assertTrue(NodeSeekSite.isMailUrl("mailto:hello@example.com"))
+        assertTrue(NodeSeekSite.isMailUrl("mailto:hello@example.com?subject=hi"))
+        assertTrue(NodeSeekSite.isMailUrl("MAILTO:hello@example.com"))
+
+        assertFalse(NodeSeekSite.isMailUrl("mailto:"))
+        assertFalse(NodeSeekSite.isMailUrl("mailto:?subject=hi"))
+        assertFalse(NodeSeekSite.isMailUrl("mailto://evil.example/"))
+        assertFalse(NodeSeekSite.isMailUrl("mailto:hello@example.com\nBcc: victim@example.com"))
+        assertFalse(NodeSeekSite.isMailUrl("javascript:alert(1)"))
+    }
+
+    /** An address is not a place on the site, so nothing may be prepended to it. */
+    @Test
+    fun `resolving leaves a mailto link alone`() {
+        assertEquals("mailto:hello@example.com", NodeSeekSite.absoluteUrl("mailto:hello@example.com"))
+        assertEquals("https://www.nodeseek.com/avatar/1.png", NodeSeekSite.absoluteUrl("/avatar/1.png"))
+    }
+
+    /**
+     * `rank² × 100`, read off the site's own `/progress` bundle — the 400 that used to be treated as
+     * the only published threshold is just this at Lv1.
+     */
+    @Test
+    fun `level spans follow the site's published squares`() {
+        assertEquals(LevelSpan(barRank = 1, floor = 100, next = 400), NodeSeekSite.levelChickenSpan(1))
+        assertEquals(LevelSpan(barRank = 2, floor = 400, next = 900), NodeSeekSite.levelChickenSpan(2))
+        assertEquals(LevelSpan(barRank = 3, floor = 900, next = 1600), NodeSeekSite.levelChickenSpan(3))
+        assertEquals(LevelSpan(barRank = 4, floor = 1600, next = 2500), NodeSeekSite.levelChickenSpan(4))
+    }
+
+    /**
+     * A floor is the only address a notification gives, so the page has to come out of the number.
+     * Ten floors a page, #0 being the opening post and #1 the first floor under it.
+     */
+    @Test
+    fun `a floor resolves to the page it is rendered on`() {
+        assertEquals(1, NodeSeekSite.pageOfFloor(0))
+        assertEquals(1, NodeSeekSite.pageOfFloor(1))
+        assertEquals(1, NodeSeekSite.pageOfFloor(10))
+        assertEquals(2, NodeSeekSite.pageOfFloor(11))
+        assertEquals(13, NodeSeekSite.pageOfFloor(127))
+    }
+
+    @Test
+    fun `floor labels are read with or without the site's hash`() {
+        assertEquals(127, NodeSeekSite.parseFloorNumber("#127"))
+        assertEquals(127, NodeSeekSite.parseFloorNumber(" 127 "))
+        assertNull(NodeSeekSite.parseFloorNumber(null))
+        assertNull(NodeSeekSite.parseFloorNumber("#"))
+        assertNull(NodeSeekSite.parseFloorNumber("楼主"))
+    }
+
+    /**
+     * What the image cache holds for a week rather than a few hours, so a wrong answer either leaves
+     * every face in a feed revalidating or freezes a picture that was supposed to change.
+     */
+    @Test
+    fun `an avatar address is told apart from any other picture`() {
+        assertTrue(NodeSeekSite.isAvatarUrl(NodeSeekSite.avatarUrl(52425)!!))
+        assertTrue(NodeSeekSite.isAvatarUrl("https://www.nodeseek.com/avatar/1.png"))
+
+        assertFalse(NodeSeekSite.isAvatarUrl("https://www.nodeseek.com/static/image/ac/01.png"))
+        // Another host's, whatever its path says.
+        assertFalse(NodeSeekSite.isAvatarUrl("https://img.example.test/avatar/1.png"))
+        assertFalse(NodeSeekSite.isAvatarUrl(""))
+    }
+
+    /** The bar runs across the current level, not from zero, and the caption names the next level. */
+    @Test
+    fun `level progress is measured within the current level`() {
+        val lv2 = LevelProgress(chicken = 410, span = NodeSeekSite.levelChickenSpan(2))
+        assertEquals(0.02f, lv2.fraction, 0.0001f)
+        assertEquals(490, lv2.remaining)
+        assertEquals(3, lv2.nextRank)
+
+        // Past the site's Lv5 clamp the bar is full and nothing is left to earn.
+        val lv6 = LevelProgress(chicken = 4_000, span = NodeSeekSite.levelChickenSpan(6))
+        assertEquals(1f, lv6.fraction)
+        assertNull(lv6.remaining)
+        assertEquals(6, lv6.nextRank)
+
+        assertNull(LevelProgress.of(chicken = null, span = NodeSeekSite.levelChickenSpan(1)))
+        assertNull(LevelProgress.of(chicken = 344, span = null))
+    }
+
+    /** The site clamps its bar at Lv5 (`Math.min(user.rank, 5)`); nothing beyond it is published. */
+    @Test
+    fun `level spans stop advancing past Lv5`() {
+        val fifth = LevelSpan(barRank = 5, floor = 2500, next = 3600)
+        assertEquals(fifth, NodeSeekSite.levelChickenSpan(5))
+        assertEquals(fifth, NodeSeekSite.levelChickenSpan(6))
+        assertEquals(fifth, NodeSeekSite.levelChickenSpan(99))
+    }
+}

@@ -1,0 +1,55 @@
+package io.github.seektop.foundation.core.net
+
+import io.github.seektop.core.NodeSeekSite
+import io.github.seektop.data.session.FakeSessionCookieStore
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/**
+ * The cookie under test is real: NodeSeek's `sortBy`, which a signed-out request must not carry —
+ * see `NodeSeekSite`'s config for the measurement. The store is the shared one, so what these pin is
+ * that it is gone from the store, not merely left off one request.
+ */
+class CookieScrubbingTransportTest {
+    private val config = NodeSeekSite.CONFIG
+    private val store = FakeSessionCookieStore()
+    private val cookies = SessionCookies(config, store)
+    private val get = HttpRequest(url = config.baseUrl + "/?sortBy=replyTime")
+
+    private fun header(): String = store.cookieHeader(config.baseUrl).orEmpty()
+
+    /** An install that held the cookie from before: it must go before the first request, not after. */
+    @Test
+    fun `a cookie already in the store is expired before the request goes out`() = runTest {
+        store.setCookie(config.baseUrl, "sortBy=replyTime")
+        val inner = RecordingTransport(httpResponse("<html/>"))
+        val transport = CookieScrubbingTransport(inner, cookies)
+
+        transport.execute(get)
+
+        assertFalse("sortBy=replyTime" in header())
+        assertEquals(1, inner.requests.size)
+    }
+
+    @Test
+    fun `a session sync expires what the in-app browser deposited`() {
+        store.setCookie(config.baseUrl, "sortBy=postTime")
+        store.setCookie(config.baseUrl, "colorscheme=dark")
+
+        cookies.dropUnreplayable()
+
+        assertFalse("sortBy=postTime" in header())
+        assertTrue("colorscheme=dark" in header())
+    }
+
+    @Test
+    fun `the header test reads names, not substrings`() {
+        assertTrue(cookies.setsUnreplayable("sortBy=replyTime; Path=/"))
+        assertTrue(cookies.setsUnreplayable("colorscheme=dark; Path=/,sortBy=postTime; Path=/"))
+        assertFalse(cookies.setsUnreplayable("xsortBy=1; Path=/"))
+        assertFalse(cookies.setsUnreplayable(null))
+    }
+}

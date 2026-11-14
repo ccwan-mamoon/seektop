@@ -1,0 +1,233 @@
+package io.github.seektop.core.html
+
+import io.github.seektop.foundation.core.net.CLOUDFLARE_CHALLENGE_MARKERS
+
+/**
+ * Every CSS selector that depends on NodeSeek's markup. When the site changes its templates this
+ * is the only file that should need editing — parsers must not inline selector strings.
+ */
+object Selectors {
+
+    // --- Topic list ---------------------------------------------------------
+    const val LIST_ITEM = "ul.post-list > li.post-list-item"
+    const val LIST_TITLE_LINK = "div.post-title > a[href]"
+    const val LIST_PINNED = "div.post-title use[href=#pin]"
+    const val LIST_LOCKED = "div.post-title use[href=#lock]"
+
+    /**
+     * 推荐阅读 — the 加精 marker, a link into `/award` carrying an orange diamond:
+     * `<a href="/award" title="推荐阅读"><svg class="iconpark-icon award"><use href="#diamonds">`.
+     *
+     * Scoped to `div.post-title` because the 快捷功能区 sidebar links to `/award` on every page, and
+     * the diamond it uses is the same sprite symbol — the row's own title strip is what separates the
+     * badge from the navigation.
+     */
+    const val LIST_AWARDED = "div.post-title a[href=/award]"
+
+    /**
+     * The red-boxed 只读 label on an announcement row. Same meaning as the lock icon
+     * (additions.md §1.4), so the parser folds it into `isLocked` — the app draws one lock state.
+     */
+    const val LIST_READ_ONLY = "div.post-title span:matchesOwn(^\\s*只读\\s*$)"
+
+    /**
+     * What the server puts on a row whose author this account has blocked.
+     *
+     * Read off the site's own bundle on 2026-08-03: its 临时显示Block内容 menu item is nothing but
+     * `document.querySelectorAll(".blocked-post")` with the class removed, and the stylesheet carries
+     * `.blocked-post,.blocked-comment{display:none!important}`. So the content is *sent*, marked, and
+     * hidden by CSS — a scraper receives it like any other row unless it looks for the class.
+     */
+    const val BLOCKED_POST_CLASS = "blocked-post"
+    const val BLOCKED_COMMENT_CLASS = "blocked-comment"
+    const val LIST_AVATAR = "img.avatar-normal, img[src*=/avatar/]"
+    const val LIST_AUTHOR = "span.info-author a[href]"
+    const val LIST_VIEWS = "span.info-views span"
+    const val LIST_COMMENTS = "span.info-comments-count span"
+    const val LIST_LAST_ACTIVE = "a.info-last-comment-time time"
+
+    /** Who wrote the reply [LIST_LAST_ACTIVE] dates — the lightning-bolt name beside it. */
+    const val LIST_LAST_COMMENTER = "span.info-last-commenter a"
+
+    /** The class moved once already, so fall back to any link into a board. */
+    const val LIST_CATEGORY = "a.post-category, div.post-info a[href*=/categories/]"
+    const val LIST_PAGER_NEXT = "a.pager-next[href]"
+    const val LIST_PAGER_POSITIONS = "[aria-label=pagination] .pager-pos"
+
+    /** The server-rendered total in the 首页 sidebar's 用户数目 panel. */
+    const val COMMUNITY_MEMBER_COUNT =
+        "div.nsk-panel:has(h4:containsOwn(用户数目)) > div:containsOwn(目前论坛共有)"
+
+    // --- Post detail --------------------------------------------------------
+    const val DETAIL_TITLE = "div.post-title a.post-title-link"
+    const val DETAIL_TITLE_FALLBACK = "div.post-title h1"
+    const val DETAIL_BODY_ITEM = "div.nsk-post > div.content-item"
+    const val DETAIL_COMMENTS = "ul.comments > li.content-item"
+    const val DETAIL_PAGER = "div.nsk-pager"
+    const val DETAIL_PAGER_POSITIONS = "a.pager-pos, span.pager-pos"
+    const val DETAIL_PAGER_NEXT = "a.pager-next[href]"
+
+    /**
+     * 推荐阅读 on a post page: a gold corner triangle laid over the post wrapper, rather than the
+     * list's diamond — `<div class="award-corner"><div title="推荐阅读" class="corner-triangle">`.
+     *
+     * Page 1 only. Verified live on 2026-08-17: `/post-373751-1` (an awarded thread) carries the
+     * corner, `/post-373751-2` renders the same wrapper without it, so on a later page the absence
+     * of this element says nothing about the thread.
+     */
+    const val DETAIL_AWARD_CORNER = "div.nsk-post-wrapper div.award-corner"
+
+    // --- One post body or comment ------------------------------------------
+    const val CONTENT_AVATAR = "div.avatar-wrapper img"
+    const val CONTENT_AUTHOR = "a.author-name"
+    const val CONTENT_POSTER_BADGE = "div.author-info .is-poster"
+    const val CONTENT_BADGES = "div.author-info .nsk-badge, div.author-info .role-tag"
+    const val CONTENT_CREATED_AT = "span.date-created time"
+
+    /** The header strip holding the time — and, on edited floors, the `edited Xmin ago` marker. */
+    const val CONTENT_INFO = "div.content-info"
+    const val CONTENT_CATEGORY = "span.content-category a"
+    const val CONTENT_FLOOR = "a.floor-link"
+    const val CONTENT_ARTICLE = "article.post-content"
+    const val CONTENT_SIGNATURE = "div.signature"
+
+    /**
+     * The markers the site's own script replaces with a widget — `nsapp://vote?id=2871` for a poll,
+     * `nsapp://stardust-receive?…` for a 收款码.
+     *
+     * The scheme is on `data-href`, not `href` — the anchor's own `href` is `javascript://void(0)`,
+     * because the site's script intercepts the click. Matching on `href` finds nothing.
+     *
+     * [APP_MARKER] matches the whole family rather than one kind, which is what the site's own
+     * mount does (`.post-content a[data-href^="nsapp://"]`). Which kind it is comes out of the
+     * `data-href` afterwards, so a scheme we do not know stays an ordinary anchor.
+     */
+    const val APP_MARKER_ATTR = "data-href"
+    const val APP_MARKER_SCHEME = "nsapp://"
+    const val APP_MARKER = "a[$APP_MARKER_ATTR^=$APP_MARKER_SCHEME]"
+
+    // --- Page-level state ---------------------------------------------------
+
+    /**
+     * Markers that prove we received a real NodeSeek page rather than an interstitial.
+     *
+     * The bootstrap is on this list because Cloudflare inlines its `/cdn-cgi/challenge-platform/`
+     * script into *every* page it serves us, challenge or not — measured on device 2026-08-02, where
+     * the home feed and `/setting` came back 200 with `cf-mitigated` empty and both carrying that
+     * script. The four content markers are what saved the forum pages. `/setting` has none of them:
+     * it is server-rendered without `nsk-body` and its account fields (email, `telegram_id`) live
+     * only in the bootstrap, so 联系方式 read every good response as a challenge until this line
+     * existed. An interstitial is served *instead of* the site and so never carries the bootstrap.
+     */
+    val USABLE_PAGE_MARKERS = listOf(
+        "id=\"nsk-body\"",
+        "class=\"post-list\"",
+        "class=\"nsk-post\"",
+        "class=\"post-content\"",
+        "class=\"comments\"",
+        "id=\"temp-script\"",
+    )
+
+    /**
+     * The third entry is a board's refusal, not a post's, and it is JSON rather than a page: a
+     * signed-out request for 内版 — a board whose threads are members-only — is answered
+     * `400 {"success":false,"message":"Wrong category"}` (measured 2026-09-13, with and without the
+     * `?sortBy=` the app sends). A slug that does not exist at all answers 404 with an empty body,
+     * so the sentence is specific to "exists, and not for you", which for a reader is 需要登录.
+     * Without it the board showed HTTP 400, which names nothing the reader can do.
+     */
+    val LOGIN_REQUIRED_MARKERS = listOf("需要注册用户才能查看", "权限不足", "Wrong category")
+
+    /**
+     * 阅读权限 refused: 「查看本帖需要Lv5，您的权限不足😑，请赚取🍗升级您的用户等级」.
+     *
+     * Checked before [LOGIN_REQUIRED_MARKERS] — see [io.github.seektop.foundation.core.net.PageMarkers.levelRequired]
+     * — because that sentence contains 权限不足, which on its own sends a signed-in Lv3 reader to the
+     * sign-in page for a wall no login clears.
+     *
+     * That order costs signed-out readers nothing: the site checks the session before the rank, so a
+     * visitor with no account gets 需要注册用户才能查看 on the very same thread and never reaches this
+     * sentence — the account holder's own answer, and why the screen this produces offers no 登录
+     * button.
+     *
+     * Captured from `/post-841442-1` on 2026-08-09 through the account holder's browser, signed in
+     * as Lv2, and the capture is `post-level-required.html`: the sentence is a single text node in
+     * an unclassed `<div>`, so the first pattern reads the level; the page carries `id="nsk-body"`
+     * and no 需要注册用户才能查看, which leaves the 权限不足 *inside this sentence* as the only thing
+     * that used to classify it. The second pattern is insurance rather than an observation — a
+     * re-render that wraps `Lv5` in a tag would defeat the first, and a level wall read as a login
+     * wall is the worse failure. It is the same 阅读权限 the feed badges as 「N 级可见」
+     * ([PostListParser] reads that one off the lock icon).
+     */
+    val LEVEL_REQUIRED_MARKERS = listOf(
+        Regex("""查看本帖需要\s*Lv\s*(\d+)"""),
+        Regex("""升级您的用户等级"""),
+    )
+
+    /**
+     * 私有 refused: 「本帖已经被用户设为私有，您没有阅读权限」.
+     *
+     * The other end of the 阅读权限 scale from [LEVEL_REQUIRED_MARKERS] — `rank` 255, the author
+     * alone — and a separate refusal rather than a level of 255, because no reader ever reaches it.
+     *
+     * Measured against `/post-886959-1` on 2026-09-02 through the account holder's own Chrome,
+     * signed in as a Lv2 account that does not own the thread, and the capture is
+     * `post-private.html`. Three things that page does that decide where this is checked: the
+     * sentence is a lone text node in an unclassed `<div>` (the level wall's shape exactly); the
+     * frame is the ordinary signed-in one and carries `id="nsk-body"`, a [USABLE_PAGE_MARKERS]
+     * entry, so a check after that one never runs; and the status is **404**, which nothing sees
+     * for the same reason.
+     *
+     * It shares no phrase with either [LEVEL_REQUIRED_MARKERS] or [LOGIN_REQUIRED_MARKERS] — 阅读权限
+     * is not 权限不足 — so before this list existed the page classified as real content and reached
+     * the parsers, which found a thread with no title and no body.
+     *
+     * The whole first clause rather than 设为私有 alone: this is tested against an entire page, and
+     * a thread whose *body* discusses the feature would otherwise refuse to open.
+     */
+    val PRIVATE_POST_MARKERS = listOf("本帖已经被用户设为私有")
+
+    /**
+     * 「搜索词太短😭」, the whole answer `/search?q=x` gives a one-character query.
+     *
+     * Not on [LOGIN_REQUIRED_MARKERS]' side of the fence and not a challenge: the page is the ordinary
+     * signed-in frame, carries `id="nsk-body"`, and holds that sentence where the list would be. Its
+     * status is **404**, which nothing sees — [USABLE_PAGE_MARKERS] classifies the body as real content
+     * before the status is consulted — so the sentence is the only thing that separates "your term is
+     * too short" from "nothing matched". Measured against the live site on 2026-08-22: one character
+     * refuses, ASCII or CJK alike (`a`, `测`), and two characters search (`ab`, `测试`).
+     *
+     * The site's own text node reads 搜索词太短😭; the emoji is left off the marker so a change of
+     * face does not cost us the classification.
+     */
+    val SEARCH_TOO_SHORT_MARKERS = listOf("搜索词太短")
+
+    /**
+     * The same refusal from `/api/account/find/…`, which words it its own way: HTTP **200** with
+     * `{"success":false,"message":"用户名过短"}` — see [io.github.seektop.data.NetworkSearchRepository].
+     *
+     * Fragments rather than the whole sentence because the two routes already disagree about how to
+     * say it (搜索词太短 against 用户名过短) and a third wording is likelier than a third meaning;
+     * nothing else this endpoint refuses with is worded 过短 or 太短.
+     */
+    val USER_SEARCH_TOO_SHORT_MARKERS = listOf("过短", "太短")
+
+    /**
+     * Cloudflare's markup, not NodeSeek's, so the list itself lives in `:core`.
+     *
+     * Re-exported under this name because the JSON callers below check a response body for an
+     * interstitial by hand, and they read better checking one file's worth of markers rather than
+     * reaching across modules for half of them.
+     */
+    val CLOUDFLARE_MARKERS = CLOUDFLARE_CHALLENGE_MARKERS
+
+    /**
+     * NodeSeek's own throttle sentence, served as a JSON body on an HTML route.
+     *
+     * Captured live from `/search?q=…` on 2026-08-01: two requests inside two seconds and the second
+     * comes back `429 {"success":false,"message":"每隔2秒可以操作一次"}`. The status alone would be
+     * enough today, but the sentence is what makes the classification legible if the status ever
+     * softens to a 200.
+     */
+    val RATE_LIMIT_MARKERS = listOf("每隔2秒可以操作一次")
+}

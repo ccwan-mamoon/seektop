@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.multiplatform")
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
-    id("plaza.dependency-locking")
+    id("seektop.dependency-locking")
 }
 
 kotlin {
@@ -42,6 +42,6 @@ compose.desktop {
     application {
         // `run` is the whole point; no `nativeDistributions` block, because nothing packages this
         // and a .dmg of a component gallery is not a thing anyone wants.
-        mainClass = "io.github.plaza.gallery.GalleryKt"
+        mainClass = "io.github.seektop.foundation.gallery.GalleryKt"
     }
 }

@@ -6,5 +6,5 @@
          flashes until the first frame. This only tracks the OS's night mode — the in-app 深色/定时
          override isn't readable this early — which fixes the common case (system dark, app dark)
          and leaves the system-light-app-dark flash as the price of that override. -->
-    <style name="Theme.Nodyssey" parent="android:Theme.Material.NoActionBar" />
+    <style name="Theme.SeekTop" parent="android:Theme.Material.NoActionBar" />
 </resources>

@@ -1,0 +1,1060 @@
+package io.github.seektop.data.settings
+
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.seektop.core.ActiveSite
+import io.github.seektop.data.NotificationCounts
+import io.github.seektop.data.update.UpdateCheckStore
+import io.github.seektop.foundation.core.update.AppRelease
+import io.github.seektop.foundation.core.update.UpdateCheckRecord
+import io.github.seektop.model.FeedSort
+import io.github.seektop.model.SearchHistoryEntry
+import io.github.seektop.model.SearchTarget
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import okio.IOException
+
+/**
+ * The single source of truth for user settings.
+ *
+ * Everything that reads a setting collects [settings]; nothing keeps its own copy. That rule is the
+ * whole point — settings duplicated into a ViewModel field or an `object` cache is how a settings
+ * screen and the rest of the app drift apart.
+ *
+ * @param devChannelDefault what 接收 dev 版更新 reads as before anyone touches the switch. Wired to
+ * "this build is itself a test build" rather than to a constant: a phone running `1.2.9-dev.3` that
+ * checks the stable channel is asking whether a *release* has passed `1.2.9-dev.3`, and the honest
+ * answer to that stays 已是最新 until `1.3.0` ships — so a tester who never found the switch would
+ * sit on a build that has had four successors and be told there is nothing. The switch still wins
+ * once it is touched, in both directions, which is what keeps turning it off from being undone here.
+ */
+class SettingsRepository(
+    private val dataStore: DataStore<Preferences>,
+    private val devChannelDefault: Boolean = false,
+) : UpdateCheckStore {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /** 测评对比's basket, kept in this same store; see [ReportCompareStore]. */
+    val reportCompare: ReportCompareStore = ReportCompareStore(dataStore)
+
+    /** 表情管理's settings — CDN choice, group order — kept in this same store; see [StickerSettingsStore]. */
+    val stickerSettings: StickerSettingsStore = StickerSettingsStore(dataStore)
+
+    val settings: Flow<UserSettings> = dataStore.data
+        // A corrupt or unreadable store must not take the app down; fall back to defaults.
+        .catch { throwable -> if (throwable is IOException) emit(emptyPreferences()) else throw throwable }
+        .map { preferences ->
+            UserSettings(
+                themeMode = preferences[KEY_THEME_MODE]
+                    ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
+                    ?: ThemeMode.SYSTEM,
+                appLanguage = AppLanguage.ofName(preferences[KEY_APP_LANGUAGE]),
+                colorSource = preferences[KEY_COLOR_SOURCE]
+                    ?.let(::decodeColorSource)
+                    // 动态取色 used to be a bare switch. A store written by an older build has no
+                    // 配色来源 at all, and the one thing it can say is whether that switch was on.
+                    ?: if (preferences[KEY_DYNAMIC_COLOR] == true) ColorSource.WALLPAPER else ColorSource.PRESET,
+                presetId = preferences[KEY_PRESET_ID] ?: DEFAULT_PRESET_ID,
+                seedColor = preferences[KEY_SEED_COLOR] ?: DEFAULT_SEED_COLOR,
+                wallpaperSeed = preferences[KEY_WALLPAPER_SEED],
+                wallpaperSystemPalette = preferences[KEY_WALLPAPER_SYSTEM_PALETTE] ?: true,
+                wallpaperAutoUpdate = preferences[KEY_WALLPAPER_AUTO_UPDATE] ?: false,
+                paletteStyle = preferences[KEY_PALETTE_STYLE]
+                    ?.let { runCatching { PaletteStyle.valueOf(it) }.getOrNull() }
+                    ?: PaletteStyle.SOFT,
+                savedThemes = decodeSavedThemes(preferences[KEY_SAVED_THEMES]),
+                fontScale = preferences[KEY_FONT_SCALE] ?: 1f,
+                oneHandMode = preferences[KEY_ONE_HAND_MODE] ?: true,
+                einkMode = preferences[KEY_EINK_MODE] ?: false,
+                stickerUniformSize = preferences[KEY_STICKER_UNIFORM_SIZE] ?: true,
+                stickerSize = (preferences[KEY_STICKER_SIZE] ?: DEFAULT_STICKER_SIZE_SP)
+                    .coerceIn(MIN_STICKER_SIZE_SP, MAX_STICKER_SIZE_SP),
+                imagesOnWifiOnly = preferences[KEY_IMAGES_WIFI_ONLY] ?: false,
+                reportFormat = preferences[KEY_REPORT_FORMAT]
+                    ?.let { runCatching { ReportFormat.valueOf(it) }.getOrNull() }
+                    ?: ReportFormat.ADAPTED,
+                feedSort = preferences[KEY_FEED_SORT]
+                    ?.let { runCatching { FeedSort.valueOf(it) }.getOrNull() }
+                    ?: FeedSort.LAST_REPLY,
+                homePageBar = preferences[KEY_HOME_PAGE_BAR] ?: true,
+                clipboardPostPrompt = preferences[KEY_CLIPBOARD_POST_PROMPT] ?: true,
+                holidayTheme = preferences[KEY_HOLIDAY_THEME] ?: false,
+                searchHistory = decodeSearchHistory(preferences),
+                recentBoards = decodeValues(preferences[KEY_RECENT_BOARDS]),
+                hiddenHomeBoards =
+                decodeValues(preferences[KEY_HIDDEN_HOME_BOARDS])
+                    // Only the three slugs the site allows can hide a board; anything else in the
+                    // store (a renamed slug, a bad write) must not silently thin out the feed.
+                    .filter { it in OPTIONAL_HOME_BOARD_SLUGS }
+                    .toSet(),
+                desktopBoardSlugs = preferences[KEY_DESKTOP_BOARDS]?.let(::decodeValues) ?: listOf("daily", "tech"),
+                homeBoardOrder = decodeValues(preferences[KEY_HOME_BOARD_ORDER]),
+                disabledHomeBoards = decodeValues(preferences[KEY_DISABLED_HOME_BOARDS]).toSet(),
+                postToolbarActions = decodeValues(preferences[KEY_POST_TOOLBAR]),
+                replyToolbarActions = decodeValues(preferences[KEY_REPLY_TOOLBAR]),
+                messageToolbarActions = decodeValues(preferences[KEY_MESSAGE_TOOLBAR]),
+                desktopNotificationSeconds = DesktopNotificationKind.entries.associateWith { kind -> kind.normalize(preferences[intPreferencesKey("desktop_notify_${kind.storageName}_seconds")] ?: kind.defaultSeconds) },
+                desktopWindowsToast = preferences[KEY_DESKTOP_WINDOWS_TOAST] ?: true,
+                notificationsEnabled = preferences[KEY_NOTIFICATIONS_ENABLED] ?: false,
+                notificationPollMinutes =
+                (preferences[KEY_NOTIFICATION_POLL_MINUTES] ?: DEFAULT_POLL_MINUTES)
+                    .let { minutes -> if (minutes in POLL_MINUTE_CHOICES) minutes else DEFAULT_POLL_MINUTES },
+                notificationsWifiOnly = preferences[KEY_NOTIFICATIONS_WIFI_ONLY] ?: false,
+                notificationQuietHours = preferences[KEY_NOTIFICATION_QUIET_HOURS] ?: true,
+                notifyInteractions =
+                preferences[KEY_NOTIFY_INTERACTIONS]
+                    // The two switches this one replaces, for a device that has them: either one on
+                    // means the reader wanted to hear about 互动. Read rather than rewritten, so the
+                    // migration costs nothing and an older build finds its own keys intact.
+                    ?: ((preferences[KEY_NOTIFY_MENTIONS] ?: true) || (preferences[KEY_NOTIFY_REPLIES] ?: true)),
+                notifyMessages = preferences[KEY_NOTIFY_MESSAGES] ?: true,
+                notifyKeywordAlerts = preferences[KEY_NOTIFY_KEYWORD_ALERTS] ?: true,
+                notifyTrackedThreads = preferences[KEY_NOTIFY_TRACKED_THREADS] ?: true,
+                readHistoryLimit = readHistoryLimit(preferences),
+                updateCheckOnLaunch = preferences[KEY_UPDATE_CHECK_ON_LAUNCH] ?: true,
+                updateDevChannel = preferences[KEY_UPDATE_DEV_CHANNEL] ?: devChannelDefault,
+                onboardingSeen = preferences[KEY_ONBOARDING_SEEN] ?: false,
+                oneHandTipDismissed = preferences[KEY_ONE_HAND_TIP_DISMISSED] ?: false,
+            )
+        }
+
+    /**
+     * 临时显示被屏蔽内容 — deliberately *not* in DataStore.
+     *
+     * The site keeps this in the user menu as a momentary escape hatch, and d6 4/5 words the app's
+     * version the same way: "重启 App 后恢复屏蔽". Local storage that survived the process would
+     * quietly turn "show me, just for now" into "never block again", so the flag lives and dies with
+     * the process on purpose.
+     *
+     * It is a *view* switch and nothing more: the block list is account state and the server is what
+     * marks a post or a floor blocked. Flipping this reveals rows the app has already downloaded —
+     * it never asks the site for anything, and it can never block or unblock anyone.
+     */
+    private val showBlockedContentState = MutableStateFlow(false)
+    val showBlockedContent: StateFlow<Boolean> = showBlockedContentState.asStateFlow()
+
+    fun setShowBlockedContent(enabled: Boolean) {
+        showBlockedContentState.value = enabled
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) = edit { it[KEY_THEME_MODE] = mode.name }
+
+    /**
+     * 语言. Stored, and nothing more: applying it is the platform's half — see `ApplyAppLanguage` in
+     * `:ui`, which is what turns this value into the locale the resources are read under.
+     */
+    suspend fun setAppLanguage(language: AppLanguage) = edit { it[KEY_APP_LANGUAGE] = language.name }
+
+    suspend fun setColorSource(source: ColorSource) = edit { it[KEY_COLOR_SOURCE] = source.name }
+
+    /*
+     * One stored answer per source, rather than one shared between them.
+     *
+     * j1 asks for it in as many words — "切回「自定义」直接沿用 #2F6D8C，不用重新调色" — and the
+     * alternative is worse than it sounds: with a single field, tapping 预设 · 初音未来 to see what
+     * it looks like would silently overwrite a colour that took a minute in the picker to arrive at,
+     * and 自定义 has no way to get it back.
+     */
+
+    /**
+     * The preset 预设 is currently on, by id.
+     *
+     * An id rather than a seed since j2: five of the six are hand-written schemes and have no seed
+     * to store. An id this build does not know resolves back to 石墨青 — see `presetById`.
+     */
+    suspend fun setPresetId(id: String) = edit { it[KEY_PRESET_ID] = id }
+
+    /**
+     * The seed 自定义 expands into a scheme from. Stored as ARGB, and kept even while another source
+     * is selected so that coming back to 自定义 returns the colour that was picked.
+     */
+    suspend fun setSeedColor(argb: Int) = edit { it[KEY_SEED_COLOR] = argb }
+
+    /** Which of the wallpaper's candidates 动态取色 is on; absent means "the first one it finds". */
+    suspend fun setWallpaperSeed(argb: Int) = edit { it[KEY_WALLPAPER_SEED] = argb }
+
+    /**
+     * 使用系统调色板 — hand the OS's own Monet scheme through instead of generating one from the
+     * candidate above. On by default, and ignored below API 31 where there is no such palette.
+     */
+    suspend fun setWallpaperSystemPalette(enabled: Boolean) =
+        edit { it[KEY_WALLPAPER_SYSTEM_PALETTE] = enabled }
+
+    /** 壁纸变化时自动更新 — re-read the wallpaper on the next launch rather than keeping this seed. */
+    suspend fun setWallpaperAutoUpdate(enabled: Boolean) =
+        edit { it[KEY_WALLPAPER_AUTO_UPDATE] = enabled }
+
+    /** 色彩风格 — how far the generated scheme travels from whichever seed is in force. */
+    suspend fun setPaletteStyle(style: PaletteStyle) = edit { it[KEY_PALETTE_STYLE] = style.name }
+
+    /**
+     * 我的主题 — appends, or renames in place when the colour is already saved.
+     *
+     * Keyed on the colour rather than on the name: two entries the reader cannot tell apart in the
+     * chip row is the failure mode, and a name is what they would rename to tell them apart.
+     */
+    suspend fun saveTheme(name: String, argb: Int) =
+        edit { preferences ->
+            val existing = decodeSavedThemes(preferences[KEY_SAVED_THEMES])
+            val without = existing.filterNot { it.color == argb }
+            preferences[KEY_SAVED_THEMES] =
+                json.encodeToString(
+                    (without + SavedTheme(name = name.trim(), color = argb))
+                        .takeLast(MAX_SAVED_THEMES),
+                )
+        }
+
+    suspend fun deleteSavedTheme(argb: Int) =
+        edit { preferences ->
+            preferences[KEY_SAVED_THEMES] =
+                json.encodeToString(
+                    decodeSavedThemes(preferences[KEY_SAVED_THEMES]).filterNot { it.color == argb },
+                )
+        }
+
+    private fun decodeSavedThemes(encoded: String?): List<SavedTheme> {
+        if (encoded.isNullOrBlank()) return emptyList()
+        return runCatching { json.decodeFromString<List<SavedTheme>>(encoded) }.getOrNull().orEmpty()
+    }
+
+    suspend fun setFontScale(scale: Float) =
+        edit { it[KEY_FONT_SCALE] = scale.coerceIn(MIN_FONT_SCALE, MAX_FONT_SCALE) }
+
+    /** 单手模式; see [UserSettings.oneHandMode] for what switching it off costs and buys. */
+    suspend fun setOneHandMode(enabled: Boolean) = edit { it[KEY_ONE_HAND_MODE] = enabled }
+
+    /** 墨水屏模式; see [UserSettings.einkMode] for everything it takes over. */
+    suspend fun setEinkMode(enabled: Boolean) = edit { it[KEY_EINK_MODE] = enabled }
+
+    /**
+     * 表情统一缩限. On — the default, and what every build before this one did — every inline sticker
+     * is drawn in the same [stickerSize] square. Off, each is drawn at its own natural size, the way
+     * the web does it.
+     */
+    suspend fun setStickerUniformSize(uniform: Boolean) =
+        edit { it[KEY_STICKER_UNIFORM_SIZE] = uniform }
+
+    /** The side of that square, in sp. Only read while 表情统一缩限 is on. */
+    suspend fun setStickerSize(sizeSp: Int) =
+        edit { it[KEY_STICKER_SIZE] = sizeSp.coerceIn(MIN_STICKER_SIZE_SP, MAX_STICKER_SIZE_SP) }
+
+    suspend fun setImagesOnWifiOnly(enabled: Boolean) = edit { it[KEY_IMAGES_WIFI_ONLY] = enabled }
+
+    suspend fun setReportFormat(format: ReportFormat) = edit { it[KEY_REPORT_FORMAT] = format.name }
+
+    /** 首页排序; see [UserSettings.feedSort] for why it is kept. */
+    suspend fun setFeedSort(sort: FeedSort) = edit { it[KEY_FEED_SORT] = sort.name }
+
+    /** 首页翻页栏; see [UserSettings.homePageBar] for what it adds. */
+    suspend fun setHomePageBar(enabled: Boolean) = edit { it[KEY_HOME_PAGE_BAR] = enabled }
+
+    /** 识别剪贴板中的帖子; see [UserSettings.clipboardPostPrompt]. */
+    suspend fun setClipboardPostPrompt(enabled: Boolean) = edit { it[KEY_CLIPBOARD_POST_PROMPT] = enabled }
+
+    /**
+     * The clipboard link 识别剪贴板中的帖子 last asked about, or null before it ever has.
+     *
+     * Bookkeeping rather than a setting, the way [keywordAlertBaseline] is — nothing on screen shows
+     * it. Stored rather than held in memory because the moment the same link is most likely still on
+     * the clipboard is the next cold start, and asking again about a link the reader already opened or
+     * waved away is the nagging the "once per link" rule exists to prevent.
+     */
+    suspend fun lastClipboardPostLink(): String? = preferences()[KEY_LAST_CLIPBOARD_POST_LINK]
+
+    suspend fun setLastClipboardPostLink(url: String) = edit { it[KEY_LAST_CLIPBOARD_POST_LINK] = url }
+
+    /**
+     * 新手引导 — written true when the guide is finished or skipped, and false by 再看一次引导 on
+     * 使用帮助.
+     *
+     * Takes the value rather than being a one-way `markOnboardingSeen`, because the guide is worth
+     * re-reading: it is the only place that says what the blank band under a second-level title is
+     * for, and someone who skipped it on install has no other way back to that sentence.
+     */
+    suspend fun setOnboardingSeen(seen: Boolean) = edit { it[KEY_ONBOARDING_SEEN] = seen }
+
+    /** The note in 通知's blank saying it is 单手模式 — closed once, closed for good. */
+    suspend fun dismissOneHandTip() = edit { it[KEY_ONE_HAND_TIP_DISMISSED] = true }
+
+    suspend fun setUpdateCheckOnLaunch(enabled: Boolean) =
+        edit { it[KEY_UPDATE_CHECK_ON_LAUNCH] = enabled }
+
+    /** 接收 dev 版更新; see [UserSettings.updateDevChannel] for what the user is agreeing to. */
+    suspend fun setUpdateDevChannel(enabled: Boolean) =
+        edit { it[KEY_UPDATE_DEV_CHANNEL] = enabled }
+
+    suspend fun setDesktopNotificationSeconds(kind: DesktopNotificationKind, seconds: Int) =
+        edit { it[intPreferencesKey("desktop_notify_${kind.storageName}_seconds")] = kind.normalize(seconds) }
+
+    suspend fun setDesktopWindowsToast(enabled: Boolean) =
+        edit { it[KEY_DESKTOP_WINDOWS_TOAST] = enabled }
+
+    suspend fun setNotificationsEnabled(enabled: Boolean) =
+        edit { it[KEY_NOTIFICATIONS_ENABLED] = enabled }
+
+    suspend fun setNotificationPollMinutes(minutes: Int) =
+        edit {
+            it[KEY_NOTIFICATION_POLL_MINUTES] =
+                if (minutes in POLL_MINUTE_CHOICES) minutes else DEFAULT_POLL_MINUTES
+        }
+
+    suspend fun setNotificationsWifiOnly(enabled: Boolean) =
+        edit { it[KEY_NOTIFICATIONS_WIFI_ONLY] = enabled }
+
+    suspend fun setNotificationQuietHours(enabled: Boolean) =
+        edit { it[KEY_NOTIFICATION_QUIET_HOURS] = enabled }
+
+    suspend fun setNotifyInteractions(enabled: Boolean) =
+        edit { it[KEY_NOTIFY_INTERACTIONS] = enabled }
+
+    suspend fun setNotifyMessages(enabled: Boolean) = edit { it[KEY_NOTIFY_MESSAGES] = enabled }
+
+    suspend fun setNotifyKeywordAlerts(enabled: Boolean) = edit { it[KEY_NOTIFY_KEYWORD_ALERTS] = enabled }
+
+    suspend fun setNotifyTrackedThreads(enabled: Boolean) = edit { it[KEY_NOTIFY_TRACKED_THREADS] = enabled }
+
+    /**
+     * The newest thread id 提醒关键词 has already looked at, or null before its first run. Worker
+     * bookkeeping like [notificationSeenCounts], and per site: the two sites number threads apart.
+     */
+    suspend fun keywordAlertBaseline(): Long? = preferences()[KEY_ALERT_LAST_POST_ID]
+
+    suspend fun setKeywordAlertBaseline(postId: Long) = edit { it[KEY_ALERT_LAST_POST_ID] = postId }
+
+    /**
+     * How long 浏览历史 remembers. Anything outside [READ_HISTORY_LIMIT_CHOICES] is refused rather
+     * than stored, so a bad write cannot leave the history capped at some number no picker can undo.
+     *
+     * Lowering it does not itself delete anything — the rows go on the next
+     * [io.github.seektop.data.PostRepository.trimReadHistory]. The caller that changes this setting
+     * is expected to ask for that trim; see the history screen's ViewModel.
+     *
+     * It caps the stored reading places as well, on the same reasoning that it caps the history:
+     * both answer "how many threads does this app remember", and a second number for one of them
+     * would be a cap nobody set and no picker could reach. They are trimmed together, by the same
+     * caller — see [io.github.seektop.data.PostRepository.trimReadHistory].
+     */
+    suspend fun setReadHistoryLimit(limit: Int) =
+        edit {
+            it[KEY_READ_HISTORY_LIMIT] =
+                if (limit in READ_HISTORY_LIMIT_CHOICES) limit else DEFAULT_READ_HISTORY_LIMIT
+        }
+
+    suspend fun addSearchHistory(entry: SearchHistoryEntry) {
+        val normalized = entry.copy(query = entry.query.trim())
+        if (normalized.query.isEmpty()) return
+        dataStore.edit { preferences ->
+            val history = decodeSearchHistory(preferences)
+            preferences[KEY_SEARCH_HISTORY] =
+                json.encodeToString(
+                    (listOf(normalized) + history.filterNot { it.key == normalized.key })
+                        .take(MAX_RECENT_SEARCHES)
+                        .map(SearchHistoryEntry::toStored),
+                )
+        }
+    }
+
+    suspend fun removeSearchHistory(entry: SearchHistoryEntry) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SEARCH_HISTORY] =
+                json.encodeToString(
+                    decodeSearchHistory(preferences)
+                        .filterNot { it.key == entry.key }
+                        .map(SearchHistoryEntry::toStored),
+                )
+        }
+    }
+
+    suspend fun clearSearchHistory(target: SearchTarget) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SEARCH_HISTORY] =
+                json.encodeToString(
+                    decodeSearchHistory(preferences)
+                        .filterNot { it.target == target }
+                        .map(SearchHistoryEntry::toStored),
+                )
+        }
+    }
+
+    /**
+     * The local mirror of the site's 首页版块 switches — Remote rows, cached so the feed can draw
+     * itself without the network.
+     *
+     * Stored as the *hidden* set rather than the visible one because that is the shape of the site's
+     * own preference: only 交易 / 生活 / 贴图 can be turned off, everything else is always on, and
+     * the empty set — the default — means "hide nothing". [slug] outside
+     * [OPTIONAL_HOME_BOARD_SLUGS] is refused here and filtered on read, so the store can never hide
+     * a board the site would show.
+     */
+    suspend fun setHomeBoardHidden(slug: String, hidden: Boolean) {
+        if (slug !in OPTIONAL_HOME_BOARD_SLUGS) return
+        dataStore.edit { preferences ->
+            val current = decodeValues(preferences[KEY_HIDDEN_HOME_BOARDS]).toSet()
+            val next = if (hidden) current + slug else current - slug
+            if (next.isEmpty()) {
+                preferences.remove(KEY_HIDDEN_HOME_BOARDS)
+            } else {
+                preferences[KEY_HIDDEN_HOME_BOARDS] =
+                    encodeValues(next.toList(), OPTIONAL_HOME_BOARD_SLUGS.size)
+            }
+        }
+    }
+
+    /**
+     * The home strip's own arrangement: what order the pills sit in, and which ones the user parked.
+     *
+     * Written as one pair because they are one edit. Splitting them into two `edit` calls would let
+     * the flow emit an order that has already moved a board to the tail while it is still marked
+     * enabled — a frame where the strip is visibly wrong, for no benefit.
+     *
+     * This is *not* the site's 首页版块 preference ([setHomeBoardHidden]). That one is the account's
+     * and can only touch three boards; this one is local, covers every board, and is reversible from
+     * the strip itself. The two narrow the list independently and on purpose.
+     */
+    suspend fun setDesktopBoardSlugs(slugs: List<String>) {
+        dataStore.edit { it[KEY_DESKTOP_BOARDS] = encodeValues(slugs.filter(String::isNotBlank).distinct(), MAX_HOME_BOARDS) }
+    }
+
+    suspend fun setHomeBoardArrangement(
+        order: List<String>,
+        disabled: Set<String>,
+    ) {
+        dataStore.edit { preferences ->
+            if (order.isEmpty()) {
+                preferences.remove(KEY_HOME_BOARD_ORDER)
+            } else {
+                preferences[KEY_HOME_BOARD_ORDER] = encodeValues(order, MAX_HOME_BOARDS)
+            }
+            // Only slugs the order still knows about; a disabled board with no rank would come back
+            // as a fresh board on the next read and silently re-enable itself.
+            val ranked = disabled.filter { it in order }
+            if (ranked.isEmpty()) {
+                preferences.remove(KEY_DISABLED_HOME_BOARDS)
+            } else {
+                preferences[KEY_DISABLED_HOME_BOARDS] = encodeValues(ranked, MAX_HOME_BOARDS)
+            }
+        }
+    }
+
+    /**
+     * Stores one composer's strip. An empty list clears the preference rather than writing one, so
+     * "I put it back the way it was" and "I never touched it" stay the same stored state.
+     */
+    suspend fun setComposerToolbar(
+        surface: ComposerSurface,
+        actions: List<String>,
+    ) {
+        val key = when (surface) {
+            ComposerSurface.POST -> KEY_POST_TOOLBAR
+            ComposerSurface.REPLY -> KEY_REPLY_TOOLBAR
+            ComposerSurface.MESSAGE -> KEY_MESSAGE_TOOLBAR
+        }
+        edit { preferences ->
+            if (actions.isEmpty()) {
+                preferences.remove(key)
+            } else {
+                preferences[key] = encodeValues(actions, MAX_TOOLBAR_ACTIONS)
+            }
+        }
+    }
+
+    /** Local mirror of the site's Remote 启用节日主题 switch; the sync authority is the account. */
+    suspend fun setHolidayTheme(enabled: Boolean) = edit { it[KEY_HOLIDAY_THEME] = enabled }
+
+    /** Most-recently-scoped board, kept at the top of the range sheet. Null — the whole site — is not a board. */
+    suspend fun recordRecentBoard(slug: String?) {
+        if (slug.isNullOrBlank()) return
+        dataStore.edit { preferences ->
+            val recent = decodeValues(preferences[KEY_RECENT_BOARDS])
+            preferences[KEY_RECENT_BOARDS] =
+                encodeValues(listOf(slug) + recent.filterNot { it == slug }, MAX_RECENT_BOARDS)
+        }
+    }
+
+    /**
+     * The unread totals the poll worker most recently saw. Worker bookkeeping, not a user setting —
+     * deliberately absent from [settings]; it lives here only because this class owns the DataStore.
+     */
+    suspend fun notificationSeenCounts(): NotificationCounts {
+        val preferences = preferences()
+        return NotificationCounts(
+            replies = preferences[KEY_SEEN_REPLIES] ?: 0,
+            mentions = preferences[KEY_SEEN_MENTIONS] ?: 0,
+            messages = preferences[KEY_SEEN_MESSAGES] ?: 0,
+            overlap = preferences[KEY_SEEN_OVERLAP] ?: 0,
+        )
+    }
+
+    suspend fun setNotificationSeenCounts(counts: NotificationCounts) =
+        edit {
+            it[KEY_SEEN_REPLIES] = counts.replies
+            it[KEY_SEEN_MENTIONS] = counts.mentions
+            it[KEY_SEEN_MESSAGES] = counts.messages
+            // Stored with the rest because the worker compares 互动 totals, and that total is
+            // `replies + mentions - overlap`: keeping the two group numbers without the number of
+            // pairs among them would make the next run read a merge as an arrival.
+            it[KEY_SEEN_OVERLAP] = counts.overlap
+        }
+
+    /**
+     * The last answer GitHub gave about a newer build — bookkeeping like [notificationSeenCounts],
+     * not a user setting, and deliberately absent from [settings].
+     *
+     * It is stored at all so that "有新版本" is on screen the instant the app opens rather than a
+     * network round trip later, and so a relaunch does not re-ask GitHub. A record that fails to
+     * decode reads as "never checked", which costs one extra call and nothing else.
+     */
+    override suspend fun updateCheckRecord(): UpdateCheckRecord {
+        val preferences = preferences()
+        return UpdateCheckRecord(
+            checkedAtMillis = preferences[KEY_UPDATE_CHECKED_AT] ?: 0L,
+            devChannel = preferences[KEY_UPDATE_RECORD_DEV_CHANNEL] ?: false,
+            release =
+            preferences[KEY_UPDATE_RELEASE]?.let { stored ->
+                runCatching { json.decodeFromString<AppRelease>(stored) }.getOrNull()
+            },
+        )
+    }
+
+    override suspend fun setUpdateCheckRecord(record: UpdateCheckRecord) =
+        edit { preferences ->
+            preferences[KEY_UPDATE_CHECKED_AT] = record.checkedAtMillis
+            // The channel the answer came from, not the setting: the setting can change between two
+            // checks, and that is exactly the case this field lets the repository notice.
+            preferences[KEY_UPDATE_RECORD_DEV_CHANNEL] = record.devChannel
+            val release = record.release
+            if (release == null) {
+                preferences.remove(KEY_UPDATE_RELEASE)
+            } else {
+                preferences[KEY_UPDATE_RELEASE] = json.encodeToString(release)
+            }
+        }
+
+    /**
+     * The one version the user has said 稍后 to, kept as a version name rather than a timestamp.
+     *
+     * A version name is what makes "不再提醒这个版本" survive: the next release has a different name
+     * and asks again on its own, with no expiry to tune and nothing to reset when one ships.
+     */
+    override suspend fun devChannelEnabled(): Boolean =
+        preferences()[KEY_UPDATE_DEV_CHANNEL] ?: devChannelDefault
+
+    override suspend fun postponedUpdateVersion(): String? = preferences()[KEY_UPDATE_POSTPONED]
+
+    override suspend fun setPostponedUpdateVersion(versionName: String) =
+        edit { it[KEY_UPDATE_POSTPONED] = versionName }
+
+    /** One snapshot of the store, with the same IOException fallback [settings] has. */
+    private suspend fun preferences(): Preferences =
+        dataStore.data
+            .catch { throwable -> if (throwable is IOException) emit(emptyPreferences()) else throw throwable }
+            .first()
+
+    private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
+        dataStore.edit(block)
+    }
+
+    private fun emptyPreferences() = androidx.datastore.preferences.core.emptyPreferences()
+
+    companion object {
+        const val MIN_FONT_SCALE = 0.85f
+        const val MAX_FONT_SCALE = 1.5f
+
+        /*
+         * 表情大小, in sp. The bottom of the range is the 20sp box a sticker has always had — the one
+         * the body copy's 27sp line was designed around — and the top is the 90px the site's own
+         * `img.sticker { max-width: 90px }` caps a sticker at, so the slider's far end and 表情统一缩限
+         * switched off agree about how big the biggest sticker gets.
+         */
+        const val MIN_STICKER_SIZE_SP = 20
+        const val MAX_STICKER_SIZE_SP = 90
+        const val DEFAULT_STICKER_SIZE_SP = MIN_STICKER_SIZE_SP
+
+        /** WorkManager's own floor is 15 minutes, which is why the choices start there — board f4. */
+        val POLL_MINUTE_CHOICES = listOf(15, 30, 60)
+        const val DEFAULT_POLL_MINUTES = 30
+
+        /**
+         * 无上限, expressed as a limit so that every caller stays one `LIMIT :n` and one `trimTo(n)`.
+         *
+         * A sentinel of 0 was the obvious alternative and is the dangerous one: a stray 0 anywhere in
+         * this chain would silently mean "keep nothing", and these rows are the unread baselines. The
+         * failure mode of the largest possible number is that nothing gets trimmed.
+         */
+        const val READ_HISTORY_UNLIMITED = Int.MAX_VALUE
+
+        /**
+         * How many threads 浏览历史 keeps.
+         *
+         * A row is a handful of strings — a thousand of them is well under a megabyte — so the cap is
+         * not really about storage. It is about the second job these rows do: they are the baselines
+         * behind 已读变灰 and 「N 条新回复」, and a small cap makes threads look unread again while the
+         * reader still cares. That is why the default is 300 rather than the 100 the list itself
+         * would be tidier at.
+         */
+        val READ_HISTORY_LIMIT_CHOICES = listOf(100, 300, 1000, READ_HISTORY_UNLIMITED)
+        const val DEFAULT_READ_HISTORY_LIMIT = 300
+
+        private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
+
+        /** Read only to migrate a store written before 配色来源 existed; nothing writes it now. */
+        private val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        private val KEY_COLOR_SOURCE = stringPreferencesKey("color_source")
+        private val KEY_PRESET_ID = stringPreferencesKey("preset_id")
+        private val KEY_SEED_COLOR = intPreferencesKey("seed_color")
+        private val KEY_WALLPAPER_SEED = intPreferencesKey("wallpaper_seed")
+        private val KEY_WALLPAPER_SYSTEM_PALETTE = booleanPreferencesKey("wallpaper_system_palette")
+        private val KEY_WALLPAPER_AUTO_UPDATE = booleanPreferencesKey("wallpaper_auto_update")
+        private val KEY_PALETTE_STYLE = stringPreferencesKey("palette_style")
+        private val KEY_SAVED_THEMES = stringPreferencesKey("saved_themes")
+
+        /** 石墨青, the colour the app has always been, now as the seed every scheme starts from. */
+        const val DEFAULT_SEED_COLOR: Int = 0xFF35606E.toInt()
+
+        /** 石墨青 again, as the 预设 id — the one preset that is a seed rather than a character. */
+        const val DEFAULT_PRESET_ID: String = "graphite"
+
+        /** Enough that the chip row still fits on a phone; past that it stops being a shortcut. */
+        const val MAX_SAVED_THEMES = 12
+
+        /**
+         * Stored names outlived the words on the screen.
+         *
+         * 品牌色 became 预设 and 自选 became 自定义 when 主题 grew a preset grid, but a store written
+         * before that says `BRAND` and `SEED`. Reading those as the source the reader chose — rather
+         * than dropping them and landing everyone back on the default — is the whole job here.
+         */
+        private fun decodeColorSource(stored: String): ColorSource? =
+            when (stored) {
+                "BRAND" -> ColorSource.PRESET
+                "SEED" -> ColorSource.CUSTOM
+                else -> runCatching { ColorSource.valueOf(stored) }.getOrNull()
+            }
+        private val KEY_FONT_SCALE = floatPreferencesKey("font_scale")
+        private val KEY_ONE_HAND_MODE = booleanPreferencesKey("one_hand_mode")
+        private val KEY_EINK_MODE = booleanPreferencesKey("eink_mode")
+        private val KEY_STICKER_UNIFORM_SIZE = booleanPreferencesKey("sticker_uniform_size")
+        private val KEY_STICKER_SIZE = intPreferencesKey("sticker_size_sp")
+        private val KEY_IMAGES_WIFI_ONLY = booleanPreferencesKey("images_on_wifi_only")
+        private val KEY_REPORT_FORMAT = stringPreferencesKey("report_format")
+        private val KEY_RECENT_SEARCHES = stringPreferencesKey("recent_searches")
+        private val KEY_SEARCH_HISTORY = stringPreferencesKey("search_history_v3")
+        private val KEY_RECENT_BOARDS = stringPreferencesKey("recent_boards")
+
+        /*
+         * The three board keys are per-site; every other key in this store is shared.
+         *
+         * They hold slugs, and the two sites' slugs are different vocabularies that happen to
+         * overlap in two places — `promotion` and `sandbox`. A shared arrangement would carry
+         * NodeSeek's 交易 and 拼车 into DeepFlood's strip as boards it does not have, park
+         * DeepFlood's 人工智能 on NodeSeek, and let a reader's careful ordering on one site quietly
+         * rewrite the other's.
+         *
+         * The suffix is empty for NodeSeek, so an existing reader's arrangement is untouched — see
+         * `Site.storageSuffix`. Read once at class init, which is after the shell has installed
+         * `ActiveSite` and long before a switch, which restarts the process.
+         */
+        private val boardKeySuffix = ActiveSite.current.storageSuffix
+        private val KEY_HIDDEN_HOME_BOARDS = stringPreferencesKey("hidden_home_boards$boardKeySuffix")
+        private val KEY_DESKTOP_BOARDS = stringPreferencesKey("desktop_boards$boardKeySuffix")
+        private val KEY_HOME_BOARD_ORDER = stringPreferencesKey("home_board_order$boardKeySuffix")
+        private val KEY_DISABLED_HOME_BOARDS = stringPreferencesKey("disabled_home_boards$boardKeySuffix")
+        private val KEY_POST_TOOLBAR = stringPreferencesKey("post_toolbar_actions")
+        private val KEY_REPLY_TOOLBAR = stringPreferencesKey("reply_toolbar_actions")
+        private val KEY_MESSAGE_TOOLBAR = stringPreferencesKey("message_toolbar_actions")
+        private val KEY_FEED_SORT = stringPreferencesKey("feed_sort")
+        private val KEY_HOME_PAGE_BAR = booleanPreferencesKey("home_page_bar")
+        private val KEY_CLIPBOARD_POST_PROMPT = booleanPreferencesKey("clipboard_post_prompt")
+        private val KEY_LAST_CLIPBOARD_POST_LINK = stringPreferencesKey("last_clipboard_post_link")
+        private val KEY_ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
+        private val KEY_ONE_HAND_TIP_DISMISSED = booleanPreferencesKey("one_hand_tip_dismissed")
+        private val KEY_HOLIDAY_THEME = booleanPreferencesKey("holiday_theme")
+        private val KEY_DESKTOP_WINDOWS_TOAST = booleanPreferencesKey("desktop_windows_toast")
+        private val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+        private val KEY_NOTIFICATION_POLL_MINUTES = intPreferencesKey("notification_poll_minutes")
+        private val KEY_NOTIFICATIONS_WIFI_ONLY = booleanPreferencesKey("notifications_wifi_only")
+        private val KEY_NOTIFICATION_QUIET_HOURS = booleanPreferencesKey("notification_quiet_hours")
+        private val KEY_NOTIFY_INTERACTIONS = booleanPreferencesKey("notify_interactions")
+
+        // Written by no build any more, read only to migrate: see `notifyInteractions` above.
+        private val KEY_NOTIFY_MENTIONS = booleanPreferencesKey("notify_mentions")
+        private val KEY_NOTIFY_REPLIES = booleanPreferencesKey("notify_replies")
+        private val KEY_NOTIFY_MESSAGES = booleanPreferencesKey("notify_messages")
+        private val KEY_NOTIFY_KEYWORD_ALERTS = booleanPreferencesKey("notify_keyword_alerts")
+        private val KEY_NOTIFY_TRACKED_THREADS = booleanPreferencesKey("notify_tracked_threads")
+        private val KEY_ALERT_LAST_POST_ID = longPreferencesKey("keyword_alert_last_post_id$boardKeySuffix")
+        private val KEY_SEEN_REPLIES = intPreferencesKey("notification_seen_replies")
+        private val KEY_SEEN_MENTIONS = intPreferencesKey("notification_seen_mentions")
+        private val KEY_SEEN_MESSAGES = intPreferencesKey("notification_seen_messages")
+        private val KEY_SEEN_OVERLAP = intPreferencesKey("notification_seen_overlap")
+        private val KEY_READ_HISTORY_LIMIT = intPreferencesKey("read_history_limit")
+        private val KEY_UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
+        private val KEY_UPDATE_RELEASE = stringPreferencesKey("update_latest_release")
+        private val KEY_UPDATE_POSTPONED = stringPreferencesKey("update_postponed_version")
+        private val KEY_UPDATE_CHECK_ON_LAUNCH = booleanPreferencesKey("update_check_on_launch")
+        private val KEY_UPDATE_DEV_CHANNEL = booleanPreferencesKey("update_dev_channel")
+        private val KEY_UPDATE_RECORD_DEV_CHANNEL = booleanPreferencesKey("update_checked_dev_channel")
+
+        private const val RECENT_SEARCH_SEPARATOR = '\u001F'
+        private const val MAX_RECENT_SEARCHES = 8
+        private const val MAX_RECENT_BOARDS = 6
+
+        /** The site has fifteen boards. The cap is only here so a corrupt write cannot grow forever. */
+        private const val MAX_HOME_BOARDS = 64
+
+        /** Comfortably above `EditorAction.entries.size`; a stored strip can never need more. */
+        private const val MAX_TOOLBAR_ACTIONS = 32
+
+        /**
+         * How many threads 浏览历史 keeps, which is also how many reading places are kept.
+         *
+         * One reader, and every caller goes through [settings]. A stored value outside
+         * [READ_HISTORY_LIMIT_CHOICES] reads as the default here as well as in [setReadHistoryLimit],
+         * so a bad write cannot cap either of them at a number no picker can undo.
+         */
+        private fun readHistoryLimit(preferences: Preferences): Int =
+            (preferences[KEY_READ_HISTORY_LIMIT] ?: DEFAULT_READ_HISTORY_LIMIT)
+                .let { limit -> if (limit in READ_HISTORY_LIMIT_CHOICES) limit else DEFAULT_READ_HISTORY_LIMIT }
+
+        private fun decodeRecentSearches(value: String?): List<String> =
+            value.orEmpty().split(RECENT_SEARCH_SEPARATOR).filter(String::isNotBlank)
+
+        private fun decodeValues(value: String?): List<String> =
+            value.orEmpty().split(RECENT_SEARCH_SEPARATOR).filter(String::isNotBlank)
+
+        private fun encodeValues(
+            values: List<String>,
+            limit: Int,
+        ): String =
+            values
+                .asSequence()
+                .map { it.replace(RECENT_SEARCH_SEPARATOR.toString(), " ").trim() }
+                .filter(String::isNotEmpty)
+                .distinct()
+                .take(limit)
+                .joinToString(RECENT_SEARCH_SEPARATOR.toString())
+    }
+
+    /**
+     * Deduplicated because decoding is lossy: a stored row's board list collapses to its first
+     * board and the retired sorts fold into their [FeedSort] equivalents, so two rows written by an older
+     * build can land on one domain entry. The list is read straight into a LazyColumn keyed on
+     * [SearchHistoryEntry.key], which throws the moment a key repeats — and the first write after
+     * this drops the collapsed twin from disk for good.
+     */
+    private fun decodeSearchHistory(preferences: Preferences): List<SearchHistoryEntry> {
+        val stored =
+            preferences[KEY_SEARCH_HISTORY]?.let { encoded ->
+                runCatching { json.decodeFromString<List<StoredSearchHistory>>(encoded) }.getOrNull()
+            }
+        if (stored != null) {
+            return stored.mapNotNull(StoredSearchHistory::toDomain).distinctBy(SearchHistoryEntry::key)
+        }
+
+        return decodeRecentSearches(preferences[KEY_RECENT_SEARCHES])
+            .map { query -> SearchHistoryEntry(query = query, target = SearchTarget.POSTS) }
+            .distinctBy(SearchHistoryEntry::key)
+    }
+}
+
+/** Which composer's formatting strip a stored arrangement belongs to. */
+enum class ComposerSurface { POST, REPLY, MESSAGE }
+
+data class UserSettings(
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /**
+     * 语言 — which translation the interface is drawn in, or [AppLanguage.SYSTEM] for the device's
+     * own.
+     *
+     * The odd one out on this list: every other setting here is read by whatever it changes, and
+     * this one is read by nothing but the row that sets it. What draws a screen in the chosen
+     * language is the platform's own locale, which `ApplyAppLanguage` in `:ui` puts this value into
+     * once per launch — so no string lookup anywhere has to know this field exists.
+     */
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    val colorSource: ColorSource = ColorSource.PRESET,
+    /** The preset 预设 is on, by id; only read while [colorSource] is [ColorSource.PRESET]. */
+    val presetId: String = SettingsRepository.DEFAULT_PRESET_ID,
+    /** ARGB. Only read while [colorSource] is [ColorSource.CUSTOM]; see `setSeedColor`. */
+    val seedColor: Int = SettingsRepository.DEFAULT_SEED_COLOR,
+    /**
+     * ARGB of the wallpaper candidate that was picked, or null for "whatever the wallpaper leads
+     * with". Null on a fresh install and after 壁纸变化时自动更新 discards a stale choice.
+     */
+    val wallpaperSeed: Int? = null,
+    /** 使用系统调色板 — the OS's own Monet scheme rather than one generated from [wallpaperSeed]. */
+    val wallpaperSystemPalette: Boolean = true,
+    /** 壁纸变化时自动更新 — re-read the wallpaper on the next launch instead of keeping a seed. */
+    val wallpaperAutoUpdate: Boolean = false,
+    /** 色彩风格 — applies to whichever seed is in force, and to all three sources alike. */
+    val paletteStyle: PaletteStyle = PaletteStyle.SOFT,
+    /** 我的主题 — hand-picked seeds the reader named and kept. Oldest first; see `saveTheme`. */
+    val savedThemes: List<SavedTheme> = emptyList(),
+    val fontScale: Float = 1f,
+    /**
+     * 单手模式 — whether a second-level screen opens with its title dropped into a band of blank
+     * within the thumb's reach, which the reader then drags to whatever height suits them.
+     *
+     * On by default, which is what every build since that bar landed has done. Off turns all of them
+     * back into ordinary pinned toolbars: nothing is hidden and nothing moves, the top of the screen
+     * simply goes back to being content. It is one answer for the whole app rather than one per
+     * screen, because it is a fact about the hand and not about the page — see `LocalOneHandMode`.
+     */
+    val oneHandMode: Boolean = true,
+    /**
+     * 墨水屏模式 — whether this app is being read on electronic paper.
+     *
+     * Off by default and asked for by hand rather than detected: the manufacturer whitelist that
+     * would answer it automatically is a list somebody has to keep, and it is wrong in both
+     * directions — a reader on a phone may want this, and a reader on a panel nobody has heard of
+     * would not get it.
+     *
+     * On, it takes over three things that are otherwise separate settings. Colour: the whole scheme
+     * becomes four greys and black, which is why 明暗 and 主题 are greyed out while it is on — a
+     * panel has nothing to do with a seed colour. Motion: every animation snaps, the same answer
+     * the OS's 移除动画 gets, because on e-ink each frame is a physical refresh. And light: it is
+     * forced, because white-on-black leaves the heavier ghost and saves nothing on a reflective
+     * screen — which is why paper books are not black.
+     */
+    val einkMode: Boolean = false,
+    /**
+     * 表情统一缩限. True — the default — draws every inline sticker in the same [stickerSize] square,
+     * which at its smallest is the 20sp box that keeps a sticker inside a line of body text. False
+     * draws each sticker at its own natural size, capped the way the site caps it.
+     */
+    val stickerUniformSize: Boolean = true,
+    /** The side of that square in sp, between [SettingsRepository.MIN_STICKER_SIZE_SP] and its max. */
+    val stickerSize: Int = SettingsRepository.DEFAULT_STICKER_SIZE_SP,
+    val imagesOnWifiOnly: Boolean = false,
+    /** How a NodeQuality-style benchmark report is drawn in a post; see [ReportFormat]. */
+    val reportFormat: ReportFormat = ReportFormat.ADAPTED,
+    /**
+     * 首页 › 排序 — 新评论 or 新帖子, kept across launches.
+     *
+     * The two orders are two different feeds, cached separately, so this also decides which of them
+     * a cold start paints. That is the point: the reader who switched to 新帖子 last night wants the
+     * app to open on 新帖子, not to re-pick it every launch.
+     *
+     * [FeedSort.LAST_REPLY] is the default because it is what the site itself serves with no
+     * `sortBy` parameter.
+     */
+    val feedSort: FeedSort = FeedSort.LAST_REPLY,
+    /**
+     * Whether 首页 carries the same 翻页栏 the thread and 管理记录 have.
+     *
+     * On by default: 首页 is read by page number in the browser, and the reader who arrives from there
+     * expects to be able to say "page 40" rather than fling for it. Switching it off is for the reader
+     * who only scrolls, to whom a control naming the page is answering a question they never ask.
+     *
+     * It does not change how the feed loads either way. Pages still append while scrolling; the bar
+     * only adds a way to arrive somewhere, which is the same pairing the comment thread uses.
+     */
+    val homePageBar: Boolean = true,
+    /**
+     * 识别剪贴板中的帖子 (Android): on coming back to the app, offer to open a thread whose link is
+     * on the clipboard. On by default — the prompt is a snackbar that asks once per link and goes
+     * away on its own, and the reader who copied a thread link elsewhere almost always wants it.
+     */
+    val clipboardPostPrompt: Boolean = true,
+    /** Local mirror of the account's Remote 启用节日主题 switch. */
+    val holidayTheme: Boolean = false,
+    val searchHistory: List<SearchHistoryEntry> = emptyList(),
+    val recentBoards: List<String> = emptyList(),
+    /** Boards switched off the home feed. Empty — the default — hides nothing; see `setHomeBoardHidden`. */
+    val hiddenHomeBoards: Set<String> = emptySet(),
+    /**
+     * The strip's arrangement, as edited by long-pressing it. Empty means "never customised": the
+     * boards keep the order the API returned them in and none of them are parked.
+     */
+    val desktopBoardSlugs: List<String> = listOf("daily", "tech"),
+    val homeBoardOrder: List<String> = emptyList(),
+    /** Boards parked at the tail of the strip. A subset of [homeBoardOrder]; see `setHomeBoardArrangement`. */
+    val disabledHomeBoards: Set<String> = emptySet(),
+    /*
+     * The three formatting strips, as laid out through the wrench on the toolbar. Stored as
+     * `EditorAction` names in the order they appear; empty means "never customised" and the surface
+     * falls back to its own default set. Separate per surface on purpose — a topic wants a list and a
+     * link where a reply wants a quote and an @, and one shared arrangement would have to drop one of
+     * those from somebody's defaults to exist at all.
+     */
+    val postToolbarActions: List<String> = emptyList(),
+    val replyToolbarActions: List<String> = emptyList(),
+    val messageToolbarActions: List<String> = emptyList(),
+    /*
+     * App notification polling (board f4). Off by default: polling costs battery and needs the
+     * POST_NOTIFICATIONS runtime permission, so it starts only when the user asks for it.
+     */
+    val desktopNotificationSeconds: Map<DesktopNotificationKind, Int> = emptyMap(),
+    val desktopWindowsToast: Boolean = true,
+    val notificationsEnabled: Boolean = false,
+    val notificationPollMinutes: Int = SettingsRepository.DEFAULT_POLL_MINUTES,
+    val notificationsWifiOnly: Boolean = false,
+    /** Fixed 23:00–07:00 window (board f4): the worker still fetches, but posts nothing. */
+    val notificationQuietHours: Boolean = true,
+    /**
+     * 互动, one switch for the one list the screen shows — see `NotificationTab`.
+     *
+     * It used to be two, one per site group, and the site files the same comment under both: a reply
+     * that opens with `@name #7` raised a notification from each, for one thing to read. Splitting
+     * the switch could not fix that; only one posted notification per comment can.
+     */
+    val notifyInteractions: Boolean = true,
+    val notifyMessages: Boolean = true,
+    /** 提醒关键词: a new thread whose title holds one of them. Off-able without deleting the words. */
+    val notifyKeywordAlerts: Boolean = true,
+    /** 追踪新回复: new replies on a thread the reader chose to follow. */
+    val notifyTrackedThreads: Boolean = true,
+    /** 浏览历史保留条数; [SettingsRepository.READ_HISTORY_UNLIMITED] for 无上限. */
+    val readHistoryLimit: Int = SettingsRepository.DEFAULT_READ_HISTORY_LIMIT,
+    /**
+     * 启动时检查更新. On by default: an APK installed from Releases has nothing else to tell its owner
+     * that a fix shipped, and the check is one conditional request every six hours at most.
+     *
+     * Off means neither the launch check nor the reminder it raises — 关于 still checks when opened and
+     * on the 检查更新 button, which is a check the user asked for by being on that screen.
+     */
+    val updateCheckOnLaunch: Boolean = true,
+    /**
+     * 接收 dev 版更新 — whether the update check also offers the `vX.Y.Z-dev.N` test builds.
+     *
+     * Off, and opt-in on purpose: a dev tag is cut to try one thing out, it carries no CHANGELOG
+     * section, and nothing promises it works. `.github/workflows/release.yml` publishes those as
+     * GitHub prereleases, which is what keeps them away from everyone who has not turned this on.
+     *
+     * Turning it off does not undo an install: a device already running 1.3.0-dev.2 stays on it and
+     * simply hears nothing further until a stable release passes that number.
+     */
+    val updateDevChannel: Boolean = false,
+    /**
+     * Whether the 新手引导 has been shown and dismissed.
+     *
+     * The one field on this list nothing on 设置 writes: it is a record of something that happened,
+     * not a preference. It rides here anyway because what reads it is the root composable, which
+     * already collects this flow — a second store and a second `catch` for one boolean would be more
+     * moving parts than the boolean is worth.
+     *
+     * False on an upgrade as well as on a fresh install, and deliberately: the readers who take 单手
+     * 模式 for a bug and never find 站内链接 are on builds that shipped before this existed, so they
+     * are the ones the guide is for. It is four screens with a 跳过 on every one, and it is shown
+     * once.
+     */
+    val onboardingSeen: Boolean = false,
+    /**
+     * Whether the note in 通知's one-hand blank has been closed. A record like [onboardingSeen]:
+     * 通知 is where the blank is most often taken for a layout bug, so it is where the note sits.
+     */
+    val oneHandTipDismissed: Boolean = false,
+)
+
+/**
+ * How 设置 · 主题 decides light or dark. [SYSTEM] is the default, and the only automatic one: the
+ * site's own 定时（日落）night mode used to live here as a fourth entry, and a value stored back then
+ * reads as [SYSTEM] again, which is what that setting was asking for anyway.
+ */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+/**
+ * Where the seed comes from: one of the six presets, the system wallpaper (API 31+), or a colour the
+ * reader dialled in themselves. All three end up in the same generator.
+ *
+ * One choice rather than a switch per source — they are alternatives, and two of them being on at
+ * once would have no answer. Each remembers its own seed, so switching between them to compare is
+ * free; see `setPresetSeed` for why that matters.
+ *
+ * The names on disk are `BRAND` and `SEED` for the first and last, from the build where the first
+ * one meant a hand-tuned palette rather than a preset. `SettingsRepository.decodeColorSource` reads
+ * those; renaming the constants without it would land every upgrading phone back on the default.
+ */
+enum class ColorSource { PRESET, WALLPAPER, CUSTOM }
+
+/**
+ * 色彩风格 — the five Material variants, in the order the chip row offers them.
+ *
+ * A thin mirror of `SeekTopPaletteStyle`: `:designsys` cannot see this module, and the stored name has
+ * to survive a rename on either side of that line.
+ */
+enum class PaletteStyle { SOFT, VIBRANT, EXPRESSIVE, NEUTRAL, MONOCHROME }
+
+/**
+ * One entry of 我的主题.
+ *
+ * The name is optional on the way in — j1 labels the field 名称（可选） — and an empty one is drawn
+ * as the hex instead, so a chip is never blank.
+ */
+@Serializable
+data class SavedTheme(
+    val name: String,
+    /** ARGB, and the identity of the entry: saving the same colour twice renames it. */
+    val color: Int,
+)
+
+/**
+ * How a benchmark report inside a post is drawn.
+ *
+ * [ADAPTED] is the default: the report is read apart by
+ * [io.github.seektop.core.report.QualityReportParser] and drawn again as ordinary rows, because
+ * eighty columns of terminal art across a phone puts the type near 7sp.
+ *
+ * [SOURCE] draws it the way it was posted — the same terminal ground and fit-to-width type the
+ * full-screen 查看原始报告 uses, inline in the floor. The scripts are versioned and the card is an
+ * interpretation, so a reader who does not trust the interpretation gets to switch it off for good
+ * rather than tapping through to the original on every report.
+ */
+enum class ReportFormat { ADAPTED, SOURCE }
+
+/**
+ * The stored field stays a list even though the domain now holds one board.
+ *
+ * Records written by the multi-select build are already on disk; keeping the shape means they still
+ * decode, taking their first board as the scope, rather than every user losing their history to a
+ * silent parse failure.
+ */
+@Serializable
+private data class StoredSearchHistory(
+    val query: String,
+    val target: String,
+    val categorySlugs: List<String> = emptyList(),
+    val sort: String = FeedSort.POST_TIME.name,
+) {
+    fun toDomain(): SearchHistoryEntry? {
+        val resolvedTarget = runCatching { SearchTarget.valueOf(target) }.getOrNull() ?: return null
+        val resolvedSort =
+            when (sort) {
+                // The retired labels for the same two `sortBy` values the site has always taken.
+                "TIME" -> FeedSort.POST_TIME
+
+                "RELEVANCE" -> FeedSort.LAST_REPLY
+
+                else -> runCatching { FeedSort.valueOf(sort) }.getOrDefault(FeedSort.LAST_REPLY)
+            }
+        return SearchHistoryEntry(
+            query = query.trim(),
+            target = resolvedTarget,
+            categorySlug = categorySlugs.sorted().firstOrNull()?.ifBlank { null },
+            sort = resolvedSort,
+        ).takeIf { it.query.isNotEmpty() }
+    }
+}
+
+private fun SearchHistoryEntry.toStored() =
+    StoredSearchHistory(
+        query = query,
+        target = target.name,
+        categorySlugs = listOfNotNull(categorySlug),
+        sort = sort.name,
+    )

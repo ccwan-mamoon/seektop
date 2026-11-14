@@ -8,11 +8,11 @@
  */
 plugins {
     alias(libs.plugins.android.test)
-    id("plaza.dependency-locking")
+    id("seektop.dependency-locking")
 }
 
 android {
-    namespace = "io.github.nodyssey.benchmark"
+    namespace = "io.github.seektop.benchmark"
     compileSdk = 37
 
     defaultConfig {
@@ -44,7 +44,7 @@ android {
         create("nonMinified") {
             // Pairs with `:app`'s un-renamed release twin — the one the profile generator captures
             // from, because a profile of R8's per-build names is a profile of nothing. See the
-            // build type's note in `plaza.android.application`.
+            // build type's note in `seektop.android.application`.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

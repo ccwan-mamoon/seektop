@@ -1,8 +1,8 @@
 import os,subprocess,json,urllib.request,pathlib,tempfile,shutil,threading
 root=pathlib.Path(__file__).resolve().parents[1] / 'resources/windows/browser-runtime'
 root=pathlib.Path(os.environ.get('SEEKTOP_TEST_RUNTIME',str(root)))
-data=pathlib.Path(tempfile.mkdtemp(prefix='nodyssey-browser-test-'))
-env=os.environ.copy();env['NODYSSEY_BRIDGE_TOKEN']='local-test-only';env['NODYSSEY_BROWSER_DATA']=str(data/'browser')
+data=pathlib.Path(tempfile.mkdtemp(prefix='seektop-browser-test-'))
+env=os.environ.copy();env['SEEKTOP_BRIDGE_TOKEN']='local-test-only';env['SEEKTOP_BROWSER_DATA']=str(data/'browser')
 with (data/'stderr.log').open('w') as err:
  p=subprocess.Popen([str(root/'SeekTopBrowser.exe')],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=err,env=env,text=True)
  startup_timer=threading.Timer(25,p.terminate);startup_timer.start()

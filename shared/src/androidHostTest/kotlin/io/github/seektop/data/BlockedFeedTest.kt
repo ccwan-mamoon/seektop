@@ -1,0 +1,188 @@
+package io.github.seektop.data
+
+import androidx.paging.testing.asSnapshot
+import io.github.seektop.data.local.FeedPositionEntity
+import io.github.seektop.data.local.FeedRemoteKeyEntity
+import io.github.seektop.data.local.NodeSeekDatabase
+import io.github.seektop.data.local.toEntity
+import io.github.seektop.model.FeedSort
+import io.github.seektop.model.PostSummary
+import io.github.seektop.model.TitleKeywordKind
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+/**
+ * What the app does with the site's block marks.
+ *
+ * The marks are stored, not filtered on arrival, so 临时显示被屏蔽内容 can reveal a row without going
+ * back to the network. The default is the site's: hidden.
+ */
+@RunWith(RobolectricTestRunner::class)
+class BlockedFeedTest {
+    private lateinit var database: NodeSeekDatabase
+    private val remote = FakePostRemoteDataSource()
+    private val clock = MutableClock()
+    private val showBlocked = MutableStateFlow(false)
+    private lateinit var repository: OfflineFirstPostRepository
+
+    @Before
+    fun setUp() {
+        database = inMemoryDatabase()
+        repository =
+            OfflineFirstPostRepository(
+                database = database,
+                remote = remote,
+                clock = clock,
+                showBlockedContent = showBlocked,
+            )
+    }
+
+    @After
+    fun tearDown() = database.close()
+
+    private fun summary(
+        postId: Long,
+        blocked: Boolean,
+    ) = PostSummary(
+        postId = postId,
+        title = "post $postId",
+        authorName = "tester",
+        authorUid = 1,
+        avatarUrl = null,
+        categoryTitle = null,
+        categorySlug = null,
+        viewCount = 0,
+        commentCount = 0,
+        lastActiveText = null,
+        lastActiveTitle = null,
+        isBlocked = blocked,
+    )
+
+    /** Two rows in the front-page feed, the first one blocked, and the feed marked fresh. */
+    private suspend fun givenFeed() {
+        val posts = listOf(summary(1, blocked = true), summary(2, blocked = false))
+        database.feedDao().upsertPosts(posts.map { it.toEntity(clock.nowMillis()) })
+        database.feedDao().insertPositions(
+            posts.mapIndexed { index, post ->
+                FeedPositionEntity(FRONT_PAGE_FEED_KEY, post.postId, index)
+            },
+        )
+        database.feedDao().upsertRemoteKey(
+            FeedRemoteKeyEntity(FRONT_PAGE_FEED_KEY, nextPage = null, refreshedAtMillis = clock.nowMillis()),
+        )
+    }
+
+    private suspend fun feedIds(): List<Long> =
+        repository.feed(null, FeedSort.LAST_REPLY).asSnapshot().map { it.summary.postId }
+
+    @Test
+    fun `revealing shows the same rows without a re-fetch`() =
+        runTest {
+            givenFeed()
+            assertEquals(listOf(2L), feedIds())
+
+            showBlocked.value = true
+
+            assertEquals(listOf(1L, 2L), feedIds())
+            // The reveal is a re-query, not a request: the fake data source was never asked at all.
+            assertEquals(emptyList<Pair<String?, Int>>(), remote.listRequests)
+        }
+
+    @Test
+    fun `local search hides blocked rows too`() =
+        runTest {
+            givenFeed()
+
+            assertEquals(listOf(2L), repository.search("post").first().map { it.summary.postId })
+
+            showBlocked.value = true
+
+            assertEquals(
+                listOf(1L, 2L),
+                repository.search("post").first().map { it.summary.postId }.sorted(),
+            )
+        }
+
+    /**
+     * A muted keyword hides a matching title the way the site's block mark hides a row: in the feed
+     * and in local search, and back again with 临时显示被屏蔽内容. Adding the word re-queries the open
+     * search on its own — Room watches `title_keywords` like any other table in the query.
+     */
+    @Test
+    fun `a muted keyword hides matching titles until revealed`() =
+        runTest {
+            givenFeed()
+            val keywords = TitleKeywordStore(database.titleKeywordDao(), clock)
+            val searched = mutableListOf<List<Long>>()
+            val collecting =
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                    repository.search("post").collect { rows -> searched += rows.map { it.summary.postId } }
+                }
+
+            keywords.add(TitleKeywordKind.BLOCK, "Post 2")
+            advanceUntilIdle()
+
+            assertEquals(emptyList<Long>(), feedIds())
+            assertEquals(emptyList<Long>(), searched.last())
+
+            showBlocked.value = true
+
+            assertEquals(listOf(1L, 2L), feedIds())
+            collecting.cancel()
+        }
+
+    /** A word only hides what contains it; `post 22` is not `post 2`'s business the other way round. */
+    @Test
+    fun `a muted keyword leaves titles that do not contain it`() =
+        runTest {
+            givenFeed()
+            TitleKeywordStore(database.titleKeywordDao(), clock).add(TitleKeywordKind.BLOCK, "post 22")
+
+            assertEquals(listOf(2L), feedIds())
+        }
+
+    /**
+     * A pattern rule hides what is already cached the moment it is added, and lets it back when it
+     * is removed. `\\d{2}` is the case a word cannot express: it must leave `post 2` alone.
+     */
+    @Test
+    fun `a title pattern hides cached matches until revealed or removed`() =
+        runTest {
+            givenFeed()
+            database.feedDao().upsertPosts(listOf(summary(22, blocked = false).toEntity(clock.nowMillis())))
+            database.feedDao().insertPositions(listOf(FeedPositionEntity(FRONT_PAGE_FEED_KEY, 22, 2)))
+            val keywords = TitleKeywordStore(database.titleKeywordDao(), clock)
+
+            keywords.addBlockRule("POST \\d{2}", isRegex = true)
+
+            assertEquals(listOf(2L), feedIds())
+            assertEquals(listOf(2L), repository.search("post").first().map { it.summary.postId })
+
+            showBlocked.value = true
+            assertEquals(listOf(1L, 2L, 22L), feedIds())
+            showBlocked.value = false
+
+            keywords.removeBlockRule(TitleBlockRule("POST \\d{2}", isRegex = true))
+
+            assertEquals(listOf(2L, 22L), feedIds())
+        }
+
+    @Test
+    fun `a pattern that does not compile is refused`() =
+        runTest {
+            val keywords = TitleKeywordStore(database.titleKeywordDao(), clock)
+
+            assertEquals(false, keywords.addBlockRule("post (", isRegex = true))
+            assertEquals(emptyList<TitleBlockRule>(), keywords.blockRules.first())
+        }
+}

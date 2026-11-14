@@ -1,0 +1,410 @@
+package io.github.seektop.data
+
+import io.github.seektop.core.NodeSeekSite
+import io.github.seektop.core.html.SiteBootstrap
+import io.github.seektop.core.net.JsonSource
+import io.github.seektop.core.net.NodeSeekJsonClient
+import io.github.seektop.data.local.ProfileDao
+import io.github.seektop.data.local.SelfProfileEntity
+import io.github.seektop.foundation.core.AppClock
+import io.github.seektop.foundation.core.net.HtmlSource
+import io.github.seektop.foundation.core.net.SiteError
+import io.github.seektop.foundation.core.net.SiteException
+import io.github.seektop.foundation.core.runCatchingExceptCancellation
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.concurrent.Volatile
+
+data class UserProfile(
+    val uid: Long,
+    val name: String,
+    val avatarUrl: String,
+    val rank: Int? = null,
+    val createdAt: String? = null,
+    val chickenCount: Int? = null,
+    val starCount: Int? = null,
+    val streakDays: Int? = null,
+    val bio: String? = null,
+    /** Markdown, shown on the space page. The site's own empty state is "没有找到readme 🙄". */
+    val readme: String? = null,
+    val topicCount: Int? = null,
+    val commentCount: Int? = null,
+    /**
+     * Whether the signed-in account follows this one.
+     *
+     * Only ever meaningful on someone else's page. Null means "the site did not say" — signed out, or
+     * a payload without the field — and the space screen renders that the same as `false`, because the
+     * button it drives is a request the site will refuse anyway if we are wrong.
+     */
+    val followed: Boolean? = null,
+)
+
+interface ProfileRepository {
+    /** The persisted SSOT for "我的", scoped to the active cookie fingerprint. */
+    fun observeProfile(sessionFingerprint: Int): Flow<UserProfile?> = flowOf(null)
+
+    /** Fetches the signed-in profile and writes it into [observeProfile]'s backing store. */
+    suspend fun refreshProfile(sessionFingerprint: Int) {
+        profile(refresh = true)
+    }
+
+    /** Removes account-scoped profile data before the session is published as signed out. */
+    suspend fun clearCachedProfile() = Unit
+
+    /**
+     * The signed-in account.
+     *
+     * May answer from a short-lived cache: every profile-area screen asks for this on entry, and the
+     * call behind it costs two round-trips (home-page HTML, then the account endpoint). [refresh]
+     * bypasses the cache for the flows that must see the network — pull-to-refresh, sign-in changes.
+     */
+    suspend fun profile(refresh: Boolean = false): UserProfile
+
+    /**
+     * Any account, by uid — the public space page.
+     *
+     * Separate from [profile] because the two resolve their subject differently: this one is told who
+     * to load, while [profile] has to work out who the session belongs to before it can ask.
+     */
+    suspend fun profile(uid: Long): UserProfile
+
+    /**
+     * The signed-in account's uid, remembered from the last successful load or persisted emission.
+     *
+     * `null` until a profile has loaded once this process. Callers that navigate to a user's space
+     * use it to decide `isSelf` — a null simply means "not known to be self", never "known not to
+     * be".
+     *
+     * A [StateFlow] rather than the `@Volatile var` it used to be, so a reader has both shapes: a
+     * click handler takes `.value` at the moment of the click, and a composition that wants to
+     * *react* to the answer arriving can collect. The default builds a fresh always-null flow per
+     * read, which is exactly right for the fakes that inherit it.
+     */
+    val selfUid: StateFlow<Long?> get() = MutableStateFlow(null)
+
+    /**
+     * Whether the signed-in account is a site moderator.
+     *
+     * Held in memory beside [selfUid] rather than on [UserProfile]: it is a fact about the session,
+     * not about the person, nothing renders it, and persisting it would mean a Room column that only
+     * one dropdown menu ever reads. False until a profile has loaded — "not known to be a moderator",
+     * which is the safe reading, since the site refuses the operations it gates anyway.
+     */
+    val selfIsAdmin: Boolean get() = false
+}
+
+/**
+ * Loads the signed-in account shown by NodeSeek itself.
+ *
+ * The home page hydration identifies the current user without inspecting authentication-cookie
+ * values. Once the UID is known, the account endpoint is used as the freshest source. The bootstrap
+ * record remains a fallback because Cloudflare can occasionally allow the document request while
+ * rejecting the following XHR.
+ */
+class NetworkProfileRepository(
+    private val htmlSource: HtmlSource,
+    private val jsonSource: JsonSource,
+    private val profileDao: ProfileDao,
+    private val currentSessionFingerprint: () -> Int,
+    /**
+     * Whether the app is holding a session at all, which is what separates the two ways the front
+     * page can come back naming nobody. Same shape and same reason as `FollowRepository`'s.
+     */
+    private val isSignedIn: () -> Boolean,
+    private val clock: AppClock,
+) : ProfileRepository {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    private val selfUidState = MutableStateFlow<Long?>(null)
+    override val selfUid: StateFlow<Long?> = selfUidState
+
+    @Volatile
+    override var selfIsAdmin: Boolean = false
+        private set
+
+    private val cacheLock = Mutex()
+
+    override fun observeProfile(sessionFingerprint: Int): Flow<UserProfile?> =
+        profileDao.observe(sessionFingerprint).map { entity ->
+            entity?.takeIf { isSignedIn() && currentSessionFingerprint() == sessionFingerprint }
+                ?.toProfile()?.also { selfUidState.value = it.uid }
+        }
+
+    override suspend fun refreshProfile(sessionFingerprint: Int) {
+        cacheLock.withLock { fetchAndStore(sessionFingerprint) }
+    }
+
+    override suspend fun clearCachedProfile() {
+        cacheLock.withLock {
+            profileDao.deleteAll()
+            selfUidState.value = null
+            selfIsAdmin = false
+        }
+    }
+
+    override suspend fun profile(refresh: Boolean): UserProfile =
+        // The lock also serializes concurrent callers, so two screens opening at once cost one
+        // fetch, not two racing ones.
+        cacheLock.withLock {
+            val fingerprint = currentSessionFingerprint()
+            requireSession(fingerprint)
+            if (!refresh) {
+                val cached = profileDao.find(fingerprint)
+                requireSession(fingerprint)
+                cached
+                    ?.takeIf { clock.nowMillis() - it.cachedAtMillis < PROFILE_CACHE_TTL_MILLIS }
+                    ?.toProfile()
+                    ?.also { selfUidState.value = it.uid }
+                    ?.let { return@withLock it }
+            }
+            fetchAndStore(fingerprint)
+        }
+
+    private suspend fun fetchAndStore(sessionFingerprint: Int): UserProfile {
+        requireSession(sessionFingerprint)
+        return fetchProfile(sessionFingerprint).also { profile ->
+            requireSession(sessionFingerprint)
+            profileDao.replace(profile.toEntity(sessionFingerprint, clock.nowMillis()))
+        }
+    }
+
+    private fun requireSession(fingerprint: Int) {
+        if (!isSignedIn()) throw SiteException(SiteError.LoginRequired)
+        if (currentSessionFingerprint() != fingerprint) throw SiteException(SiteError.SessionUnrecognised)
+    }
+
+    private suspend fun fetchProfile(sessionFingerprint: Int): UserProfile {
+        // Two shapes of the same answer, and both used to end at the sign-in wall. `decode` reports
+        // a page carrying no bootstrap element at all — the signed-out front page — and the line
+        // below catches a blob that parsed and named nobody. Reporting either as Unparsable sent
+        // users to a "站点改版" card whose retry can never succeed; reporting either as
+        // LoginRequired unconditionally sent a user who had *just signed in* back to a sign-in
+        // wall, which is the same dead end wearing the other hat.
+        val bootstrap =
+            try {
+                parseProfilePage(htmlSource.getHtml("/"))
+            } catch (exception: SiteException) {
+                if (exception.error == SiteError.LoginRequired) {
+                    throw SiteException(anonymousAnswer(), exception)
+                }
+                throw exception
+            }
+        val uid = bootstrap.uid ?: throw SiteException(anonymousAnswer())
+        val account =
+            runCatchingExceptCancellation {
+                parseProfileJson(
+                    jsonSource.getJson(
+                        path = NodeSeekJsonClient.accountInfoPath(uid),
+                        referer = NodeSeekSite.BASE_URL + NodeSeekSite.spacePath(uid),
+                    ),
+                )
+            }.getOrNull()
+
+        // Neither source is guaranteed to carry it, and neither contradicts the other: the page blob
+        // has `roles` for the session, the account endpoint repeats it. Either saying yes is enough.
+        requireSession(sessionFingerprint)
+        selfUidState.value = uid
+        selfIsAdmin = (account?.isAdmin ?: false) || (bootstrap.isAdmin ?: false)
+
+        return bootstrap.merge(account).toProfile()
+    }
+
+    /**
+     * What an anonymous answer means, which only the cookie jar can say.
+     *
+     * No session and the reader really does need to sign in. A session we are holding and this is
+     * either a request that went out without the cookie or one the site declined to honour — and
+     * from here those are the same observation, so the reader gets both ways out with 重试 first.
+     */
+    private fun anonymousAnswer(): SiteError =
+        if (isSignedIn()) SiteError.SessionUnrecognised else SiteError.LoginRequired
+
+    override suspend fun profile(uid: Long): UserProfile {
+        val body =
+            jsonSource.getJson(
+                path = NodeSeekJsonClient.accountInfoPath(uid),
+                referer = NodeSeekSite.BASE_URL + NodeSeekSite.spacePath(uid),
+            )
+        val raw = parseProfileJson(body) ?: throw SiteException(SiteError.Unparsable)
+        // The endpoint omits the uid on some accounts, and the caller already knows it.
+        return raw.copy(uid = raw.uid ?: uid).toProfile()
+    }
+
+    internal fun parseProfilePage(html: String): RawProfile =
+        parseProfileJson(SiteBootstrap.decode(html))
+            ?: throw SiteException(SiteError.Unparsable)
+
+    internal fun parseProfileJson(body: String): RawProfile? {
+        val root =
+            try {
+                json.parseToJsonElement(body)
+            } catch (exception: IllegalArgumentException) {
+                throw SiteException(SiteError.Unparsable, exception)
+            }
+        return root.findProfileObject()?.toRawProfile()
+    }
+
+    private fun RawProfile.merge(newer: RawProfile?): RawProfile {
+        if (newer == null) return this
+        return RawProfile(
+            uid = newer.uid ?: uid,
+            name = newer.name ?: name,
+            avatarUrl = newer.avatarUrl ?: avatarUrl,
+            rank = newer.rank ?: rank,
+            createdAt = newer.createdAt ?: createdAt,
+            chickenCount = newer.chickenCount ?: chickenCount,
+            starCount = newer.starCount ?: starCount,
+            streakDays = newer.streakDays ?: streakDays,
+            bio = newer.bio ?: bio,
+            readme = newer.readme ?: readme,
+            topicCount = newer.topicCount ?: topicCount,
+            commentCount = newer.commentCount ?: commentCount,
+            followed = newer.followed ?: followed,
+        )
+    }
+
+    private fun RawProfile.toProfile(): UserProfile {
+        val resolvedUid = uid ?: throw SiteException(SiteError.Unparsable)
+        val resolvedName = name?.takeIf(String::isNotBlank) ?: throw SiteException(SiteError.Unparsable)
+        return UserProfile(
+            uid = resolvedUid,
+            name = resolvedName,
+            avatarUrl =
+            NodeSeekSite.absoluteUrl(avatarUrl)
+                ?: "${NodeSeekSite.BASE_URL}/avatar/$resolvedUid.png",
+            rank = rank,
+            createdAt = createdAt,
+            chickenCount = chickenCount,
+            starCount = starCount,
+            streakDays = streakDays,
+            bio = bio,
+            readme = readme,
+            topicCount = topicCount,
+            commentCount = commentCount,
+            followed = followed,
+        )
+    }
+}
+
+private fun SelfProfileEntity.toProfile(): UserProfile =
+    UserProfile(
+        uid = uid,
+        name = name,
+        avatarUrl = avatarUrl,
+        rank = rank,
+        createdAt = createdAt,
+        chickenCount = chickenCount,
+        starCount = starCount,
+        streakDays = streakDays,
+        bio = bio,
+        readme = readme,
+        topicCount = topicCount,
+        commentCount = commentCount,
+    )
+
+private fun UserProfile.toEntity(
+    sessionFingerprint: Int,
+    cachedAtMillis: Long,
+): SelfProfileEntity =
+    SelfProfileEntity(
+        sessionFingerprint = sessionFingerprint,
+        uid = uid,
+        name = name,
+        avatarUrl = avatarUrl,
+        rank = rank,
+        createdAt = createdAt,
+        chickenCount = chickenCount,
+        starCount = starCount,
+        streakDays = streakDays,
+        bio = bio,
+        readme = readme,
+        topicCount = topicCount,
+        commentCount = commentCount,
+        cachedAtMillis = cachedAtMillis,
+    )
+
+internal data class RawProfile(
+    val uid: Long? = null,
+    val name: String? = null,
+    val avatarUrl: String? = null,
+    val rank: Int? = null,
+    val createdAt: String? = null,
+    val chickenCount: Int? = null,
+    val starCount: Int? = null,
+    val streakDays: Int? = null,
+    val bio: String? = null,
+    val readme: String? = null,
+    val topicCount: Int? = null,
+    val commentCount: Int? = null,
+    val followed: Boolean? = null,
+    /** Session state rather than profile data — see [ProfileRepository.selfIsAdmin]. */
+    val isAdmin: Boolean? = null,
+)
+
+private fun JsonElement.findProfileObject(): JsonObject? {
+    if (this !is JsonObject) return null
+    if (keys.any { it in PROFILE_ID_KEYS } && keys.any { it in PROFILE_NAME_KEYS }) return this
+
+    PROFILE_CONTAINER_KEYS.forEach { key ->
+        this[key]?.findProfileObject()?.let { return it }
+    }
+    values.forEach { child ->
+        child.findProfileObject()?.let { return it }
+    }
+    return null
+}
+
+private fun JsonObject.toRawProfile(): RawProfile =
+    RawProfile(
+        uid = long(*PROFILE_ID_KEYS.toTypedArray()),
+        name = text(*PROFILE_NAME_KEYS.toTypedArray()),
+        avatarUrl = text("avatar", "avatarUrl", "avatar_url"),
+        rank = int("rank", "level"),
+        createdAt = text("created_at", "createdAt", "registered_at", "created_at_str"),
+        chickenCount = int("coin", "chicken", "chickenCount", "chicken_count"),
+        starCount = int("stardust", "star", "stars", "starCount", "star_count"),
+        streakDays = int("streak", "streakDays", "streak_days"),
+        bio = text("bio", "introduction", "signature_text"),
+        readme = text("readme", "readMe", "read_me"),
+        topicCount = int("nPost", "post_count", "postCount", "topicCount", "discussion_count"),
+        commentCount = int("nComment", "comment_count", "commentCount"),
+        followed = bool("followed"),
+        isAdmin = readIsAdmin(),
+    )
+
+/**
+ * The moderator flag, from either shape the site uses.
+ *
+ * `roles` is what the site's own vote script checks; `isAdmin` arrives as `0`/`1` rather than a
+ * boolean, which is why [bool] cannot be reused for it.
+ */
+private fun JsonObject.readIsAdmin(): Boolean? {
+    val roles = this["roles"] as? JsonArray
+    if (roles != null) {
+        return roles.any { role ->
+            (role as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull == ADMIN_ROLE
+        }
+    }
+    val flag = this["isAdmin"]?.jsonPrimitive?.contentOrNull ?: return null
+    return flag == "true" || flag.toIntOrNull()?.let { it != 0 } == true
+}
+
+private const val ADMIN_ROLE = "admin"
+
+/** Long enough to cover one walk through the profile area, short enough that balances stay honest. */
+private const val PROFILE_CACHE_TTL_MILLIS = 60_000L
+
+private val PROFILE_ID_KEYS = setOf("member_id", "uid", "user_id")
+private val PROFILE_NAME_KEYS = setOf("member_name", "username", "name")
+private val PROFILE_CONTAINER_KEYS = listOf("user", "data", "account", "result")

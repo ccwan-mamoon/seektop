@@ -1,6 +1,12 @@
-# 文档导航
+# SeekTop 文档导航
 
-文档按“当前事实 → 架构约束 → 设计输入 → 历史记录”分层。出现冲突时，优先级按下表从上到下。
+当前项目是 SeekTop（寻桌）Windows 桌面客户端。Android、iOS 代码保留。
+
+当前客户端以[项目说明](../README.md)、[客户端开发与改名兼容说明](client-development.md)、[桌面开发说明](../desktop/README.md)、[更新记录](../CHANGELOG.md)、[贡献指南](../CONTRIBUTING.md)和[工程指引](../AGENTS.md)为准。
+
+Windows 功能变化更新根 README、desktop/README.md 和 CHANGELOG；模块或构建入口变化更新 client-development.md 与 AGENTS.md。
+
+下表是上游历史文档导航，其“当前事实”和执行顺序仅对应原文当时的 Android/iOS 项目，不代表 SeekTop Windows 状态。历史包名和产品名保留以便追溯，共享架构约束仍可参考。
 
 | 文档 | 用途 | 是否当前事实 |
 |---|---|---|

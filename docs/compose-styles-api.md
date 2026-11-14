@@ -1,3 +1,5 @@
+> 上游历史参考：本文保留原 Android/iOS 设计、实现与评估快照，不代表 SeekTop Windows 当前状态。当前客户端请以[项目说明](../README.md)、[桌面开发说明](../desktop/README.md)和[文档导航](README.md)为准。旧包名与工程名按历史原文保留。
+
 # Compose Styles API 评估（未采用）
 
 2026-08-18 评估 `androidx.compose.foundation.style` 能否接进 `:designsys`。**结论：不接。**

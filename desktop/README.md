@@ -1,6 +1,22 @@
 # SeekTop · 寻桌（Windows 桌面移植）
 
-这是原 Nodyssey 的 Windows 应用壳，入口直接调用 `:ui` 的 `NodysseyRoot`，并依赖原 `:shared`、`:designsys`、`:richtext`。共享原 ViewModel、Repository 和富文本；桌面能力由 `LocalDesktopExperience` 注入。桌面模式使用专用导航框架、紧凑列表、快捷键、固定阅读操作栏和居中弹窗，不显示手机新手向导或单手入口。
+
+这是 SeekTop 的 Windows 客户端模块，入口调用 `:ui` 的 `SeekTopRoot`，依赖 `:shared`、`:designsys`、`:richtext`。共享 ViewModel、Repository 和富文本；桌面能力由 `LocalDesktopExperience` 注入。桌面模式使用专用导航框架、紧凑列表、快捷键、固定阅读操作栏和居中弹窗。源码源于 Nodyssey，保留上游版权与 GPL-3.0 许可。
+
+模块入口、统一命名与已有数据兼容规则见[客户端开发说明](../docs/client-development.md)。Android、iOS 平台代码继续保留。
+
+## 运行时体积
+
+Windows 打包只包含界面、网络、数据库、中文字符集和语言资源等所需 Java 模块，保留现有 Compose 界面及 Electron 浏览器。编译器、调试器等开发模块不随默认运行时打包。模块列表位于 `desktop/build.gradle.kts`，新增依赖后用 `:desktop:suggestModules` 辅助核对，并对实际程序包运行检查：
+
+```powershell
+python desktop/tests/test_packaged_runtime.py --app-dir desktop/build/compose/binaries/main/app/SeekTop
+python desktop/package_report.py --app-dir desktop/build/compose/binaries/main/app/SeekTop
+```
+
+运行时检查通过程序包自己的 EXE 执行，覆盖 HTTP/TLS、中文编码与日期、图形、原生 SQLite 等能力，不使用开发电脑的完整 JDK 代替检查。它不代替真实窗口、登录、人机验证和发帖验收。CI 会将体积分项和大文件重复检查写入 `PACKAGE-SIZE.json`；重复文件仅报告，不自动删除。
+
+需要对照或排查缺失模块时，使用 `:desktop:createDistributable -PfullDesktopRuntime=true --rerun-tasks` 重新生成全量运行时；切回精简版时移除此属性并重新构建。比较时应使用同一 JDK 和相同源码，分别保存两份输出。
 
 ## 构建
 
@@ -22,13 +38,17 @@ python desktop/provision-browser.py --mirror https://npmmirror.com/mirrors/elect
 
 图片、头像和图床上传同样由平台网络通道服务。文件选择和文本导入导出使用桌面文件选择器。
 
-## 当前桌面版 1.0.1
+## 当前桌面版 1.0.2
 
 Windows 原生 Toast 独立开关默认开启，通知进入系统通知中心，点击可唤回应用；关闭此开关则使用托盘提醒。
 启动时左侧菜单默认折叠，保留常用板块简称与完整名称提示，仍可点击切换和管理。通知总开关保留用户原有选择。
 
 可折叠菜单、常用板块管理、分隔线调宽、整合搜索、列表与详情浮动刷新、可输入页码、主题和统一图标均已接入。
 “我的”、通知、设置与宽屏编辑器使用桌面布局。人机验证仅在官方验证区域准备好后显示，未准备好或存在账号表单的容器不会直接展示。
+
+游客打开个人主题帖、评论、收藏、关注、通知或账号设置时，会显示登录提示；登录前不加载这些页面，登录成功后返回原入口。浏览历史、应用设置、主题外观和公开用户主页仍允许游客访问。
+
+窗口会先显示启动状态，再异步准备浏览器、设置和账号环境；失败后可重试或退出，详情保存在数据目录的 `startup-error.log`。登录状态变化会释放个人页面的旧状态，公开阅读页保持原有状态。更新程序只在完整界面准备好后收到启动确认，不会把加载画面当作升级成功。
 
 Windows 通知已接入，四类提醒各自选择检查间隔；运行或最小化期间检查，完全退出后停止。通知采用定时检查，并受系统勿扰设置影响。
 一键升级已接入，流程与验证方法见下文。登录后写入操作仍需真实账号验收；完全退出后的离线后台任务、头像更换、图片保存和系统分享面板尚未完整适配。

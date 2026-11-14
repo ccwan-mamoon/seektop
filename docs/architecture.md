@@ -1,3 +1,5 @@
+> 上游历史参考：本文保留原 Android/iOS 设计、实现与评估快照，不代表 SeekTop Windows 当前状态。当前客户端请以[项目说明](../README.md)、[桌面开发说明](../desktop/README.md)和[文档导航](README.md)为准。旧包名与工程名按历史原文保留。
+
 # 架构与 MAD 现代化
 
 首次评估：2026-07-25 · 最近复核：2026-08-25 · 范围：**全仓八个模块**（`:app` / `:iosapp` / `:ui` / `:shared` / `:designsys` / `:richtext` / `:gallery` / `:smoke`）· 基线：Android 官方架构指南 + Now in Android

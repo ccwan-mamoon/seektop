@@ -1,0 +1,48 @@
+package io.github.seektop.ui.settings
+
+import io.github.seektop.data.CommunityRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class AboutCommunityViewModelTest {
+    private val dispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setUp() = Dispatchers.setMain(dispatcher)
+
+    @After
+    fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun `retry replaces an error with the latest member count`() =
+        runTest(dispatcher) {
+            var calls = 0
+            val viewModel =
+                AboutCommunityViewModel(
+                    CommunityRepository {
+                        calls += 1
+                        if (calls == 1) throw IllegalStateException("offline")
+                        70_124L
+                    },
+                )
+            advanceUntilIdle()
+            assertSame(CommunityStatsUiState.Error, viewModel.uiState.value)
+
+            viewModel.retry()
+            advanceUntilIdle()
+
+            assertEquals(CommunityStatsUiState.Content(70_124L), viewModel.uiState.value)
+            assertEquals(2, calls)
+        }
+}

@@ -1,0 +1,642 @@
+package io.github.seektop.ui.history
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.seektop.data.ReadHistoryEntry
+import io.github.seektop.data.settings.SettingsRepository
+import io.github.seektop.foundation.core.AppClock
+import io.github.seektop.foundation.core.TimeFormat
+import io.github.seektop.foundation.designsys.component.ChoiceRow
+import io.github.seektop.foundation.designsys.component.LayerPageGutter
+import io.github.seektop.foundation.designsys.component.LoadingState
+import io.github.seektop.foundation.designsys.component.MetaText
+import io.github.seektop.foundation.designsys.component.OneHandTopAppBar
+import io.github.seektop.foundation.designsys.component.SectionLabel
+import io.github.seektop.foundation.designsys.component.SeekTopIcons
+import io.github.seektop.foundation.designsys.component.StatusView
+import io.github.seektop.foundation.designsys.component.ThreadRowTitle
+import io.github.seektop.foundation.designsys.component.groupSlice
+import io.github.seektop.foundation.designsys.component.rememberOneHandAppBarState
+import io.github.seektop.foundation.designsys.theme.LocalSeekTopLayers
+import io.github.seektop.foundation.designsys.theme.SeekTopTheme
+import io.github.seektop.foundation.designsys.theme.Spacing
+import io.github.seektop.foundation.designsys.theme.StatusShapes
+import io.github.seektop.foundation.designsys.theme.readableWidth
+import io.github.seektop.ui.common.BoardTag
+import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.action_back
+import io.github.seektop.ui.resources.action_cancel
+import io.github.seektop.ui.resources.action_delete
+import io.github.seektop.ui.resources.action_more
+import io.github.seektop.ui.resources.history_clear_all
+import io.github.seektop.ui.resources.history_clear_body
+import io.github.seektop.ui.resources.history_clear_confirm
+import io.github.seektop.ui.resources.history_clear_title
+import io.github.seektop.ui.resources.history_empty_body
+import io.github.seektop.ui.resources.history_empty_title
+import io.github.seektop.ui.resources.history_limit_body
+import io.github.seektop.ui.resources.history_limit_count
+import io.github.seektop.ui.resources.history_limit_default
+import io.github.seektop.ui.resources.history_limit_title
+import io.github.seektop.ui.resources.history_limit_unlimited
+import io.github.seektop.ui.resources.history_remove
+import io.github.seektop.ui.resources.history_removed
+import io.github.seektop.ui.resources.history_section_earlier
+import io.github.seektop.ui.resources.history_section_today
+import io.github.seektop.ui.resources.history_section_week
+import io.github.seektop.ui.resources.history_section_yesterday
+import io.github.seektop.ui.resources.history_subtitle
+import io.github.seektop.ui.resources.history_title
+import io.github.seektop.ui.resources.history_undo
+import io.github.seektop.ui.resources.history_untitled
+import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import kotlin.time.Instant
+
+@Composable
+fun ReadHistoryRoute(
+    viewModel: ReadHistoryViewModel,
+    onBack: () -> Unit,
+    onPostClick: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    ReadHistoryScreen(
+        state = state,
+        onBack = onBack,
+        onPostClick = onPostClick,
+        onRemove = viewModel::remove,
+        onRestore = viewModel::restore,
+        onClearAll = viewModel::clear,
+        onLimitChange = viewModel::setLimit,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReadHistoryScreen(
+    state: ReadHistoryUiState,
+    onBack: () -> Unit,
+    onPostClick: (Long) -> Unit,
+    onRemove: (ReadHistoryEntry) -> Unit,
+    onRestore: (ReadHistoryEntry) -> Unit,
+    onClearAll: () -> Unit,
+    onLimitChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    /** Injectable so the relative stamps and the day grouping can be asserted without racing the clock. */
+    nowMillis: Long = AppClock.System.nowMillis(),
+) {
+    var confirmClear by remember { mutableStateOf(false) }
+    var pickingLimit by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val removedMessage = stringResource(Res.string.history_removed)
+    val undoLabel = stringResource(Res.string.history_undo)
+
+    // Removing one row also drops that thread's unread baseline, so a swipe the reader did not mean
+    // costs them the 「N 条新回复」 on it. Cheap to offer the way back; the row carries everything
+    // needed to write it again.
+    val removeWithUndo: (ReadHistoryEntry) -> Unit = { entry ->
+        onRemove(entry)
+        scope.launch {
+            val outcome =
+                snackbarHostState.showSnackbar(
+                    message = removedMessage,
+                    actionLabel = undoLabel,
+                    duration = SnackbarDuration.Short,
+                )
+            if (outcome == SnackbarResult.ActionPerformed) onRestore(entry)
+        }
+    }
+
+    val appBarState = rememberOneHandAppBarState()
+    Scaffold(
+        modifier = modifier.nestedScroll(appBarState.nestedScrollConnection),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            OneHandTopAppBar(
+                title = stringResource(Res.string.history_title),
+                state = appBarState,
+                // The one place the retention setting is visible without opening a menu: "how much
+                // does this thing keep" is the question the screen itself raises. Absent rather than
+                // empty on an empty history, so the bar drops the line instead of reserving it.
+                subtitle =
+                if (state.entries.isEmpty()) {
+                    null
+                } else {
+                    stringResource(
+                        Res.string.history_subtitle,
+                        state.entries.size,
+                        limitLabel(state.limit),
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.action_back),
+                        )
+                    }
+                },
+                actions = {
+                    HistoryMenu(
+                        limit = state.limit,
+                        canClear = state.entries.isNotEmpty(),
+                        onPickLimit = { pickingLimit = true },
+                        onClearAll = { confirmClear = true },
+                    )
+                },
+            )
+        },
+    ) { padding ->
+        // The centred column every page with a big title lays its content in, so on a tablet the
+        // title heads this list rather than sitting a few hundred dp in from it.
+        Box(Modifier.padding(padding).fillMaxSize().readableWidth()) {
+            when {
+                state.isLoading -> LoadingState()
+
+                state.entries.isEmpty() ->
+                    StatusView(
+                        icon = SeekTopIcons.History,
+                        shape = StatusShapes.Empty,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        iconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        title = stringResource(Res.string.history_empty_title),
+                        description = stringResource(Res.string.history_empty_body),
+                    )
+
+                else -> {
+                    val sections = remember(state.entries, nowMillis) { historySections(state.entries, nowMillis) }
+                    // Board 8f: one white card per day, spread over the items — see [groupSlice].
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = LayerPageGutter, end = LayerPageGutter, bottom = Spacing.xxl),
+                    ) {
+                        sections.forEach { section ->
+                            stickyHeader(key = section.bucket) {
+                                HistorySectionHeader(stringResource(section.bucket.labelRes))
+                            }
+                            itemsIndexed(section.entries, key = { _, entry -> entry.postId }) { index, entry ->
+                                HistoryRow(
+                                    entry = entry,
+                                    stamp = historyStamp(entry, section.bucket, nowMillis),
+                                    first = index == 0,
+                                    last = index == section.entries.lastIndex,
+                                    onClick = { onPostClick(entry.postId) },
+                                    onRemove = { removeWithUndo(entry) },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text(stringResource(Res.string.history_clear_title)) },
+            // Spelled out rather than a bare "确定吗": these rows are also the unread baselines, so
+            // clearing them un-reads every thread in the feed. That is not something to discover
+            // afterwards by noticing the list has changed colour.
+            text = { Text(stringResource(Res.string.history_clear_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClear = false
+                        onClearAll()
+                    },
+                ) { Text(stringResource(Res.string.history_clear_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) {
+                    Text(stringResource(Res.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (pickingLimit) {
+        HistoryLimitDialog(
+            current = state.limit,
+            onSelect = onLimitChange,
+            onDismiss = { pickingLimit = false },
+        )
+    }
+}
+
+/**
+ * 保留条数 and 全部清除, behind one overflow.
+ *
+ * 全部清除 used to be a text button in the bar. It is the most destructive thing on the screen and it
+ * sat one mis-tap from 返回, which is not where a button that un-reads the whole feed belongs.
+ */
+@Composable
+private fun HistoryMenu(
+    limit: Int,
+    canClear: Boolean,
+    onPickLimit: () -> Unit,
+    onClearAll: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Default.MoreVert, contentDescription = stringResource(Res.string.action_more))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.history_limit_title)) },
+                leadingIcon = { Icon(SeekTopIcons.History, contentDescription = null) },
+                trailingIcon = {
+                    Text(
+                        text = limitLabel(limit),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onPickLimit()
+                },
+            )
+            if (canClear) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(Res.string.history_clear_all),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onClearAll()
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One read thread: the title, and one meta line under it (board 8f).
+ *
+ * Lighter than the feed row it came from — no avatar, no reply count. The history is scanned for a
+ * title the reader half-remembers, and everything on the row that is not the title or a way to tell
+ * two similar titles apart (the board, who wrote it, when it was read) is something the eye has to
+ * step over to find it. The clock icon is gone for the same reason a "history" badge on every row
+ * of the history carries no information.
+ *
+ * A slice of the day's card: the hairline above it stays put while the row swipes, so the swipe
+ * reads as this row leaving the card rather than the card coming apart.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun HistoryRow(
+    entry: ReadHistoryEntry,
+    stamp: String,
+    first: Boolean,
+    last: Boolean,
+    onClick: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // A thread read before the snapshot columns existed, or one whose page never carried a title.
+    // The id is not much, but it is true, and it still opens the thread.
+    val title = entry.title?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.history_untitled, entry.postId)
+    val removeLabel = stringResource(Res.string.history_remove, title)
+    // Deliberately `remember` and not `rememberSwipeToDismissBoxState`, which is a `rememberSaveable`.
+    // A LazyColumn saves each item's state under its key and hands it back when an item with that key
+    // returns — so a row put back by 撤销 came back still holding "dismissed", and SwipeToDismissBox
+    // fired onDismiss again the moment it composed. The row was deleted, restored, and deleted again
+    // within a frame, which read as 撤销 doing nothing at all. A swipe is a gesture in progress: it has
+    // no business surviving the row it was performed on.
+    val positionalThreshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val dismissState =
+        remember(positionalThreshold) {
+            SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, positionalThreshold)
+        }
+    val layers = LocalSeekTopLayers.current
+
+    Column(modifier.fillMaxWidth().groupSlice(layers, first, last)) {
+        SwipeToDismissBox(
+            state = dismissState,
+            enableDismissFromStartToEnd = false,
+            onDismiss = { onRemove() },
+            backgroundContent = { RemoveBackdrop() },
+        ) {
+            // Material's interactive list item, on the card colour — opaque, or the backdrop would
+            // show through the row before it has moved. Square in every state for the same reason:
+            // its default corners (and the larger pressed ones) let the red backdrop through at the
+            // four corners of every row.
+            ListItem(
+                onClick = onClick,
+                colors = ListItemDefaults.colors(containerColor = layers.card),
+                shapes =
+                ListItemDefaults.shapes(
+                    shape = RectangleShape,
+                    selectedShape = RectangleShape,
+                    pressedShape = RectangleShape,
+                    focusedShape = RectangleShape,
+                    hoveredShape = RectangleShape,
+                    draggedShape = RectangleShape,
+                ),
+                // Swipe is a mouse-and-eyes gesture; TalkBack gets the same action by name. On the
+                // row rather than on the dismiss box so it lands on the node TalkBack actually
+                // focuses.
+                modifier =
+                Modifier.semantics {
+                    customActions = listOf(
+                        CustomAccessibilityAction(removeLabel) {
+                            onRemove()
+                            true
+                        },
+                    )
+                },
+                supportingContent = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // No slug in the snapshot; the tag falls back to matching on the board's name.
+                        BoardTag(title = entry.categoryTitle, slug = null)
+                        entry.authorName?.takeIf { it.isNotBlank() }?.let {
+                            MetaText(it, singleLine = true, modifier = Modifier.weight(1f, fill = false))
+                            MetaText(META_SEPARATOR)
+                        }
+                        MetaText(stamp, singleLine = true)
+                    }
+                },
+            ) {
+                ThreadRowTitle(
+                    text = AnnotatedString(title),
+                    // Every row here is read by definition, so the feed's read/unread weight split
+                    // would say nothing. Full contrast: the title is what the reader is scanning for.
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+    }
+}
+
+private const val META_SEPARATOR = "·"
+
+/**
+ * What sits under a row being swiped away: 8f's red block with the verb spelled out, pinned to the
+ * edge the row is leaving from.
+ */
+@Composable
+private fun RemoveBackdrop() {
+    Row(
+        modifier =
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.errorContainer),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.width(REMOVE_BACKDROP_WIDTH),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = stringResource(Res.string.action_delete),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        }
+    }
+}
+
+private val REMOVE_BACKDROP_WIDTH = 96.dp
+
+/**
+ * 今天 / 昨天 / 最近七天 / 更早.
+ *
+ * Sticky, so a long scroll always says which day it is looking at — the timestamps alone answer
+ * "how long ago" but not "where am I", and the answer is the reason anyone opens this screen.
+ * Opaque for the same reason: the rows scroll underneath it.
+ */
+@Composable
+private fun HistorySectionHeader(label: String) {
+    // The page colour, so a pinned heading sits on the page with the cards scrolling under it.
+    Surface(color = LocalSeekTopLayers.current.page, modifier = Modifier.fillMaxWidth()) {
+        SectionLabel(label, Modifier.padding(top = Spacing.sm, bottom = Spacing.xs))
+    }
+}
+
+@Composable
+private fun HistoryLimitDialog(
+    current: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.history_limit_title)) },
+        text = {
+            Column {
+                // The cost of a small number is not obvious from the number, so it is stated here
+                // rather than left for the reader to work out from their feed going un-greyed.
+                Text(
+                    text = stringResource(Res.string.history_limit_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = Spacing.sm),
+                )
+                SettingsRepository.READ_HISTORY_LIMIT_CHOICES.forEach { choice ->
+                    ChoiceRow(
+                        label = limitChoiceLabel(choice),
+                        selected = choice == current,
+                        onSelect = {
+                            onSelect(choice)
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.action_cancel)) }
+        },
+    )
+}
+
+/** `300 条` / `无上限` — the short form, for the bar and the menu. */
+@Composable
+private fun limitLabel(limit: Int): String =
+    if (limit == SettingsRepository.READ_HISTORY_UNLIMITED) {
+        stringResource(Res.string.history_limit_unlimited)
+    } else {
+        stringResource(Res.string.history_limit_count, limit)
+    }
+
+/** The same, plus which one is the default — worth knowing while choosing, and noise everywhere else. */
+@Composable
+private fun limitChoiceLabel(limit: Int): String =
+    if (limit == SettingsRepository.DEFAULT_READ_HISTORY_LIMIT) {
+        stringResource(Res.string.history_limit_default, limit)
+    } else {
+        limitLabel(limit)
+    }
+
+/**
+ * What the row says about when it was read, given the heading it already sits under.
+ *
+ * A row under 昨天 that also said "昨天" was the first version, and it wasted the most useful slot on
+ * the line to repeat the header. The day is the heading's job; inside today and yesterday the row
+ * adds the clock, and further back — where the heading is only a range — it adds the distance.
+ */
+private fun historyStamp(
+    entry: ReadHistoryEntry,
+    bucket: HistoryBucket,
+    nowMillis: Long,
+): String =
+    when (bucket) {
+        HistoryBucket.Today, HistoryBucket.Yesterday -> TimeFormat.clock(entry.lastReadAtMillis)
+        HistoryBucket.Week, HistoryBucket.Earlier -> TimeFormat.relative(entry.lastReadAtMillis, nowMillis)
+    }
+
+/** The day headings, newest first. */
+internal enum class HistoryBucket(
+    val labelRes: StringResource,
+) {
+    Today(Res.string.history_section_today),
+    Yesterday(Res.string.history_section_yesterday),
+    Week(Res.string.history_section_week),
+    Earlier(Res.string.history_section_earlier),
+}
+
+internal data class HistorySection(
+    val bucket: HistoryBucket,
+    val entries: List<ReadHistoryEntry>,
+)
+
+/**
+ * Buckets the history by calendar day rather than by elapsed hours.
+ *
+ * Calendar days because that is how a reader remembers reading something: a thread opened at 00:30
+ * belongs to 今天 even though "22 小时前" would put it a day back. The bucket order is the enum's, so
+ * an out-of-order list — which the database never returns, but a preview might — still reads top to
+ * bottom. A timestamp in the future (a clock that moved) lands in 今天; there is no heading for it
+ * and pretending it is old would be worse.
+ */
+internal fun historySections(
+    entries: List<ReadHistoryEntry>,
+    nowMillis: Long,
+    zone: TimeZone = TimeZone.currentSystemDefault(),
+): List<HistorySection> {
+    val today = Instant.fromEpochMilliseconds(nowMillis).toLocalDateTime(zone).date
+    return entries
+        .groupBy { entry ->
+            val day = Instant.fromEpochMilliseconds(entry.lastReadAtMillis).toLocalDateTime(zone).date
+            when (day.daysUntil(today)) {
+                1 -> HistoryBucket.Yesterday
+                in 2..6 -> HistoryBucket.Week
+                in 7..Int.MAX_VALUE -> HistoryBucket.Earlier
+                else -> HistoryBucket.Today
+            }
+        }.map { (bucket, rows) -> HistorySection(bucket, rows) }
+        .sortedBy { it.bucket.ordinal }
+}
+
+@Preview
+@Composable
+private fun ReadHistoryScreenPreview() {
+    val now = 1_800_000_000_000L
+    SeekTopTheme {
+        ReadHistoryScreen(
+            state =
+            ReadHistoryUiState(
+                isLoading = false,
+                entries =
+                listOf(
+                    ReadHistoryEntry(1, "绿云抢鸡竞赛又要开始了", "ipv4", 34378, "日常", 42, now - 3 * 60 * 60 * 1000L),
+                    ReadHistoryEntry(2, "求一个便宜的小鸡跑 NAT", "someone", 1, "交易", 7, now - 26 * 60 * 60 * 1000L),
+                    ReadHistoryEntry(3, null, null, null, null, null, now - 5 * 24 * 60 * 60 * 1000L),
+                ),
+            ),
+            onBack = {},
+            onPostClick = {},
+            onRemove = {},
+            onRestore = {},
+            onClearAll = {},
+            onLimitChange = {},
+            nowMillis = now,
+        )
+    }
+}

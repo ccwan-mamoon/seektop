@@ -1,3 +1,5 @@
+> 上游历史参考：本文保留原 Android/iOS 设计、实现与评估快照，不代表 SeekTop Windows 当前状态。当前客户端请以[项目说明](../README.md)、[桌面开发说明](../desktop/README.md)和[文档导航](README.md)为准。旧包名与工程名按历史原文保留。
+
 # Nodyssey 设计需求补遗(v3 · 2026-07-27 Chrome 登录态复核)
 
 > 交付对象:Claude Design。前置文档:`design-requirements.md`(总纲)与

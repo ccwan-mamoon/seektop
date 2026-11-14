@@ -1,6 +1,6 @@
 plugins {
-    id("plaza.android.application")
-    id("plaza.android.compose")
+    id("seektop.android.application")
+    id("seektop.android.compose")
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -15,21 +15,21 @@ plugins {
  * Read through `providers` rather than `System.getenv` so the configuration cache records them as
  * inputs instead of baking today's values into a cache entry that outlives them.
  */
-val keystoreFile = providers.environmentVariable("NODYSSEY_KEYSTORE_FILE").orNull?.let(::File)?.takeIf { it.isFile }
-val keystorePassword = providers.environmentVariable("NODYSSEY_KEYSTORE_PASSWORD").orNull
-val keystoreKeyAlias = providers.environmentVariable("NODYSSEY_KEY_ALIAS").orNull
-val keystoreKeyPassword = providers.environmentVariable("NODYSSEY_KEY_PASSWORD").orNull
+val keystoreFile = providers.environmentVariable("SEEKTOP_KEYSTORE_FILE").orNull?.let(::File)?.takeIf { it.isFile }
+val keystorePassword = providers.environmentVariable("SEEKTOP_KEYSTORE_PASSWORD").orNull
+val keystoreKeyAlias = providers.environmentVariable("SEEKTOP_KEY_ALIAS").orNull
+val keystoreKeyPassword = providers.environmentVariable("SEEKTOP_KEY_PASSWORD").orNull
 val hasReleaseSigning =
     keystoreFile != null && keystorePassword != null && keystoreKeyAlias != null && keystoreKeyPassword != null
 
 android {
-    namespace = "io.github.nodyssey"
+    namespace = "io.github.seektop"
     defaultConfig {
-        applicationId = "io.github.nodyssey"
+        applicationId = "io.github.seektop"
         // Declared in `gradle.properties`; see the note there for why not here. Read through
         // `providers` so the configuration cache records the property as an input.
-        versionCode = providers.gradleProperty("nodyssey.versionCode").get().toInt()
-        versionName = providers.gradleProperty("nodyssey.versionName").get()
+        versionCode = providers.gradleProperty("seektop.android.versionCode").get().toInt()
+        versionName = providers.gradleProperty("seektop.android.versionName").get()
     }
 
     signingConfigs {
@@ -53,7 +53,7 @@ android {
         release {
             // Null without the environment above, which leaves the release APK unsigned — the state
             // this project shipped 1.0.0 and 1.0.1 from. Assigned here rather than in
-            // `plaza.android.application` because the config it names is declared just above, which
+            // `seektop.android.application` because the config it names is declared just above, which
             // is after the convention plugin has already run.
             signingConfig = signingConfigs.findByName("release")
 
@@ -70,7 +70,7 @@ android {
              * phone this app installs on is x86, and the only x86_64 target in the project is the CI
              * emulator.
              *
-             * Which is why this is on `release` and not in `plaza.android.application`. The emulator
+             * Which is why this is on `release` and not in `seektop.android.application`. The emulator
              * gates run the `minified` and `nonMinified` build types, and those are created with
              * `initWith(release)` inside that convention plugin — before this block runs, so they
              * copy the ABI-complete configuration and keep installing on x86_64. Moving these three
@@ -101,12 +101,12 @@ android {
     // is the handful of tests whose subject is an Android shell: the offline file store, the image
     // cache, the six image-host clients.
     sourceSets["test"].kotlin.directories.add(
-        project(":shared").projectDir.resolve("src/androidHostTest/kotlin/io/github/nodyssey/data/doubles").path,
+        project(":shared").projectDir.resolve("src/androidHostTest/kotlin/io/github/seektop/data/doubles").path,
     )
 }
 
 dependencies {
-    // The screens. Everything under `io.github.nodyssey.ui` lives here since step D1, and so do the
+    // The screens. Everything under `io.github.seektop.ui` lives here since step D1, and so do the
     // 1,056 strings and the five preset avatars they draw — as Compose Resources rather than
     // `app/src/main/res`, which is why this module's `R` now holds only what the *platform* reads.
     implementation(project(":ui"))

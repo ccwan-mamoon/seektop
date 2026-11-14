@@ -8,11 +8,11 @@
  */
 plugins {
     alias(libs.plugins.android.test)
-    id("plaza.dependency-locking")
+    id("seektop.dependency-locking")
 }
 
 android {
-    namespace = "io.github.nodyssey.smoke"
+    namespace = "io.github.seektop.smoke"
     compileSdk = 37
 
     defaultConfig {

@@ -1,0 +1,136 @@
+package io.github.seektop.foundation.designsys.theme
+
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
+
+/**
+ * What a seed colour is allowed to produce.
+ *
+ * The generator is a library call, so these are not tests of the algorithm — they are the guard on
+ * the contract the app leans on: that every text/background pair it hands `MaterialTheme` is
+ * readable, that light and dark are actually different, and that the seed reaches the result. A
+ * library bump that changed the default variant or spec would land here rather than on a reader's
+ * screen.
+ */
+class SeedColorSchemeTest {
+    /**
+     * Every ink sits legibly on the surface it is drawn on — under all five 色彩风格.
+     *
+     * 色彩风格 is five different generators, so the contrast contract has to survive all of them.
+     * [SeekTopPaletteStyle.MONOCHROME] is the one worth naming: it discards the seed's hue entirely,
+     * which is what makes it the style most likely to collapse a container onto its own ink.
+     */
+    @Test
+    fun `every 色彩风格 keeps its text readable`() {
+        for (style in SeekTopPaletteStyle.entries) {
+            for (seed in Seeds) {
+                for (dark in listOf(false, true)) {
+                    val scheme = seektopSeedColorScheme(seed, dark, style)
+                    val pairs =
+                        listOf(
+                            "onSurface" to (scheme.onSurface to scheme.surface),
+                            "onSurfaceVariant" to (scheme.onSurfaceVariant to scheme.surface),
+                            "onPrimary" to (scheme.onPrimary to scheme.primary),
+                            "onPrimaryContainer" to (scheme.onPrimaryContainer to scheme.primaryContainer),
+                            "onSecondaryContainer" to
+                                (scheme.onSecondaryContainer to scheme.secondaryContainer),
+                            "onTertiaryContainer" to
+                                (scheme.onTertiaryContainer to scheme.tertiaryContainer),
+                            "onError" to (scheme.onError to scheme.error),
+                        )
+                    for ((role, pair) in pairs) {
+                        val ratio = contrastRatio(pair.first, pair.second)
+                        assertTrue(
+                            ratio >= 4.5,
+                            "$style $role on ${hex(seed)} ${if (dark) "dark" else "light"} is $ratio:1",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /** Four of the five have to actually differ, or the chip row is offering the same thing twice. */
+    @Test
+    fun `the five 色彩风格 do not all land on the same scheme`() {
+        val seed = Color(0xFF35606E)
+        val primaries =
+            SeekTopPaletteStyle.entries.map {
+                seektopSeedColorScheme(seed, darkTheme = false, style = it).primary.toArgb()
+            }
+        assertEquals(SeekTopPaletteStyle.entries.size, primaries.distinct().size)
+    }
+
+    @Test
+    fun `light and dark are different schemes`() {
+        for (seed in Seeds) {
+            val light = seektopSeedColorScheme(seed, darkTheme = false)
+            val dark = seektopSeedColorScheme(seed, darkTheme = true)
+            assertNotEquals(light.surface.toArgb().toLong(), dark.surface.toArgb().toLong(), hex(seed))
+            assertTrue(light.surface.luminance() > dark.surface.luminance(), hex(seed))
+        }
+    }
+
+    @Test
+    fun `the seed reaches the scheme`() {
+        val teal = seektopSeedColorScheme(Color(0xFF35606E), darkTheme = false)
+        val amber = seektopSeedColorScheme(Color(0xFF8A5100), darkTheme = false)
+        assertNotEquals(teal.primary.toArgb(), amber.primary.toArgb())
+        // Same family as the seed, not some unrelated hue.
+        assertEquals(
+            Color(0xFF35606E).toSeekTopSeedHct().hue.toDouble(),
+            teal.primary.toSeekTopSeedHct().hue.toDouble(),
+            12.0,
+        )
+    }
+
+    @Test
+    fun `a colour survives the trip through the picker's coordinates`() {
+        for (seed in Seeds) {
+            val roundTripped = seed.toSeekTopSeedHct().toColor()
+            // HCT is a perceptual space and sRGB is not, so a channel may land a step away.
+            for (channel in listOf(16, 8, 0)) {
+                val before = (seed.toArgb() shr channel) and 0xFF
+                val after = (roundTripped.toArgb() shr channel) and 0xFF
+                assertTrue(abs(before - after) <= 2, "${hex(seed)} -> ${hex(roundTripped)}")
+            }
+        }
+    }
+
+    private companion object {
+        /** The six presets 主题 offers, plus the extremes a hand-picked colour can reach. */
+        val Seeds =
+            listOf(
+                Color(0xFF35606E),
+                Color(0xFF7A6A54),
+                Color(0xFF4C5FA8),
+                Color(0xFF3F6B4E),
+                Color(0xFF8B4F72),
+                Color(0xFFA05A32),
+                Color(0xFF000000),
+                Color(0xFFFFFFFF),
+                Color(0xFFFF0000),
+                Color(0xFF00FF00),
+            )
+
+        // Written out rather than `String.format`, which is a JVM extension: this file compiles
+        // for `iosArm64` too, and a failure message is not worth a source set of its own.
+        fun hex(color: Color) =
+            "#" + color.toArgb().toUInt().toString(16).uppercase().padStart(8, '0')
+
+        /** WCAG, on the relative luminance Compose already computes. */
+        fun contrastRatio(a: Color, b: Color): Double {
+            val first = a.luminance().toDouble()
+            val second = b.luminance().toDouble()
+            return (max(first, second) + 0.05) / (min(first, second) + 0.05)
+        }
+    }
+}

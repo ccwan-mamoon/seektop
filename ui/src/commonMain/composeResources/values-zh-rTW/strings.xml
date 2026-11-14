@@ -1651,4 +1651,10 @@
     <string name="desktop_update_transfer">%1$s / %2$s · %3$s/s · 剩餘 %4$s</string>
     <string name="desktop_update_resume">取消或斷線後保留下載進度，再次下載可繼續。</string>
     <string name="desktop_update_installing">正在準備重新啟動…</string>
+    <string name="desktop_account_login_required">登入後即可查看你的主題帖、評論、收藏、關注等帳號內容。</string>
+    <string name="desktop_starting">正在啟動 SeekTop…</string>
+    <string name="desktop_starting_detail">正在準備網路與本機資料，請稍候。</string>
+    <string name="desktop_start_failed">啟動未完成</string>
+    <string name="desktop_start_failed_detail">無法準備執行環境，請重試。詳細資訊已儲存至本機啟動記錄。</string>
+    <string name="desktop_start_exit">結束應用程式</string>
 </resources>

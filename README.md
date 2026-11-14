@@ -4,15 +4,15 @@
 
 **NodeSeek 非官方 Windows 桌面客户端**，基于 [Nodyssey](https://github.com/5151561/nodyssey) 二次开发与桌面移植，采用 GPL-3.0，保留上游版权与贡献归属。
 
-[下载 Windows x64 版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.1/SeekTop-1.0.1-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
+[下载 Windows x64 版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.2/SeekTop-1.0.2-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
 
 ## 下载与启动
 
-当前版本为 **1.0.1**。首次使用请从本仓库 [Releases](https://github.com/ccwan-mamoon/seektop/releases) 下载 `SeekTop-1.0.1-windows-x64.zip`，完整解压后打开 **SeekTop.exe**。请保留整个目录，无需另外安装 Java、Node.js 或 Python。
+当前版本为 **1.0.2**。首次使用请从本仓库 [Releases](https://github.com/ccwan-mamoon/seektop/releases) 下载 `SeekTop-1.0.2-windows-x64.zip`，完整解压后打开 **SeekTop.exe**。请保留整个目录，无需另外安装 Java、Node.js 或 Python。
 
 本版已支持一键升级：有更高版本时，在应用内下载、校验后点击重启，自动退出替换并重新打开。登录资料和设置保留，旧版目录留作备份。不含更新代码的旧版本需要先切换到 0.4.0。
 
-1.0.1 已优化更新下载：支持代理、断点续传、取消后继续，以及速度和剩余时间显示。下载完成后点击重启，避免重复确认。
+1.0.2 已优化更新下载：支持代理、断点续传、取消后继续，以及速度和剩余时间显示。下载完成后点击重启，避免重复确认。
 
 ## 为桌面重新设计
 
@@ -61,12 +61,12 @@ python desktop/tests/test_updater.py
 
 输出目录为 `desktop/build/compose/binaries/main/app/SeekTop`。浏览器运行时下载较慢时，可给准备脚本增加 `--mirror https://npmmirror.com/mirrors/electron`。
 
-桌面版本号统一位于 `gradle/libs.versions.toml` 的 `versions.seektop`；Windows 发布工作流手动触发，自动生成同版本程序包、对应源码与 SHA-256。详见 [桌面开发说明](desktop/README.md)。
+桌面版本号统一位于 `gradle/libs.versions.toml` 的 `versions.seektop`；Windows 发布工作流手动触发，自动生成同版本程序包、对应源码与 SHA-256。详见[客户端开发与命名说明](docs/client-development.md)、[桌面开发说明](desktop/README.md)及[文档导航](docs/README.md)。
 
 ## 来源与许可
 
 上游为 [5151561/nodyssey](https://github.com/5151561/nodyssey)，代码基线 `495997983257a83d47a3c01ffbbe4fbe7205db14`。本项目复用其富文本、内容解析、共享业务逻辑及其他实现，在此基础上增加 Windows 壳并重构桌面交互；并非独立重写，与 NodeSeek 官方及上游维护者无隶属或背书关系。
 
-项目使用 [GNU GPL v3.0](LICENSE)。原始包名、模块名、版权及上游历史文档保留，便于核对来源和同步。分发修改版时须保留许可与归属，并提供对应源码和构建脚本。
+项目使用 [GNU GPL v3.0](LICENSE)。源码包名、入口类与构建工程统一为 SeekTop；Android、iOS 平台代码保留，版权及上游历史文档原文保留。分发修改版时须保留许可与归属，并提供对应源码和构建脚本。
 
 来源与第三方组件详见 [NOTICE.md](NOTICE.md)，原始介绍和历史记录存档于 [docs/upstream](docs/upstream/)。感谢 Nodyssey 作者、贡献者及所依赖的开源项目。

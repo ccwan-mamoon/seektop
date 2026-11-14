@@ -1,6 +1,6 @@
 // The iOS shell: what `:app` is for Android, on the other platform.
 //
-// Not `plaza.kmp.library` — that plugin's whole point is the Android target every *library* module
+// Not `seektop.kmp.library` — that plugin's whole point is the Android target every *library* module
 // here shares, and this module is the one that must not have one. It is also not a library: nothing
 // depends on it, it depends on everything, and what it produces is a framework an Xcode project
 // links rather than a klib another module resolves.
@@ -12,7 +12,7 @@ plugins {
     id("org.jetbrains.kotlin.multiplatform")
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
-    id("plaza.dependency-locking")
+    id("seektop.dependency-locking")
 }
 
 kotlin {
@@ -32,7 +32,7 @@ kotlin {
         target.binaries.framework {
             // What the Xcode project imports. Named for what it is rather than for the app: the app
             // is the Xcode target, and this is the Kotlin half it embeds.
-            baseName = "NodysseyShell"
+            baseName = "SeekTopShell"
 
             // Static, which is what the CMP template ships and what avoids a second signing step for
             // an embedded dynamic framework. The cost is link time, paid once per build.

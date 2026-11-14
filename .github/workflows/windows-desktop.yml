@@ -53,8 +53,12 @@ jobs:
         run: node desktop/tests/test_notifications.cjs
       - name: Build Windows app-image
         run: ./gradlew.bat :desktop:createDistributable --no-daemon --max-workers=4
+      - name: Check packaged Java modules and native SQLite
+        run: python desktop/tests/test_packaged_runtime.py --app-dir desktop/build/compose/binaries/main/app/SeekTop
       - name: Package app and matching source
         run: python desktop/package_release.py --app-dir desktop/build/compose/binaries/main/app/SeekTop --output-dir release
+      - name: Report package components and duplicate files
+        run: python desktop/package_report.py --app-dir desktop/build/compose/binaries/main/app/SeekTop --output release/PACKAGE-SIZE.json
       - uses: actions/upload-artifact@v7
         with:
           name: SeekTop-${{ env.SEEKTOP_VERSION }}-windows-x64

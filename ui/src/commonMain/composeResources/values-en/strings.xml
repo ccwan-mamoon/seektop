@@ -1659,4 +1659,10 @@
     <string name="desktop_update_transfer">%1$s / %2$s · %3$s/s · Remaining %4$s</string>
     <string name="desktop_update_resume">Progress is kept after cancellation or a network interruption. Retry to resume.</string>
     <string name="desktop_update_installing">Preparing to restart…</string>
+    <string name="desktop_account_login_required">Sign in to view your topics, comments, bookmarks, follows, and other account content.</string>
+    <string name="desktop_starting">Starting SeekTop…</string>
+    <string name="desktop_starting_detail">Preparing the network and local data. Please wait.</string>
+    <string name="desktop_start_failed">Startup could not finish</string>
+    <string name="desktop_start_failed_detail">The application environment could not be prepared. Please retry. Details are saved in the local startup log.</string>
+    <string name="desktop_start_exit">Exit application</string>
 </resources>

@@ -1,0 +1,149 @@
+package io.github.seektop.ui.settings
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.tooling.preview.Preview
+import io.github.seektop.foundation.designsys.component.GroupedRow
+import io.github.seektop.foundation.designsys.component.LayerPageGutter
+import io.github.seektop.foundation.designsys.component.OneHandTopAppBar
+import io.github.seektop.foundation.designsys.component.SectionLabel
+import io.github.seektop.foundation.designsys.component.SeekTopIcons
+import io.github.seektop.foundation.designsys.component.rememberOneHandAppBarState
+import io.github.seektop.foundation.designsys.theme.SeekTopTheme
+import io.github.seektop.foundation.designsys.theme.Spacing
+import io.github.seektop.foundation.designsys.theme.readableWidth
+import io.github.seektop.ui.common.appName
+import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.action_back
+import io.github.seektop.ui.resources.licenses_app_section
+import io.github.seektop.ui.resources.licenses_dependencies_section
+import io.github.seektop.ui.resources.licenses_lockfile_note
+import io.github.seektop.ui.resources.licenses_summary
+import io.github.seektop.ui.resources.settings_licenses
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+fun OpenSourceLicensesScreen(
+    onBack: () -> Unit,
+    onOpenUri: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val appBarState = rememberOneHandAppBarState()
+    Scaffold(
+        modifier = modifier.nestedScroll(appBarState.nestedScrollConnection),
+        topBar = {
+            OneHandTopAppBar(
+                title = stringResource(Res.string.settings_licenses),
+                state = appBarState,
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.action_back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier =
+            Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .readableWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = LayerPageGutter, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            Text(
+                text = stringResource(Res.string.licenses_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SectionLabel(stringResource(Res.string.licenses_app_section))
+            SettingsGroup {
+                GroupedRow(
+                    title = appName(),
+                    subtitle = "GNU General Public License v3.0",
+                    first = true,
+                    last = true,
+                    onClick = { onOpenUri(APP_LICENSE_URL) },
+                    trailing = { LicenseLinkIcon() },
+                    showChevron = false,
+                )
+            }
+            SectionLabel(stringResource(Res.string.licenses_dependencies_section))
+            SettingsGroup {
+                SHIPPED_LIBRARIES.forEachIndexed { index, library ->
+                    GroupedRow(
+                        title = library.name,
+                        subtitle = library.license,
+                        first = index == 0,
+                        last = index == SHIPPED_LIBRARIES.lastIndex,
+                        onClick = { onOpenUri(library.sourceUrl) },
+                        trailing = { LicenseLinkIcon() },
+                        showChevron = false,
+                    )
+                }
+            }
+            Text(
+                text = stringResource(Res.string.licenses_lockfile_note),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.sm),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LicenseLinkIcon() {
+    Icon(
+        SeekTopIcons.OpenInNew,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(Spacing.md),
+    )
+}
+
+private data class LibraryLicense(
+    val name: String,
+    val license: String,
+    val sourceUrl: String,
+)
+
+// One HTML parser ships now. Every post, list, search result and terms page is read by Ksoup, and so
+// is the one call that strips markup to plain text for a user's comment excerpt — that call was the
+// last jsoup left in the APK, and step A7 moved its repository into `:shared` with the rest.
+private val SHIPPED_LIBRARIES =
+    listOf(
+        LibraryLicense("AndroidX · Jetpack Compose", "Apache License 2.0", "https://android.googlesource.com/platform/frameworks/support"),
+        LibraryLicense("Kotlin · Coroutines · Serialization", "Apache License 2.0", "https://github.com/JetBrains/kotlin"),
+        LibraryLicense("OkHttp", "Apache License 2.0", "https://github.com/square/okhttp"),
+        LibraryLicense("Coil", "Apache License 2.0", "https://github.com/coil-kt/coil"),
+        LibraryLicense("Ksoup", "MIT License", "https://github.com/fleeksoft/ksoup"),
+        LibraryLicense("kotlinx-datetime", "Apache License 2.0", "https://github.com/Kotlin/kotlinx-datetime"),
+    )
+
+private const val APP_LICENSE_URL = "https://github.com/ccwan-mamoon/seektop/blob/main/LICENSE"
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 800)
+@Composable
+private fun OpenSourceLicensesPreview() {
+    SeekTopTheme { OpenSourceLicensesScreen(onBack = {}, onOpenUri = {}) }
+}

@@ -1,0 +1,236 @@
+package io.github.seektop.ui.postlist
+
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.itemKey
+import io.github.seektop.core.NodeSeekSite
+import io.github.seektop.data.FeedPost
+import io.github.seektop.foundation.designsys.component.SeekTopIcons
+import io.github.seektop.foundation.designsys.component.UserAvatar
+import io.github.seektop.model.FeedSort
+import io.github.seektop.ui.common.DesktopScrollbars
+import io.github.seektop.ui.common.EmptyFeedState
+import io.github.seektop.ui.common.SiteErrorState
+import io.github.seektop.ui.common.shortMessage
+import io.github.seektop.ui.common.webViewUrl
+import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.action_search
+import io.github.seektop.ui.resources.action_sign_in
+import io.github.seektop.ui.resources.desktop_open_browser
+import io.github.seektop.ui.resources.desktop_search_login_required
+import io.github.seektop.ui.resources.sort_by_post_time
+import io.github.seektop.ui.resources.sort_by_reply_time
+import io.github.seektop.ui.resources.tab_home
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+
+/** Mouse-oriented feed: no swipe pager, pull refresh, collapsing header or floating controls. */
+@Composable
+internal fun DesktopPostListScreen(
+    state: PostListUiState,
+    posts: LazyPagingItems<FeedPost>,
+    listState: LazyListState,
+    onPostClick: (FeedPost) -> Unit,
+    onBoardClick: (String?) -> Unit,
+    onSortChange: (FeedSort) -> Unit,
+    onSignIn: () -> Unit,
+    onVerify: (String) -> Unit,
+    onGoToPage: (Int) -> Unit,
+    refreshRequests: Int,
+    modifier: Modifier = Modifier,
+) {
+    val search = io.github.seektop.LocalDesktopSearch.current
+    val searchVm = search?.viewModel
+    val searchState = searchVm?.uiState?.collectAsStateWithLifecycle()?.value
+    val scope = rememberCoroutineScope()
+    var topRequest by rememberSaveable { mutableIntStateOf(0) }
+    fun refreshFromTop() {
+        topRequest++
+        if (search?.active == true) {
+            if (searchState?.target == io.github.seektop.model.SearchTarget.USERS) searchVm?.retryUsers() else posts.refresh()
+        } else if (state.startPage != 1) {
+            onGoToPage(1)
+        } else {
+            posts.refresh()
+        }
+        scope.launch { listState.scrollToItem(0) }
+    }
+    io.github.seektop.DesktopRefreshTarget(priority = 1, onRefresh = ::refreshFromTop)
+    io.github.seektop.PublishDesktopBoards((state.boards + state.parkedBoards).distinctBy { it.slug }, state.categorySlug) { slug ->
+        onBoardClick(slug)
+    }
+    val boardRequest = io.github.seektop.LocalDesktopBoardNavigation.current?.selectionGeneration ?: 0
+    var lastSlug by rememberSaveable { mutableStateOf(state.categorySlug) }
+    var lastSort by rememberSaveable { mutableStateOf(state.sort.name) }
+    var lastPage by rememberSaveable { mutableIntStateOf(state.startPage) }
+    var answeredTop by rememberSaveable { mutableIntStateOf(0) }
+    var answeredBoard by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(state.categorySlug, state.sort, state.startPage, topRequest, boardRequest) {
+        val changed = lastSlug != state.categorySlug || lastSort != state.sort.name || lastPage != state.startPage || answeredTop != topRequest || answeredBoard != boardRequest
+        lastSlug = state.categorySlug
+        lastSort = state.sort.name
+        lastPage = state.startPage
+        answeredTop = topRequest
+        answeredBoard = boardRequest
+        if (changed) listState.scrollToItem(0)
+    }
+    var answered by rememberSaveable { mutableIntStateOf(refreshRequests) }
+    LaunchedEffect(refreshRequests) {
+        if (answered != refreshRequests) {
+            answered = refreshRequests
+            refreshFromTop()
+        }
+    }
+    var answeredSearch by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(search?.generation) {
+        val generation = search?.generation ?: 0
+        if (answeredSearch != generation) {
+            answeredSearch = generation
+            listState.scrollToItem(0)
+        }
+    }
+    var jumpOpen by remember { mutableStateOf(false) }
+    val selectedId = io.github.seektop.LocalDesktopSelectedPost.current
+    val refresh = posts.loadState.refresh
+    val error = (refresh as? LoadState.Error)?.error?.toSiteError()
+    val page = if (listState.firstVisibleItemIndex < posts.itemCount) posts.peek(listState.firstVisibleItemIndex)?.page ?: state.startPage else state.startPage
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(if (search?.active == true) stringResource(io.github.seektop.ui.resources.Res.string.action_search) + " · " + search.submitted else state.selectedBoardTitle ?: stringResource(Res.string.tab_home), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+            if (search?.active != true) {
+                TextButton(onClick = { onSortChange(if (state.sort == FeedSort.LAST_REPLY) FeedSort.POST_TIME else FeedSort.LAST_REPLY) }) {
+                    Text(stringResource(if (state.sort == FeedSort.LAST_REPLY) Res.string.sort_by_reply_time else Res.string.sort_by_post_time))
+                }
+            }
+        }
+        HorizontalDivider()
+        if (refresh is LoadState.Loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (error != null && posts.itemCount > 0) {
+            Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(error.shortMessage(), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { onVerify(error.webViewUrl(NodeSeekSite.BASE_URL)) }) { Text(stringResource(Res.string.desktop_open_browser)) }
+            }
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                search?.awaitingSignIn == true -> Column(Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(stringResource(Res.string.desktop_search_login_required), style = MaterialTheme.typography.bodyMedium)
+                    androidx.compose.material3.Button(onClick = onSignIn) { Text(stringResource(Res.string.action_sign_in)) }
+                }
+
+                search?.active == true && searchState?.target == io.github.seektop.model.SearchTarget.USERS -> io.github.seektop.ui.search.SearchResults(
+                    target = searchState.target, state = searchState, queryState = search.query,
+                    onPostClick = {}, onUserClick = search.onUserClick, postResults = null,
+                    onRetry = { searchVm?.retryUsers() }, onSignIn = onSignIn, onVerify = onVerify,
+                )
+
+                error != null && posts.itemCount == 0 -> SiteErrorState(error = error, onRetry = posts::refresh, onVerify = onVerify, onSignIn = onSignIn, onOpenBrowser = { onVerify(error.webViewUrl(NodeSeekSite.BASE_URL)) })
+
+                refresh is LoadState.NotLoading && posts.itemCount == 0 -> EmptyFeedState()
+
+                else -> DesktopScrollbars(listState) {
+                    LazyColumn(state = listState, contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 64.dp), modifier = Modifier.fillMaxSize()) {
+                        items(posts.itemCount, key = posts.itemKey { it.summary.postId }) { index ->
+                            val post = posts[index]
+                            if (post == null) {
+                                Spacer(Modifier.fillMaxWidth().height(74.dp))
+                            } else {
+                                val summary = post.summary
+                                val interaction = remember(summary.postId) { MutableInteractionSource() }
+                                val hovered by interaction.collectIsHoveredAsState()
+                                io.github.seektop.ui.common.DesktopPostContextMenu(NodeSeekSite.BASE_URL + NodeSeekSite.postPath(summary.postId)) {
+                                    Row(
+                                        Modifier.fillMaxWidth().background(
+                                            when {
+                                                selectedId == summary.postId -> MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                                                hovered -> MaterialTheme.colorScheme.surfaceContainerLow
+                                                else -> MaterialTheme.colorScheme.surface
+                                            },
+                                        ).hoverable(interaction).clickable(interactionSource = interaction, indication = LocalIndication.current) {
+                                            onPostClick(post)
+                                        }.padding(horizontal = 18.dp, vertical = 14.dp),
+                                        verticalAlignment = Alignment.Top,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        UserAvatar(url = summary.avatarUrl, name = summary.authorName, size = 30.dp)
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text(summary.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, fontWeight = if (post.isRead) FontWeight.Normal else FontWeight.SemiBold, color = if (post.isRead) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Text(summary.authorName, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                summary.categoryTitle?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+                                                Icon(SeekTopIcons.Reply, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text(summary.commentCount?.toString() ?: "—", style = MaterialTheme.typography.labelSmall)
+                                                summary.lastActiveText?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                            }
+                                        }
+                                    }
+                                }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            }
+                        }
+                        when (val append = posts.loadState.append) {
+                            is LoadState.Loading -> item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                            is LoadState.Error -> item { TextButton(onClick = posts::retry) { Text(append.error.toSiteError().shortMessage()) } }
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+            io.github.seektop.ui.common.DesktopRefreshButton(::refreshFromTop, Modifier.align(Alignment.BottomEnd).padding(16.dp), enabled = refresh !is LoadState.Loading)
+        }
+        HorizontalDivider()
+        if (search?.active != true) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { onGoToPage((page - 1).coerceAtLeast(1)) }, enabled = page > 1) { Text("‹") }
+                TextButton(onClick = { jumpOpen = true }) { Text("$page / ${state.totalPages}", style = MaterialTheme.typography.labelMedium) }
+                TextButton(onClick = { onGoToPage((page + 1).coerceAtMost(state.totalPages)) }, enabled = page < state.totalPages) { Text("›") }
+            }
+        }
+    }
+    if (jumpOpen) {
+        io.github.seektop.ui.common.DesktopPageJumpDialog(page, state.totalPages, onDismiss = { jumpOpen = false }, onGo = { target ->
+            jumpOpen = false
+            onGoToPage(target)
+            scope.launch { listState.scrollToItem(0) }
+        })
+    }
+}

@@ -21,7 +21,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:locale="zh">
     <!-- A name, so it reads the same in every language and has nothing to translate. -->
-    <string name="app_name" translatable="false">Nodyssey</string>
+    <string name="app_name" translatable="false">SeekTop</string>
     <string name="notifications_interactions">互动</string>
     <string name="notifications_messages">私信</string>
     <!--

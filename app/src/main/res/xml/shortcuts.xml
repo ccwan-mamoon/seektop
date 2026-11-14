@@ -16,10 +16,10 @@
         android:shortcutShortLabel="@string/shortcut_search">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetClass="io.github.nodyssey.MainActivity"
-            android:targetPackage="io.github.nodyssey">
+            android:targetClass="io.github.seektop.MainActivity"
+            android:targetPackage="io.github.seektop">
             <extra
-                android:name="io.github.nodyssey.SHORTCUT"
+                android:name="io.github.seektop.SHORTCUT"
                 android:value="search" />
         </intent>
     </shortcut>
@@ -31,10 +31,10 @@
         android:shortcutShortLabel="@string/shortcut_compose">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetClass="io.github.nodyssey.MainActivity"
-            android:targetPackage="io.github.nodyssey">
+            android:targetClass="io.github.seektop.MainActivity"
+            android:targetPackage="io.github.seektop">
             <extra
-                android:name="io.github.nodyssey.SHORTCUT"
+                android:name="io.github.seektop.SHORTCUT"
                 android:value="compose" />
         </intent>
     </shortcut>
@@ -46,10 +46,10 @@
         android:shortcutShortLabel="@string/shortcut_notifications">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetClass="io.github.nodyssey.MainActivity"
-            android:targetPackage="io.github.nodyssey">
+            android:targetClass="io.github.seektop.MainActivity"
+            android:targetPackage="io.github.seektop">
             <extra
-                android:name="io.github.nodyssey.OPEN_TAB"
+                android:name="io.github.seektop.OPEN_TAB"
                 android:value="notifications" />
         </intent>
     </shortcut>
@@ -61,10 +61,10 @@
         android:shortcutShortLabel="@string/shortcut_sign_in_random">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetClass="io.github.nodyssey.MainActivity"
-            android:targetPackage="io.github.nodyssey">
+            android:targetClass="io.github.seektop.MainActivity"
+            android:targetPackage="io.github.seektop">
             <extra
-                android:name="io.github.nodyssey.SHORTCUT"
+                android:name="io.github.seektop.SHORTCUT"
                 android:value="sign_in_random" />
         </intent>
     </shortcut>
@@ -76,10 +76,10 @@
         android:shortcutShortLabel="@string/shortcut_sign_in_fixed">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetClass="io.github.nodyssey.MainActivity"
-            android:targetPackage="io.github.nodyssey">
+            android:targetClass="io.github.seektop.MainActivity"
+            android:targetPackage="io.github.seektop">
             <extra
-                android:name="io.github.nodyssey.SHORTCUT"
+                android:name="io.github.seektop.SHORTCUT"
                 android:value="sign_in_fixed" />
         </intent>
     </shortcut>

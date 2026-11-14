@@ -1,5 +1,5 @@
 plugins {
-    id("plaza.kmp.library")
+    id("seektop.kmp.library")
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -13,7 +13,7 @@ kotlin {
     macosArm64()
 
     android {
-        namespace = "io.github.plaza.richtext"
+        namespace = "io.github.seektop.foundation.richtext"
     }
 
     sourceSets {

@@ -1,0 +1,93 @@
+package io.github.seektop.foundation.core.update
+
+/**
+ * Version-name ordering, for deciding whether a published release is newer than the installed build.
+ *
+ * `.github/workflows/release.yml` refuses to publish a tag whose name disagrees with the APK's
+ * `versionName`, so both sides of every comparison are the same string in the same shape — `v1.2.0`
+ * against `1.2.0`. That is the shape this understands: dotted numbers, an optional `-pre` suffix and
+ * optional `+build` metadata.
+ *
+ * Segments compare as numbers, a missing segment counts as zero (`1.2` equals `1.2.0`), build
+ * metadata is ignored, and a pre-release sorts *below* the release of the same number, as semver
+ * requires. Inside a pre-release the dot-separated identifiers compare one by one, numerically where
+ * both are numbers — `1.3.0-dev.10` is the build *after* `1.3.0-dev.9`, which a plain string compare
+ * would have upside down. A segment that is not a number contributes its leading digits, or zero: a tag shaped in
+ * some way this does not model must not read as "newer" on the strength of alphabetical luck.
+ */
+fun compareVersionNames(left: String, right: String): Int {
+    val (leftCore, leftPreRelease) = splitVersionName(left)
+    val (rightCore, rightPreRelease) = splitVersionName(right)
+    repeat(maxOf(leftCore.size, rightCore.size)) { index ->
+        val comparison = leftCore.getOrElse(index) { 0 }.compareTo(rightCore.getOrElse(index) { 0 })
+        if (comparison != 0) return comparison
+    }
+    return comparePreRelease(leftPreRelease, rightPreRelease)
+}
+
+/**
+ * True when [candidate] is a version the user does not have yet.
+ *
+ * A blank [current] — what `PackageManager` hands back when it cannot read a `versionName` — answers
+ * false rather than "everything is newer": offering an update against a version we failed to read
+ * would push an install on someone for no reason we could state.
+ */
+fun isNewerVersionName(candidate: String, current: String): Boolean =
+    candidate.isNotBlank() &&
+        current.isNotBlank() &&
+        compareVersionNames(candidate, current) > 0
+
+/**
+ * True when [versionName] names a test build — `1.2.9-dev.4`, not `1.2.9`.
+ *
+ * The suffix is the same one that makes `release.yml` publish the tag as a prerelease, so it is also
+ * what says which channel the build came off. Worth asking about because the two channels are not
+ * symmetric: `stable.json` has nothing to offer someone on `1.2.9-dev.3` until a release passes that
+ * number, so a test build checking the stable channel reports 已是最新 for as long as it takes the
+ * next release to ship — which is not a wrong answer to the question asked, only the wrong question.
+ */
+fun isPreReleaseVersionName(versionName: String): Boolean =
+    splitVersionName(versionName).second.isNotEmpty()
+
+/** `v1.2.0` is the tag, `1.2.0` is the version inside the APK. This is the one difference. */
+fun versionNameOfTag(tag: String): String = tag.trim().removePrefix("v").removePrefix("V")
+
+private fun splitVersionName(raw: String): Pair<List<Int>, String> {
+    val withoutBuildMetadata = versionNameOfTag(raw).substringBefore('+')
+    val core = withoutBuildMetadata.substringBefore('-')
+    val preRelease = withoutBuildMetadata.substringAfter('-', "")
+    return core.split('.').map { segment -> segment.takeWhile(Char::isDigit).toIntOrNull() ?: 0 } to
+        preRelease
+}
+
+private fun comparePreRelease(left: String, right: String): Int =
+    when {
+        left == right -> 0
+
+        // Absent beats present: 1.2.0 is the release that 1.2.0-rc1 was leading up to.
+        left.isEmpty() -> 1
+
+        right.isEmpty() -> -1
+
+        else -> compareIdentifiers(left.split('.'), right.split('.'))
+    }
+
+/** Semver's pre-release rule: numeric identifiers compare as numbers and sort below alphanumeric ones. */
+private fun compareIdentifiers(left: List<String>, right: List<String>): Int {
+    repeat(minOf(left.size, right.size)) { index ->
+        val leftIdentifier = left[index]
+        val rightIdentifier = right[index]
+        val leftNumber = leftIdentifier.toIntOrNull()
+        val rightNumber = rightIdentifier.toIntOrNull()
+        val comparison =
+            when {
+                leftNumber != null && rightNumber != null -> leftNumber.compareTo(rightNumber)
+                leftNumber != null -> -1
+                rightNumber != null -> 1
+                else -> leftIdentifier.compareTo(rightIdentifier)
+            }
+        if (comparison != 0) return comparison
+    }
+    // Everything shared matched, so the one that keeps going is the larger: `dev.1` before `dev.1.1`.
+    return left.size.compareTo(right.size)
+}

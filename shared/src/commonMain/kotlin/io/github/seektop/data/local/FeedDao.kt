@@ -1,0 +1,255 @@
+package io.github.seektop.data.local
+
+import androidx.paging.PagingSource
+import androidx.room.Dao
+import androidx.room.Embedded
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * A feed row joined with the read state the list needs to dim it or badge it.
+ *
+ * Read marks live in their own table, so this is a `LEFT JOIN` and both columns are nullable: null
+ * means never opened.
+ */
+data class FeedPostRow(
+    @Embedded val post: PostEntity,
+    val lastReadAtMillis: Long?,
+    val lastSeenCommentCount: Int?,
+    /**
+     * Which of the site's pages this row arrived on, or null when the row was not read out of a feed
+     * at all — [FeedDao.search] matches the whole post cache, where "which page" has no answer.
+     */
+    val feedPage: Int? = null,
+)
+
+/**
+ * The one visibility rule every feed query shares: the site's block mark, then the reader's own
+ * title keywords and the posts their title patterns matched (`title_regex_hits`), all waived by 临时显示被屏蔽内容. One constant because the queries that count rows
+ * for 首页翻页栏 must hide exactly what the list hides, or every index they return is off by the
+ * difference.
+ */
+private const val VISIBLE_UNLESS_REVEALED =
+    "(:includeBlocked OR (p.isBlocked = 0 AND NOT EXISTS (" +
+        "SELECT 1 FROM title_keywords k WHERE k.kind = 'BLOCK' AND instr(lower(p.title), k.keyword) > 0) " +
+        "AND p.postId NOT IN (SELECT postId FROM title_regex_hits)))"
+
+@Dao
+interface FeedDao {
+    /**
+     * The list's single source of truth.
+     *
+     * Returning a [PagingSource] rather than a `Flow<List<…>>` is what makes the database — not the
+     * network — the thing the UI reads from. Room invalidates it on any write to the joined tables,
+     * so a mediator writing page 3 shows up without anyone telling the UI to reload.
+     *
+     * Blocked rows are dropped here rather than by the UI so that they never take up a slot in the
+     * paging window: a page of fifty that is half blocked would otherwise draw twenty-five rows and
+     * leave the reader looking at a short list with no scroll left to trigger the next load.
+     * [includeBlocked] is 临时显示被屏蔽内容 — the same rows, unhidden, no re-fetch. Titles matching
+     * one of the reader's own 屏蔽关键词 are hidden the same way and revealed by the same switch;
+     * Room watches `title_keywords` too, so adding a word re-queries the list on the spot.
+     */
+    @Query(
+        """
+        SELECT p.*, r.lastReadAtMillis AS lastReadAtMillis, r.lastSeenCommentCount AS lastSeenCommentCount,
+               f.page AS feedPage
+        FROM posts p
+        INNER JOIN feed_positions f ON f.postId = p.postId
+        LEFT JOIN post_read_marks r ON r.postId = p.postId
+        WHERE f.feedKey = :feedKey AND $VISIBLE_UNLESS_REVEALED
+        ORDER BY f.sortIndex ASC
+        """,
+    )
+    fun pagingSource(
+        feedKey: String,
+        includeBlocked: Boolean = false,
+    ): PagingSource<Int, FeedPostRow>
+
+    /**
+     * Searches the posts that have already reached the offline cache.
+     *
+     * Search is deliberately local-first: NodeSeek has no stable public search API, while this table
+     * already contains the threads the reader is most likely trying to find again. [query] is escaped
+     * by the repository before it reaches LIKE, so `%` and `_` remain ordinary search characters.
+     */
+    @Query(
+        """
+        SELECT p.*, r.lastReadAtMillis AS lastReadAtMillis, r.lastSeenCommentCount AS lastSeenCommentCount,
+               NULL AS feedPage
+        FROM posts p
+        LEFT JOIN post_read_marks r ON r.postId = p.postId
+        WHERE $VISIBLE_UNLESS_REVEALED
+          AND (
+                p.title LIKE '%' || :query || '%' ESCAPE '\'
+             OR p.authorName LIKE '%' || :query || '%' ESCAPE '\'
+          )
+        ORDER BY p.lastActiveText IS NULL, p.postId DESC
+        LIMIT :limit
+        """,
+    )
+    fun search(
+        query: String,
+        includeBlocked: Boolean = false,
+        limit: Int = 100,
+    ): Flow<List<FeedPostRow>>
+
+    @Upsert
+    suspend fun upsertPosts(posts: List<PostEntity>)
+
+    /**
+     * [OnConflictStrategy.IGNORE] on purpose: NodeSeek sorts by last activity, so a post from page 1
+     * frequently reappears on page 2 a moment later. Replacing would move it to the bottom under the
+     * user's finger. Keeping the first position it was seen at makes appends visually stable.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPositions(positions: List<FeedPositionEntity>)
+
+    @Query("SELECT COALESCE(MAX(sortIndex) + 1, 0) FROM feed_positions WHERE feedKey = :feedKey")
+    suspend fun nextSortIndex(feedKey: String): Int
+
+    /**
+     * The first of the site's pages this feed currently holds, or null when it holds nothing.
+     *
+     * Derived rather than stored: the rows are what a jump replaces, so asking them is the one answer
+     * that cannot disagree with what is on screen. The mediator compares it with the page it was asked
+     * to start at — that is how a jump to page 40 gets past a cache that is still perfectly fresh.
+     */
+    @Query("SELECT MIN(page) FROM feed_positions WHERE feedKey = :feedKey")
+    suspend fun firstLoadedPage(feedKey: String): Int?
+
+    /**
+     * Where the site's page [page] starts, as a `sortIndex`, or null when this feed holds none of it.
+     *
+     * Together with [countRowsBefore] this is how 首页翻页栏 tells "scroll there" from "fetch it": the
+     * rows the reader has already scrolled past are in this table whether or not Paging is currently
+     * holding them in memory, and asking the list is asking the wrong question. Room hands the UI one
+     * window of rows around the anchor and re-makes it on every write, so a page one step away is a
+     * row of placeholders almost all the time — which read as "not loaded" and reloaded the feed from
+     * the network for a page that was already sitting in the database.
+     *
+     * [includeBlocked] has to match the one [pagingSource] was built with. It is the same filter, so
+     * an answer taken under the other one counts rows the list does not have and lands off by however
+     * many blocked posts are above it.
+     */
+    @Query(
+        """
+        SELECT MIN(f.sortIndex)
+        FROM feed_positions f
+        INNER JOIN posts p ON p.postId = f.postId
+        WHERE f.feedKey = :feedKey AND f.page = :page AND $VISIBLE_UNLESS_REVEALED
+        """,
+    )
+    suspend fun firstSortIndexOnPage(
+        feedKey: String,
+        page: Int,
+        includeBlocked: Boolean = false,
+    ): Int?
+
+    /**
+     * How many of this feed's rows sort before [sortIndex] — which, given [pagingSource] orders by
+     * that column, is the index the row sits at in the list.
+     */
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM feed_positions f
+        INNER JOIN posts p ON p.postId = f.postId
+        WHERE f.feedKey = :feedKey AND f.sortIndex < :sortIndex AND $VISIBLE_UNLESS_REVEALED
+        """,
+    )
+    suspend fun countRowsBefore(
+        feedKey: String,
+        sortIndex: Int,
+        includeBlocked: Boolean = false,
+    ): Int
+
+    /**
+     * The reply count the list is currently showing for this post.
+     *
+     * This is the right baseline for "read up to here": it is the same number the badge will later be
+     * compared against. Counting how many comments happened to be downloaded would compare a page
+     * against a total and report new replies that were only ever unfetched ones.
+     */
+    @Query("SELECT commentCount FROM posts WHERE postId = :postId")
+    suspend fun commentCount(postId: Long): Int?
+
+    /**
+     * The stored row for one post, or null when no feed has ever carried it.
+     *
+     * Null is the ordinary case for a thread opened from a notification or an external link, which
+     * is exactly why the read mark keeps its own snapshot instead of joining back to here.
+     */
+    @Query("SELECT * FROM posts WHERE postId = :postId")
+    suspend fun findPost(postId: Long): PostEntity?
+
+    @Query("DELETE FROM feed_positions WHERE feedKey = :feedKey")
+    suspend fun clearFeed(feedKey: String)
+
+    /**
+     * Drops every stored search except the one being run.
+     *
+     * Board feeds are a fixed set of fifteen and worth keeping; search feeds are one per query the
+     * user has ever typed, so without this the two feed tables grow with the search history. Only
+     * one search is ever on screen, so nothing reachable is lost — and re-running an old query is a
+     * fresh request rather than a stale answer, which is the honest behaviour for a search anyway.
+     */
+    @Query("DELETE FROM feed_positions WHERE feedKey LIKE :prefix || '%' AND feedKey <> :keepFeedKey")
+    suspend fun clearOtherSearchFeeds(prefix: String, keepFeedKey: String)
+
+    @Query("DELETE FROM feed_remote_keys WHERE feedKey LIKE :prefix || '%' AND feedKey <> :keepFeedKey")
+    suspend fun clearOtherSearchRemoteKeys(prefix: String, keepFeedKey: String)
+
+    @Query("SELECT * FROM feed_remote_keys WHERE feedKey = :feedKey")
+    suspend fun remoteKey(feedKey: String): FeedRemoteKeyEntity?
+
+    /**
+     * The same row as a stream, for the screen rather than the mediator.
+     *
+     * 首页翻页栏 needs the page total the moment a load writes it, and a feed with nothing stored yet
+     * emits null rather than waiting — the bar simply has nothing to draw until the first page lands.
+     */
+    @Query("SELECT * FROM feed_remote_keys WHERE feedKey = :feedKey")
+    fun remoteKeyStream(feedKey: String): Flow<FeedRemoteKeyEntity?>
+
+    @Upsert
+    suspend fun upsertRemoteKey(key: FeedRemoteKeyEntity)
+
+    /**
+     * Makes every stored feed count as stale without deleting a row.
+     *
+     * Rows are kept on purpose: the stale list still paints on the first frame while the refresh runs,
+     * which is the offline-first behaviour. Only the *freshness* claim is withdrawn, so the mediator
+     * stops answering `SKIP_INITIAL_REFRESH`.
+     */
+    @Query("UPDATE feed_remote_keys SET refreshedAtMillis = 0")
+    suspend fun expireAllFeeds()
+
+    @Query("DELETE FROM feed_positions")
+    suspend fun clearAllFeedPositions()
+
+    @Query("DELETE FROM feed_remote_keys")
+    suspend fun clearAllRemoteKeys()
+
+    @Query("DELETE FROM posts")
+    suspend fun clearAllPosts()
+
+    /**
+     * Drops posts that no feed points at any more and that nobody has read.
+     *
+     * Without this the `posts` table only ever grows: refreshing a feed clears its positions but
+     * leaves the rows behind. Read posts are kept regardless, because their read mark is the thing
+     * that makes "4 new replies" work and losing it would silently mark old threads unread again.
+     */
+    @Query(
+        """
+        DELETE FROM posts
+        WHERE postId NOT IN (SELECT postId FROM feed_positions)
+          AND postId NOT IN (SELECT postId FROM post_read_marks)
+        """,
+    )
+    suspend fun deleteOrphanedPosts()
+}

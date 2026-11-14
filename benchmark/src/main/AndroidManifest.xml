@@ -3,6 +3,6 @@
      hides the app under test from them; the query is what lets the launch intent resolve. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries>
-        <package android:name="io.github.nodyssey" />
+        <package android:name="io.github.seektop" />
     </queries>
 </manifest>

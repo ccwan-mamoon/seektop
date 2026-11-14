@@ -1,3 +1,5 @@
+> 上游历史参考：本文保留原 Android/iOS 设计、实现与评估快照，不代表 SeekTop Windows 当前状态。当前客户端请以[项目说明](../README.md)、[桌面开发说明](../desktop/README.md)和[文档导航](README.md)为准。旧包名与工程名按历史原文保留。
+
 # KMP-ready 架构改造计划
 
 制定日期：2026-08-18 · 修订：目标由「迁移到 macOS」改为「先做 KMP-ready」 ·

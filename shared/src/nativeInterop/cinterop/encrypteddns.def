@@ -8,8 +8,8 @@
 # not a DoH-only path: the setting starts off, and the very first emission still reads the global.
 #
 # So no `nw_*` object crosses the Kotlin boundary at all. Kotlin passes strings; everything the
-# framework hands back is created, used and released inside `plaza_apply_encrypted_dns`.
-package = io.github.plaza.core.net.dns
+# framework hands back is created, used and released inside `seektop_apply_encrypted_dns`.
+package = io.github.seektop.foundation.core.net.dns
 language = Objective-C
 headers = Network/Network.h
 compilerOpts = -fno-objc-arc
@@ -26,7 +26,7 @@ linkerOpts = -framework Network
 // that restores the default rather than leaving the last server quietly in place. The cache is
 // flushed either way because a privacy context caches answers, and the addresses the old resolver
 // gave would otherwise keep being used.
-static inline void plaza_apply_encrypted_dns(const char *url,
+static inline void seektop_apply_encrypted_dns(const char *url,
                                              const char *const *server_addresses,
                                              int server_address_count) {
 	nw_resolver_config_t config = NULL;

@@ -32,7 +32,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-rootProject.name = "Nodyssey"
+rootProject.name = "SeekTop"
 include(":app")
 
 // The R8 smoke: a `com.android.test` module that installs `:app`'s minified build on the CI

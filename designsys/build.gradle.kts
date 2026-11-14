@@ -5,7 +5,7 @@
 import com.android.build.api.withAndroid
 
 plugins {
-    id("plaza.kmp.library")
+    id("seektop.kmp.library")
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
 }
@@ -45,7 +45,7 @@ kotlin {
     }
 
     android {
-        namespace = "io.github.plaza.designsys"
+        namespace = "io.github.seektop.foundation.designsys"
 
         // Off by default in a KMP Android library, and the failure it causes is not a message about
         // resources: Compose Resources packages its `.cvr` files as *assets*, and it does that by
@@ -85,7 +85,7 @@ kotlin {
             api(libs.compose.material.icons.core)
 
             // `BackHandler` in `commonMain`. `implementation` because nothing leaves: the module's
-            // own `PlazaBackHandler` is what a consumer names — see that file for why it still
+            // own `SeekTopBackHandler` is what a consumer names — see that file for why it still
             // exists now that the function it wraps is multiplatform.
             implementation(libs.compose.ui.backhandler)
 
@@ -97,7 +97,7 @@ kotlin {
             implementation(libs.compose.components.resources)
 
             // The seed-colour scheme generator. `implementation`, not `api`: a caller hands
-            // `PlazaTheme` a `Color` and gets a `ColorScheme` back, and never names an Hct or a
+            // `SeekTopTheme` a `Color` and gets a `ColorScheme` back, and never names an Hct or a
             // DynamicScheme itself.
             implementation(libs.material.color.utilities)
 
@@ -180,7 +180,7 @@ kotlin {
 }
 
 compose.resources {
-    // Named for the module rather than left to the default `io.github.plaza.designsys.generated.resources`,
+    // Named for the module rather than left to the default `io.github.seektop.foundation.designsys.generated.resources`,
     // which puts a package called `generated` in the middle of an import that a person reads.
-    packageOfResClass = "io.github.plaza.designsys.resources"
+    packageOfResClass = "io.github.seektop.foundation.designsys.resources"
 }

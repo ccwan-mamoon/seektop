@@ -1,0 +1,334 @@
+package io.github.seektop.ui.settings
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.seektop.foundation.designsys.component.LayerCard
+import io.github.seektop.foundation.designsys.component.OneHandTopAppBar
+import io.github.seektop.foundation.designsys.component.SectionLabel
+import io.github.seektop.foundation.designsys.component.SeekTopIcons
+import io.github.seektop.foundation.designsys.component.SeekTopSpinner
+import io.github.seektop.foundation.designsys.component.rememberOneHandAppBarState
+import io.github.seektop.foundation.designsys.theme.LocalSeekTopLayers
+import io.github.seektop.foundation.designsys.theme.SeekTopTheme
+import io.github.seektop.foundation.designsys.theme.Spacing
+import io.github.seektop.foundation.designsys.theme.readableWidth
+import io.github.seektop.ui.common.describedAsLoading
+import io.github.seektop.ui.common.rememberGroupedNumber
+import io.github.seektop.ui.common.siteName
+import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.about_community
+import io.github.seektop.ui.resources.about_community_title
+import io.github.seektop.ui.resources.about_contact
+import io.github.seektop.ui.resources.about_copy_rss
+import io.github.seektop.ui.resources.about_deepflood
+import io.github.seektop.ui.resources.about_deepflood_hint
+import io.github.seektop.ui.resources.about_email
+import io.github.seektop.ui.resources.about_forum_stats_error
+import io.github.seektop.ui.resources.about_forum_stats_loading
+import io.github.seektop.ui.resources.about_forum_stats_snapshot
+import io.github.seektop.ui.resources.about_forum_stats_value
+import io.github.seektop.ui.resources.about_privacy
+import io.github.seektop.ui.resources.about_privacy_hint
+import io.github.seektop.ui.resources.about_rss
+import io.github.seektop.ui.resources.about_rss_copied
+import io.github.seektop.ui.resources.about_site
+import io.github.seektop.ui.resources.about_site_hint
+import io.github.seektop.ui.resources.about_telegram_channel
+import io.github.seektop.ui.resources.about_telegram_group
+import io.github.seektop.ui.resources.action_back
+import io.github.seektop.ui.resources.action_retry
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+fun AboutCommunityRoute(
+    viewModel: AboutCommunityViewModel,
+    onBack: () -> Unit,
+    onOpenAboutSite: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onOpenUri: (String) -> Unit,
+    onCopyRss: suspend () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val statsState by viewModel.uiState.collectAsStateWithLifecycle()
+    AboutCommunityScreen(
+        statsState = statsState,
+        onBack = onBack,
+        onOpenAboutSite = onOpenAboutSite,
+        onOpenPrivacy = onOpenPrivacy,
+        onOpenUri = onOpenUri,
+        onCopyRss = onCopyRss,
+        onRetryStats = viewModel::retry,
+        modifier = modifier,
+    )
+}
+
+/** NodeSeek 社区信息页；仅从社区工具进入，与本软件的关于页保持独立。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AboutCommunityScreen(
+    onBack: () -> Unit,
+    onOpenAboutSite: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onOpenUri: (String) -> Unit,
+    onCopyRss: suspend () -> Unit,
+    modifier: Modifier = Modifier,
+    statsState: CommunityStatsUiState? = null,
+    onRetryStats: () -> Unit = {},
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val copiedMessage = stringResource(Res.string.about_rss_copied)
+    val appBarState = rememberOneHandAppBarState()
+    Scaffold(
+        modifier = modifier.nestedScroll(appBarState.nestedScrollConnection),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            OneHandTopAppBar(
+                title = stringResource(Res.string.about_community_title),
+                state = appBarState,
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.action_back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .readableWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(SettingsPagePadding),
+            verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
+        ) {
+            SectionLabel(stringResource(Res.string.about_community))
+            statsState?.let { state ->
+                CommunityStats(
+                    state = state,
+                    onRetry = onRetryStats,
+                )
+            }
+            SettingsGroup {
+                AboutRow(
+                    title = stringResource(Res.string.about_site),
+                    subtitle = stringResource(Res.string.about_site_hint),
+                    icon = SeekTopIcons.Article,
+                    first = true,
+                    onClick = onOpenAboutSite,
+                )
+                AboutRow(
+                    title = stringResource(Res.string.about_privacy),
+                    subtitle = stringResource(Res.string.about_privacy_hint),
+                    icon = Icons.Default.Info,
+                    onClick = onOpenPrivacy,
+                )
+                AboutRow(
+                    title = stringResource(Res.string.about_rss),
+                    subtitle = CommunityLinks.RSS_DISPLAY,
+                    icon = SeekTopIcons.Article,
+                    trailing = {
+                        Icon(
+                            SeekTopIcons.ContentCopy,
+                            contentDescription = stringResource(Res.string.about_copy_rss),
+                        )
+                    },
+                    last = true,
+                    // Both in one coroutine, in this order: the snackbar says the clipboard holds the
+                    // feed URL, which is only true once the suspending copy has returned.
+                    onClick = {
+                        scope.launch {
+                            onCopyRss()
+                            snackbarHostState.showSnackbar(copiedMessage)
+                        }
+                    },
+                )
+            }
+
+            SectionLabel(stringResource(Res.string.about_contact))
+            SettingsGroup {
+                AboutRow(
+                    title = stringResource(Res.string.about_telegram_channel),
+                    icon = SeekTopIcons.Campaign,
+                    external = true,
+                    first = true,
+                    onClick = { onOpenUri(CommunityLinks.TELEGRAM_CHANNEL) },
+                )
+                AboutRow(
+                    title = stringResource(Res.string.about_telegram_group),
+                    icon = SeekTopIcons.Group,
+                    external = true,
+                    onClick = { onOpenUri(CommunityLinks.TELEGRAM_GROUP) },
+                )
+                AboutRow(
+                    title = stringResource(Res.string.about_email),
+                    subtitle = CommunityLinks.EMAIL.removePrefix("mailto:"),
+                    icon = SeekTopIcons.Campaign,
+                    external = true,
+                    onClick = { onOpenUri(CommunityLinks.EMAIL) },
+                )
+                AboutRow(
+                    title = stringResource(Res.string.about_deepflood),
+                    subtitle = stringResource(Res.string.about_deepflood_hint),
+                    icon = SeekTopIcons.Group,
+                    external = true,
+                    last = true,
+                    onClick = { onOpenUri(CommunityLinks.DEEPFLOOD) },
+                )
+            }
+            FriendSiteChips(onOpenUri)
+        }
+    }
+}
+
+@Composable
+private fun CommunityStats(
+    state: CommunityStatsUiState,
+    onRetry: () -> Unit,
+) {
+    LayerCard(Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            Icon(SeekTopIcons.Group, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text =
+                    when (state) {
+                        CommunityStatsUiState.Loading -> stringResource(Res.string.about_forum_stats_loading)
+
+                        is CommunityStatsUiState.Content ->
+                            stringResource(Res.string.about_forum_stats_value, rememberGroupedNumber(state.memberCount))
+
+                        CommunityStatsUiState.Error -> stringResource(Res.string.about_forum_stats_error)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (state is CommunityStatsUiState.Content) {
+                    Text(
+                        stringResource(Res.string.about_forum_stats_snapshot, siteName),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            when (state) {
+                CommunityStatsUiState.Loading ->
+                    SeekTopSpinner(
+                        modifier = Modifier.describedAsLoading(),
+                        strokeWidth = 2.dp,
+                        size = 20.dp,
+                    )
+
+                CommunityStatsUiState.Error ->
+                    TextButton(onClick = onRetry) {
+                        Text(stringResource(Res.string.action_retry))
+                    }
+
+                is CommunityStatsUiState.Content -> Unit
+            }
+        }
+    }
+}
+
+@Composable
+private fun FriendSiteChips(onOpenUri: (String) -> Unit) {
+    val sites = listOf(
+        "LowEndTalk" to CommunityLinks.LOW_END_TALK,
+        "LowEndSpirit" to CommunityLinks.LOW_END_SPIRIT,
+        "HostLoc" to CommunityLinks.HOST_LOC,
+        "ServerHunter" to CommunityLinks.SERVER_HUNTER,
+    )
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.xs, vertical = Spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        sites.forEach { (name, uri) ->
+            Surface(
+                onClick = { onOpenUri(uri) },
+                color = LocalSeekTopLayers.current.raised,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                shape = CircleShape,
+                modifier = Modifier.widthIn(min = 48.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                ) {
+                    Text(name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                    Icon(SeekTopIcons.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp))
+                }
+            }
+        }
+    }
+}
+
+internal object CommunityLinks {
+    const val RSS = "https://www.nodeseek.com/rss.xml"
+    const val RSS_DISPLAY = "rss.nodeseek.com"
+    const val TELEGRAM_CHANNEL = "https://t.me/nodeseekc"
+    const val TELEGRAM_GROUP = "https://t.me/nodeseekg"
+    const val EMAIL = "mailto:Lloyd@nodeseek.com"
+    const val DEEPFLOOD = "https://www.deepflood.com"
+    const val LOW_END_TALK = "https://lowendtalk.com"
+    const val LOW_END_SPIRIT = "https://lowendspirit.com"
+    const val HOST_LOC = "https://hostloc.com"
+    const val SERVER_HUNTER = "https://www.serverhunter.com"
+}
+
+@Preview(showBackground = true, widthDp = 360, heightDp = 800, name = "f1 关于 · 社区")
+@Composable
+private fun AboutCommunityPreview() {
+    SeekTopTheme {
+        AboutCommunityScreen(
+            onBack = {},
+            onOpenAboutSite = {},
+            onOpenPrivacy = {},
+            onOpenUri = {},
+            onCopyRss = {},
+        )
+    }
+}

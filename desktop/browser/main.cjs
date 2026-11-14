@@ -1,6 +1,6 @@
 const { app, BrowserWindow, session, Menu } = require("electron");
 const http = require("http");
-const token = process.env.NODYSSEY_BRIDGE_TOKEN;
+const token = process.env.SEEKTOP_BRIDGE_TOKEN;
 // A Start Menu / Action Center launch must open the desktop shell, rather than
 // leave an invisible Chromium helper running without its authenticated parent.
 if (!token) {
@@ -11,14 +11,15 @@ if (!token) {
     }
     app.quit();
 } else {
-app.setPath("userData", process.env.NODYSSEY_BROWSER_DATA);
+app.setPath("userData", process.env.SEEKTOP_BROWSER_DATA);
 const notifications = require("./notifications.cjs").createNotificationService(require("electron"), process.env.SEEKTOP_DESKTOP_EXE);
 app.on("before-quit", () => notifications.dispose());
 app.whenReady().then(() => {
+    // Storage compatibility: retain existing SeekTop users' forum cookies.
     const forum = session.fromPartition("persist:nodyssey");
     const third = session.fromPartition("persist:third-party");
     const updatesSession = session.fromPartition("updates");
-    const updates = require("./updater.cjs").createUpdateService(updatesSession, require("node:path").join(process.env.NODYSSEY_BROWSER_DATA, "../updates/downloads"));
+    const updates = require("./updater.cjs").createUpdateService(updatesSession, require("node:path").join(process.env.SEEKTOP_BROWSER_DATA, "../updates/downloads"));
     app.on("before-quit", () => updates.dispose());
     let login = null;
     const verification = require("./verification.cjs").createVerificationService(forum, BrowserWindow);
@@ -301,10 +302,10 @@ app.whenReady().then(() => {
             JSON.stringify({ port: server.address().port }) + "\n",
         ),
     );
-    if (process.env.NODYSSEY_PARENT_PID)
+    if (process.env.SEEKTOP_PARENT_PID)
         setInterval(() => {
             try {
-                process.kill(Number(process.env.NODYSSEY_PARENT_PID), 0);
+                process.kill(Number(process.env.SEEKTOP_PARENT_PID), 0);
             } catch {
                 app.quit();
             }

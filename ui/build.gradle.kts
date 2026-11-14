@@ -5,7 +5,7 @@
 import com.android.build.api.withAndroid
 
 plugins {
-    id("plaza.kmp.library")
+    id("seektop.kmp.library")
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
 
@@ -43,7 +43,7 @@ kotlin {
     }
 
     android {
-        namespace = "io.github.nodyssey.ui"
+        namespace = "io.github.seektop.ui"
 
         // Off by default in a KMP Android library. Compose Resources packages its `.cvr` files as
         // *assets* and asks the variant for `sources.assets`, which is null while this is false —
@@ -61,7 +61,7 @@ kotlin {
         }
         commonMain.dependencies {
             // The components and the theme. `api` because a screen's own signature names them —
-            // `PlazaTheme`, `RichContent`, the app bars — and because everything Compose arrives
+            // `SeekTopTheme`, `RichContent`, the app bars — and because everything Compose arrives
             // through it: that module already puts `runtime`, `foundation`, `ui`, `material3`,
             // `ui-tooling-preview` and the icons on its `api` face.
             api(project(":designsys"))
@@ -183,7 +183,7 @@ dependencies {
  * gets its own — which is also why this is a source directory and not a dependency.
  */
 kotlin.sourceSets.getByName("androidHostTest").kotlin.srcDir(
-    project(":shared").file("src/androidHostTest/kotlin/io/github/nodyssey/data/doubles"),
+    project(":shared").file("src/androidHostTest/kotlin/io/github/seektop/data/doubles"),
 )
 
 // The captured pages, read as a classpath resource — see `Fixtures` in the test sources. Pointed at
@@ -193,10 +193,10 @@ kotlin.sourceSets.getByName("androidHostTest").resources.srcDir(
 )
 
 compose.resources {
-    // Named for the module rather than left to the default `io.github.nodyssey.ui.generated.resources`,
+    // Named for the module rather than left to the default `io.github.seektop.ui.generated.resources`,
     // which puts a package called `generated` in the middle of an import that a person reads. Same
     // convention as `:designsys`.
-    packageOfResClass = "io.github.nodyssey.ui.resources"
+    packageOfResClass = "io.github.seektop.ui.resources"
 
     // `:app` reads these too — `MainActivity` and the notification worker are Android shells around
     // screens that live here — so the generated class cannot be internal to this module.

@@ -1,3 +1,5 @@
+> 上游历史参考：本文保留原 Android/iOS 设计、实现与评估快照，不代表 SeekTop Windows 当前状态。当前客户端请以[项目说明](../README.md)、[桌面开发说明](../desktop/README.md)和[文档导航](README.md)为准。旧包名与工程名按历史原文保留。
+
 # 角色预设 Token 补稿需求(j2 后续)
 
 > 交付对象:Claude Design。前置:j2 画板「主题预设 · 角色配色」与 `tokens/presets.css`

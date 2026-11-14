@@ -2,7 +2,7 @@ plugins {
     id("org.jetbrains.kotlin.multiplatform")
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
-    id("plaza.dependency-locking")
+    id("seektop.dependency-locking")
 }
 kotlin {
     jvmToolchain(21)
@@ -21,12 +21,32 @@ kotlin {
     sourceSets.jvmTest.dependencies { implementation(kotlin("test")) }
 }
 compose.desktop.application {
-    mainClass = "io.github.nodyssey.desktop.MainKt"
+    mainClass = "io.github.seektop.desktop.MainKt"
     nativeDistributions {
         packageName = "SeekTop"
         packageVersion = libs.versions.seektop.get()
         windows { iconFile.set(project.file("icons/seektop.ico")) }
-        includeAllModules = true
+        // Keep the UI runtime, networking, native access, charsets and locale providers.
+        // Compiler, debugger and other development modules are not needed by the client.
+        includeAllModules = providers.gradleProperty("fullDesktopRuntime").map(String::toBoolean).getOrElse(false)
+        modules(
+            "java.desktop",
+            "java.logging",
+            "java.management",
+            "java.naming",
+            "java.net.http",
+            "java.sql",
+            "java.xml",
+            "jdk.accessibility",
+            "jdk.charsets",
+            "jdk.crypto.ec",
+            "jdk.localedata",
+            "jdk.management",
+            "jdk.unsupported",
+        )
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            modules("jdk.crypto.mscapi")
+        }
         appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
         licenseFile.set(rootProject.file("LICENSE"))
     }

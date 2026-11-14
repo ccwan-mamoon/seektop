@@ -1,3 +1,5 @@
+> 上游历史参考：本文保留原 Android/iOS 设计、实现与评估快照，不代表 SeekTop Windows 当前状态。当前客户端请以[项目说明](../README.md)、[桌面开发说明](../desktop/README.md)和[文档导航](README.md)为准。旧包名与工程名按历史原文保留。
+
 # Nodyssey 重设计总纲
 
 > 用途：把 App **现在有的全部界面、组件、视觉参数**一次列全，交给 Claude Design（或任何设计师）从头探索新方向。

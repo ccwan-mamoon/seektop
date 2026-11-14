@@ -1,0 +1,1033 @@
+package io.github.seektop
+
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
+import androidx.compose.material3.adaptive.layout.rememberPaneExpansionState
+import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
+import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
+import androidx.compose.material3.adaptive.navigationsuite.rememberNavigationSuiteScaffoldState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.Scene
+import androidx.navigation3.ui.NavDisplay
+import androidx.navigation3.ui.defaultPopTransitionSpec
+import androidx.navigation3.ui.defaultPredictivePopTransitionSpec
+import androidx.navigation3.ui.defaultTransitionSpec
+import io.github.seektop.core.NodeSeekSite
+import io.github.seektop.data.NotificationTab
+import io.github.seektop.di.AppContainer
+import io.github.seektop.foundation.core.runCatchingExceptCancellation
+import io.github.seektop.foundation.designsys.theme.LocalEinkMode
+import io.github.seektop.foundation.designsys.theme.LocalSeekTopLayers
+import io.github.seektop.ui.assets.PendingAttendance
+import io.github.seektop.ui.common.LocalOpenNetworkCheck
+import io.github.seektop.ui.common.LocalThreadTransition
+import io.github.seektop.ui.common.appName
+import io.github.seektop.ui.common.clipboardPostPromptSupported
+import io.github.seektop.ui.common.clipboardPostToOffer
+import io.github.seektop.ui.common.contentSwipeBack
+import io.github.seektop.ui.common.contentSwipeBackSupported
+import io.github.seektop.ui.common.rememberNewClipboardText
+import io.github.seektop.ui.common.rememberTouchExplorationEnabled
+import io.github.seektop.ui.compare.LocalOpenReportCompare
+import io.github.seektop.ui.composer.ComposerShare
+import io.github.seektop.ui.composer.PendingComposerShare
+import io.github.seektop.ui.login.WebViewGoal
+import io.github.seektop.ui.navigation.SeekTopNavigationItems
+import io.github.seektop.ui.navigation.TopLevelDestination
+import io.github.seektop.ui.notifications.NotificationsViewModel
+import io.github.seektop.ui.postlist.HomeFeedStates
+import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.about_privacy
+import io.github.seektop.ui.resources.about_rss
+import io.github.seektop.ui.resources.about_site
+import io.github.seektop.ui.resources.clipboard_post_open
+import io.github.seektop.ui.resources.clipboard_post_prompt
+import io.github.seektop.ui.resources.home_pane_empty
+import io.github.seektop.ui.resources.notifications_pane_empty
+import io.github.seektop.ui.resources.search_pane_empty
+import io.github.seektop.ui.resources.space_pane_empty
+import io.github.seektop.ui.settings.UpdateReminderDialog
+import io.github.seektop.ui.settings.UpdateReminderViewModel
+import io.github.seektop.ui.sticker.LocalStickerNavigation
+import io.github.seektop.ui.sticker.StickerNavigation
+import io.github.seektop.ui.sticker.StickerNotices
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@Composable
+fun MainNavigation(
+    container: AppContainer,
+    modifier: Modifier = Modifier,
+    initialTab: TopLevelDestination = TopLevelDestination.HOME,
+    launchRequest: LaunchRequest? = null,
+    onLaunchRequestHandled: () -> Unit = {},
+) {
+    val desktop = LocalDesktopExperience.current
+    val desktopSession by container.sessionRepository.state.collectAsStateWithLifecycle()
+    val desktopSessionGeneration = desktopSession.generation.takeIf { desktop }
+    val desktopSearchVm: io.github.seektop.ui.search.SearchViewModel = viewModel(factory = io.github.seektop.ui.search.SearchViewModel.factory(container))
+    val desktopSearch = remember(desktopSearchVm) { DesktopSearchSession(androidx.compose.foundation.text.input.TextFieldState(), desktopSearchVm.postResults, desktopSearchVm) }
+    // Hoisted out of the navigation lambdas below, which are not composable.
+    val siteTitle = appName()
+    val aboutSiteTitle = stringResource(Res.string.about_site)
+    val privacyTitle = stringResource(Res.string.about_privacy)
+    val rssLabel = stringResource(Res.string.about_rss)
+    val uriHandler = LocalUriHandler.current
+    /*
+     * Hands a link to the browser — a Custom Tab or the system one, per the user's setting.
+     *
+     * Narrow on purpose. Anything on nodeseek.com should go through `openWebUrl` below instead; what
+     * is left here is the handful of links that genuinely want a browser: an image the user means to
+     * download or share, the terms of service, and the escape hatch out of the web view itself.
+     *
+     * `mailto:` is admitted alongside the web schemes because a post may carry an address the author
+     * wrote as a link. The Custom Tab declines it — see `usesCustomTab` — and the platform handler
+     * passes it to whatever writes mail on this device; the gate stays shut on every other scheme.
+     */
+    val openExternalUrl: (String) -> Unit = remember(uriHandler) {
+        { url ->
+            if (NodeSeekSite.isExternalWebUrl(url) || NodeSeekSite.isMailUrl(url)) {
+                runCatching { uriHandler.openUri(url) }
+            }
+        }
+    }
+    val notificationsViewModel: NotificationsViewModel =
+        viewModel(factory = NotificationsViewModel.factory(container))
+    val notificationsState by notificationsViewModel.uiState.collectAsStateWithLifecycle()
+    // The tab badge is only as fresh as the last count fetch, and nothing used to fetch again once
+    // the app was running. This root outlives every tab, so its ON_RESUME is "the app came back to
+    // the foreground" — the moment a badge grown stale overnight is most visibly wrong.
+    LifecycleResumeEffect(Unit) {
+        notificationsViewModel.refreshIfStale()
+        onPauseOrDispose {}
+    }
+
+    /*
+     * One back stack per tab, rather than one shared stack that gets cleared on every switch.
+     *
+     * Clearing was cheaper but it threw away the entry, and with it everything the
+     * SaveableStateHolder was keeping for that entry — the list's scroll offset above all. Leaving
+     * a thread half-read to glance at another tab and coming back to the top of the feed is the
+     * regression that costs the most and shows up the fastest.
+     *
+     * Written out rather than built in a loop: three `remember` calls whose order can never drift
+     * are easier to be sure about than a map comprehension that happens to call `remember` inside
+     * an inline lambda.
+     *
+     * 搜索 no longer has one. It is opened from 首页's app bar and rides 首页's stack, so a search and
+     * the list it was started from are one history rather than two.
+     */
+    val homeStack = rememberNavBackStack(NavKeySavedStateConfiguration, PostListKey)
+    val notificationsStack = rememberNavBackStack(NavKeySavedStateConfiguration, NotificationsKey)
+    val profileStack = rememberNavBackStack(NavKeySavedStateConfiguration, ProfileKey)
+
+    /*
+     * The feed's position belongs to the home stack, not to whichever home entry composition happens
+     * to be visible. A compact NavDisplay removes the list while a thread is on screen, so the state
+     * lives out here and Back reveals the same list object rather than a rebuilt one.
+     *
+     * Worth being honest about what this does and does not buy: it was added to fix "returning from a
+     * thread lands near the top of the feed" and it did not, because that was never about where the
+     * state lived — the pager was renumbering the rows underneath it. See
+     * [io.github.seektop.data.OfflineFirstPostRepository.FEED_PAGING_CONFIG] for the actual cause.
+     * This stays because holding the state here is still the clearer ownership, and it survives a tab
+     * switch without depending on SaveableStateHolder timing.
+     */
+    val homeFeedStates = rememberSaveable(saver = HomeFeedStates.Saver) { HomeFeedStates() }
+
+    /** A share from another app, on its way to the new-post editor — see [PendingComposerShare]. */
+    val pendingComposerShare = remember { PendingComposerShare() }
+    val pendingAttendance = remember { PendingAttendance() }
+
+    var currentTab by rememberSaveable { mutableStateOf(initialTab) }
+
+    /*
+     * Set by whichever tab root is currently reading a long list — only the feed does.
+     *
+     * One flag rather than one per tab because only one of them is on screen at a time, and each
+     * clears it on the way out: leaving the composition is what a tab switch looks like from inside a
+     * screen, so the tab being switched *to* never inherits a bar the previous one had hidden.
+     *
+     * Transient by design: rotation should not restore a navigation bar hidden by an old gesture.
+     */
+    var tabBarHiddenByScroll by remember { mutableStateOf(false) }
+
+    /*
+     * Tapping 首页 while already on 首页 is the platform's "back to the top" gesture, and here it also
+     * reloads: a reader who is already looking at the feed taps its own tab to ask for 新帖. 通知
+     * answers the same tap with the jump alone — its list refreshes on its own — and the two counters
+     * are separate because a tap on one tab is not a request to the other.
+     *
+     * A counter rather than a boolean flag: two taps in a row are two separate requests, and a flag
+     * would need clearing afterwards — which is a second write the screen would have to own. Saved
+     * rather than merely remembered, so that it survives a rotation alongside the screen's record of
+     * which request it has already answered; a counter that reset while that record did not would
+     * look like a fresh tap and scroll a restored list back to the top.
+     */
+    var homeReselectRequests by rememberSaveable { mutableIntStateOf(0) }
+    var notificationsScrollToTopRequests by rememberSaveable { mutableIntStateOf(0) }
+
+    val backStack: NavBackStack<NavKey> =
+        when (currentTab) {
+            TopLevelDestination.HOME -> homeStack
+            TopLevelDestination.NOTIFICATIONS -> notificationsStack
+            TopLevelDestination.PROFILE -> profileStack
+        }
+
+    val windowAdaptiveInfo = currentWindowAdaptiveInfoV2()
+    val paneDirective = remember(windowAdaptiveInfo, desktop, backStack.lastOrNull()) {
+        calculatePaneScaffoldDirective(windowAdaptiveInfo).copy(horizontalPartitionSpacerSize = if (desktop) 12.dp else 0.dp, defaultPanePreferredWidth = if (desktop) 560.dp else 360.dp).let { directive ->
+            if (desktop && backStack.lastOrNull() !is PostDetailKey && backStack.lastOrNull() !is MessageThreadKey) directive.copy(maxHorizontalPartitions = 1) else directive
+        }
+    }
+    val isListDetailExpanded = paneDirective.maxHorizontalPartitions > 1
+    val currentListDetailExpanded by rememberUpdatedState(isListDetailExpanded)
+    val currentEinkMode by rememberUpdatedState(LocalEinkMode.current)
+    val paneExpansionState = rememberPaneExpansionState()
+    val listDetailSceneStrategy =
+        rememberListDetailSceneStrategy<NavKey>(
+            directive = paneDirective,
+            paneExpansionState = if (desktop) paneExpansionState else null,
+            paneExpansionDragHandle = if (desktop) {
+                { state ->
+                    Box(Modifier.paneExpansionDraggable(state, 24.dp, remember { MutableInteractionSource() }).fillMaxHeight().width(12.dp).pointerHoverIcon(LocalDesktopResizePointerIcon.current), contentAlignment = Alignment.Center) {
+                        Box(Modifier.fillMaxHeight().width(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                    }
+                }
+            } else {
+                null
+            },
+        )
+
+    // The bar belongs to the top-level destinations only. A thread, the image viewer and the web
+    // view are full-screen by design — showing a tab bar under them would invite leaving mid-read.
+    //
+    // Two panes changes what "under them" means: a detail is drawn *beside* its list, not over it,
+    // so the tab root is still on screen and the bar still belongs to it. The question is therefore
+    // whether the top of the stack is part of a pane scene at all, not which tab it belongs to —
+    // 首页, 搜索, 通知 and a user's space all pair with a detail.
+    val atTabRoot = TopLevelDestination.forKey(backStack.lastOrNull()) != null
+    // Scroll-to-hide assumes the same gesture brings the bar back, which is only true of direct
+    // touch: a screen reader's swipes move accessibility focus, so for TalkBack/VoiceOver a hidden
+    // bar is not tucked away, it is gone. Under touch exploration the bar stays put.
+    val touchExploration = rememberTouchExplorationEnabled()
+    val showNavigationSuite =
+        desktop || (atTabRoot && (!tabBarHiddenByScroll || isListDetailExpanded || touchExploration)) ||
+            (isListDetailExpanded && paneRoleOf(backStack.lastOrNull()) != null)
+    val navigationSuiteState = rememberNavigationSuiteScaffoldState()
+    LaunchedEffect(showNavigationSuite) {
+        if (showNavigationSuite) navigationSuiteState.show() else navigationSuiteState.hide()
+    }
+
+    val desktopPreferences by container.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = io.github.seektop.data.settings.UserSettings())
+    val scope = rememberCoroutineScope()
+
+    /*
+     * Where something outside the app has asked us to go.
+     *
+     * Onto 首页 rather than whichever tab happened to be open: a link arriving from elsewhere has no
+     * relationship to the tab the user last left behind, and landing a thread on top of 账号设置 would
+     * make Back walk out through a settings page. 首页's stack starts as `[PostListKey]`, so a cold
+     * start lands exactly the two layers the deep link should have — the list, then the thread.
+     *
+     * Nothing is cleared first. When the app was already running the user has a place in 首页 worth
+     * keeping, and Back still reaches the list eventually; throwing it away to make the stack exactly
+     * two entries deep would cost more than the tidiness is worth.
+     *
+     * `onLaunchRequestHandled` is what stops a rotation from replaying the link: the Activity holds
+     * the request until the composition says it is spent.
+     */
+    LaunchedEffect(launchRequest) {
+        val openSpaceOnHome: (Long) -> Unit = { uid ->
+            homeStack.add(UserSpaceKey(uid, isSelf = uid == container.profileRepository.selfUid.value))
+        }
+        when (val request = launchRequest) {
+            null -> return@LaunchedEffect
+
+            is LaunchRequest.OpenTab -> currentTab = request.tab
+
+            // 搜索 and 发帖 ride 首页's stack wherever else they are opened from, so a shortcut or a
+            // text selection lands them there too — and Back walks out through the feed.
+            is LaunchRequest.Search -> {
+                currentTab = TopLevelDestination.HOME
+                homeStack.bringToTop(SearchKey(request.query))
+            }
+
+            LaunchRequest.OpenComposer -> {
+                currentTab = TopLevelDestination.HOME
+                homeStack.bringToTop(PostComposerKey())
+            }
+
+            // 账户与成长 lives on 我的's stack; the sign-in itself waits there for the screen.
+            is LaunchRequest.SignInForToday -> {
+                currentTab = TopLevelDestination.PROFILE
+                pendingAttendance.offer(request.mode)
+                profileStack.bringToTop(AssetsKey)
+            }
+
+            is LaunchRequest.ShareToComposer -> {
+                currentTab = TopLevelDestination.HOME
+                // Offered before the editor is pushed, so the editor finds it on its first frame.
+                pendingComposerShare.offer(ComposerShare(request.title, request.text, request.images))
+                homeStack.bringToTop(PostComposerKey())
+            }
+
+            is LaunchRequest.OpenLink -> {
+                val route = NodeSeekSite.parseInternalRoute(request.url)
+                /*
+                 * A notification link is the one kind that has a tab of its own to land on, and 首页
+                 * would be the wrong one twice over: the screen it asks for is 通知's, and Back from
+                 * a conversation would walk out through the feed.
+                 */
+                currentTab =
+                    when (route) {
+                        is NodeSeekSite.InternalRoute.Notifications,
+                        is NodeSeekSite.InternalRoute.MessageThread,
+                        -> TopLevelDestination.NOTIFICATIONS
+
+                        else -> TopLevelDestination.HOME
+                    }
+                // The web view is the fallback rather than the browser: the link came to us because
+                // the user chose this app for it, and bouncing it back out would read as a refusal.
+                val openInWebView: () -> Unit = {
+                    homeStack.add(WebKey(request.url, siteTitle, WebViewGoal.MANAGE))
+                }
+                when (route) {
+                    is NodeSeekSite.InternalRoute.Post ->
+                        homeStack.add(PostDetailKey(route.postId, page = route.page))
+
+                    is NodeSeekSite.InternalRoute.Space -> openSpaceOnHome(route.uid)
+
+                    is NodeSeekSite.InternalRoute.Member ->
+                        resolveMemberLink(
+                            name = route.name,
+                            resolveMemberUid = container.searchRepository::resolveMemberUid,
+                            onResolved = openSpaceOnHome,
+                            onFailure = openInWebView,
+                        )
+
+                    is NodeSeekSite.InternalRoute.Notifications ->
+                        route.group?.let { notificationsViewModel.selectTab(it.toTab()) }
+
+                    is NodeSeekSite.InternalRoute.MessageThread -> {
+                        // The list behind the conversation, so Back lands on 私信 rather than on
+                        // whichever group the tab was last left showing.
+                        notificationsViewModel.selectTab(NotificationTab.MESSAGES)
+                        notificationsStack.openMessageThread(route.uid)
+                    }
+
+                    // Only reachable if the manifest filter and `parseInternalRoute` drift apart.
+                    null -> openInWebView()
+                }
+            }
+        }
+        onLaunchRequestHandled()
+    }
+
+    val dependencies =
+        NavigationDependencies(
+            container = container,
+            siteTitle = siteTitle,
+            aboutSiteTitle = aboutSiteTitle,
+            privacyTitle = privacyTitle,
+            rssLabel = rssLabel,
+            uriHandler = uriHandler,
+            openExternalUrl = openExternalUrl,
+            notificationsViewModel = notificationsViewModel,
+            homeFeedStates = homeFeedStates,
+            homeReselectRequests = { homeReselectRequests },
+            notificationsScrollToTopRequests = { notificationsScrollToTopRequests },
+            isListDetailExpanded = { currentListDetailExpanded },
+            isEinkMode = { currentEinkMode },
+            onTabBarHiddenByScroll = { tabBarHiddenByScroll = it },
+            selectTab = { currentTab = it },
+            scope = scope,
+            pendingComposerShare = pendingComposerShare,
+            pendingAttendance = pendingAttendance,
+        )
+
+    /*
+     * 识别剪贴板中的帖子: a thread link copied in another app, offered on the way back in.
+     *
+     * On window focus rather than on resume, because focus is what Android 10+ actually checks before
+     * it lets an app read the clipboard — at ON_RESUME the window may not have it yet, and the read
+     * comes back empty. The snackbar is shown from the composition's own scope rather than this
+     * effect's, so pulling down the notification shade (which takes focus) does not snatch it away.
+     *
+     * Onto whichever stack is open, the way a link tapped inside the app would be: the reader chose
+     * to come back to this tab, and the thread is something to look at from here, not a reason to
+     * be moved somewhere else.
+     */
+    val clipboardSnackbar = remember { SnackbarHostState() }
+    val readClipboard = rememberNewClipboardText()
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    val currentBackStack by rememberUpdatedState(backStack)
+    val clipboardPrompt = stringResource(Res.string.clipboard_post_prompt)
+    val clipboardOpen = stringResource(Res.string.clipboard_post_open)
+    LaunchedEffect(windowFocused) {
+        if (!windowFocused || !clipboardPostPromptSupported) return@LaunchedEffect
+        val settings = container.settingsRepository
+        val current = settings.settings.first()
+        // Not over the first-run guide, which is drawn above all of this and would hide the prompt.
+        if (!current.clipboardPostPrompt || !current.onboardingSeen) return@LaunchedEffect
+        val text = readClipboard() ?: return@LaunchedEffect
+        val post = clipboardPostToOffer(text, settings.lastClipboardPostLink()) ?: return@LaunchedEffect
+        settings.setLastClipboardPostLink(post.url)
+        scope.launch {
+            val result =
+                clipboardSnackbar.showSnackbar(
+                    message = clipboardPrompt,
+                    actionLabel = clipboardOpen,
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Long,
+                )
+            if (result == SnackbarResult.ActionPerformed) {
+                currentBackStack.add(PostDetailKey(post.postId, page = post.page))
+            }
+        }
+    }
+
+    /*
+     * One provider per stack, built once.
+     *
+     * `rememberDecoratedNavEntries` only calls its provider when its own back stack changes, so a
+     * provider rebuilt on every recomposition — which is what passing `destinationProvider(stack)`
+     * straight through did — was four maps of thirty-five entries built and thrown away each time
+     * the unread count ticked. Everything the entries close over is either constant for the life of
+     * the composition or a state object read at draw time, so freezing the provider changes nothing
+     * they can observe.
+     *
+     * Three `remember` calls rather than a loop, for the same reason the stacks above are written out.
+     */
+    val homeProvider =
+        remember { stackScopedEntryProvider(TopLevelDestination.HOME, destinationProvider(homeStack, dependencies)) }
+    val notificationsProvider =
+        remember {
+            stackScopedEntryProvider(
+                TopLevelDestination.NOTIFICATIONS,
+                destinationProvider(notificationsStack, dependencies),
+            )
+        }
+    val profileProvider =
+        remember {
+            stackScopedEntryProvider(TopLevelDestination.PROFILE, destinationProvider(profileStack, dependencies))
+        }
+
+    val viewModelDecorator = rememberViewModelStoreNavEntryDecorator<NavKey>()
+    val homeEntries =
+        rememberDecoratedNavEntries(
+            entries = remember(homeStack.toList(), desktopSessionGeneration) {
+                homeStack.map { key -> desktopSessionEntry(key, homeProvider(key), desktopSessionGeneration) }
+            },
+            entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                viewModelDecorator,
+            ),
+        )
+    val notificationEntries =
+        rememberDecoratedNavEntries(
+            entries = remember(notificationsStack.toList(), desktopSessionGeneration) {
+                notificationsStack.map { key -> desktopSessionEntry(key, notificationsProvider(key), desktopSessionGeneration) }
+            },
+            entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                viewModelDecorator,
+            ),
+        )
+    val profileEntries =
+        rememberDecoratedNavEntries(
+            entries = remember(profileStack.toList(), desktopSessionGeneration) {
+                profileStack.map { key -> desktopSessionEntry(key, profileProvider(key), desktopSessionGeneration) }
+            },
+            entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                viewModelDecorator,
+            ),
+        )
+    val tabEntries =
+        when (currentTab) {
+            TopLevelDestination.HOME -> homeEntries
+            TopLevelDestination.NOTIFICATIONS -> notificationEntries
+            TopLevelDestination.PROFILE -> profileEntries
+        }
+
+    /*
+     * "Exit through home": 首页's entries sit under every other tab's, so the user always leaves the
+     * app through 首页.
+     *
+     * This used to be a `BackHandler` that flipped `currentTab`, which was correct but silent — the
+     * gesture had nothing to preview, so backing out of a tab was a hard cut. Handing `NavDisplay` a
+     * stack that really does have 首页 underneath makes it an ordinary pop, which means it animates
+     * and the predictive-back gesture shows where it is going.
+     *
+     * Safe only because each tab's panes carry their own scene key — see [paneMetadataOf].
+     * `ListDetailSceneStrategy` collects the run of panes at the top of the list, and without the
+     * key it would have swept 首页's list into 通知's scene and drawn 首页's empty-detail text beside
+     * the notification list.
+     */
+    val entries =
+        if (currentTab == TopLevelDestination.HOME) tabEntries else homeEntries + tabEntries
+
+    /*
+     * 启动提醒 lives here rather than on any screen: the launch check answers while whatever tab was
+     * last open is drawing, and a dialog owned by a screen would be missed by everyone who does not
+     * happen to be on that screen. Read straight off the shared updater — the same instance 关于 uses,
+     * so 下载并安装 hands the download to a screen that is already watching it.
+     */
+    val updateReminderViewModel: UpdateReminderViewModel =
+        viewModel(factory = UpdateReminderViewModel.factory(container))
+    val updateReminder by updateReminderViewModel.launchReminder.collectAsStateWithLifecycle()
+    updateReminder?.let { release ->
+        UpdateReminderDialog(
+            release = release,
+            onDownload = {
+                updateReminderViewModel.acceptReminder()
+                // Onto the current tab's stack, so Back returns to whatever the reminder interrupted.
+                backStack.add(AboutAppKey)
+            },
+            onPostpone = updateReminderViewModel::postponeReminder,
+        )
+    }
+
+    val executeDesktopSearch = {
+        desktopSearchVm.query.edit { replace(0, length, desktopSearch.submitted) }
+        desktopSearchVm.submitSearch()
+    }
+    LaunchedEffect(desktopSession.isSignedIn) { desktopSearch.resumeAfterSignIn(desktopSession.isSignedIn, executeDesktopSearch) }
+    desktopSearch.onUserClick = { backStack.add(UserSpaceKey(it)) }
+    desktopSearch.submit = {
+        desktopSearch.submitRequest(desktopSession.isSignedIn, executeDesktopSearch)
+        currentTab = TopLevelDestination.HOME
+        while (homeStack.size > 1) homeStack.removeLastOrNull()
+    }
+    LaunchedEffect(desktop, backStack.lastOrNull()) {
+        val request = backStack.lastOrNull() as? SearchKey
+        if (desktop && request != null) {
+            backStack.removeLastOrNull()
+            if (!request.query.isNullOrBlank()) {
+                desktopSearch.query.edit { replace(0, length, request.query) }
+                desktopSearch.submit()
+            } else {
+                desktopSearch.focusRequests++
+            }
+        }
+    }
+    DesktopAwareNavigationFrame(
+        desktop = desktop,
+        searchSession = desktopSearch,
+        pinnedBoards = desktopPreferences.desktopBoardSlugs,
+        onPinnedBoardsChange = { slugs -> scope.launch { container.settingsRepository.setDesktopBoardSlugs(slugs) } },
+        current = currentTab,
+        unreadCount = notificationsState.counts.all,
+        onSelect = { currentTab = it },
+        canGoBack = backStack.size > 1,
+        onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+        onSearch = { if (backStack.lastOrNull() != SearchKey()) backStack.add(SearchKey()) },
+        onCreatePost = { backStack.add(PostComposerKey()) },
+        onSettings = { if (backStack.lastOrNull() != SettingsKey) backStack.add(SettingsKey) },
+        onOpenBoard = {
+            desktopSearch.exitSearch()
+            currentTab = TopLevelDestination.HOME
+            while (homeStack.size > 1) homeStack.removeLastOrNull()
+        },
+        onBookmarks = { backStack.add(BookmarksKey) },
+        onHistory = { backStack.add(ReadHistoryKey) },
+        onRefresh = {
+            when (currentTab) {
+                TopLevelDestination.HOME -> homeReselectRequests++
+                TopLevelDestination.NOTIFICATIONS -> notificationsViewModel.refresh()
+                TopLevelDestination.PROFILE -> Unit
+            }
+        },
+        mobileNavigation = { content ->
+            NavigationSuiteScaffold(
+                navigationItems = {
+                    SeekTopNavigationItems(
+                        current = currentTab,
+                        onSelect = { destination ->
+                            // Re-selecting a tab takes its list back to the start — 首页 reloads on the way,
+                            // since the one thing a reader taps 首页 for while already on 首页 is 新帖. Only
+                            // the two tabs that *are* a list long enough to get lost in answer at all; 我的
+                            // stays inert, because a tab that silently jumps somewhere is worse than one
+                            // that does nothing.
+                            if (destination == currentTab) {
+                                when (destination) {
+                                    TopLevelDestination.HOME -> homeReselectRequests++
+                                    TopLevelDestination.NOTIFICATIONS -> notificationsScrollToTopRequests++
+                                    else -> Unit
+                                }
+                            }
+                            currentTab = destination
+                        },
+                        unreadCount = notificationsState.counts.all,
+                    )
+                },
+                modifier = modifier,
+                navigationSuiteType =
+                NavigationSuiteScaffoldDefaults.navigationSuiteType(windowAdaptiveInfo),
+                // The bar is a card like any other — white on the grey page — and the rail beside a wide
+                // layout sits flush with the page, since it has no content under it to lift off.
+                navigationSuiteColors =
+                NavigationSuiteDefaults.colors(
+                    shortNavigationBarContainerColor = LocalSeekTopLayers.current.card,
+                    navigationBarContainerColor = LocalSeekTopLayers.current.card,
+                    navigationRailContainerColor = LocalSeekTopLayers.current.page,
+                ),
+                state = navigationSuiteState,
+                content = content,
+            )
+        },
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            SharedTransitionLayout(
+                Modifier
+                    .fillMaxSize()
+                    // iOS 26's swipe-anywhere back, within a tab's own stack only: a tab's root has no
+                    // content swipe on iOS, and here it would mean "jump to 首页" — which stays on the
+                    // edge swipe, as it always was.
+                    .contentSwipeBack(enabled = !desktop && contentSwipeBackSupported && backStack.size > 1),
+            ) {
+            /*
+             * Withheld on a two-pane window, where a row and the thread it opens are on screen at
+             * once and a single shared-element key would have two live claims on it. Provided as a
+             * composition local rather than threaded through every screen: the two ends of the
+             * flight are a feed row and a thread header, twelve composables apart, and the only
+             * thing they need to agree on is that the flight is happening at all.
+             *
+             * Withheld on electronic paper for a different reason: a title flying from a row into a
+             * header is a per-frame redraw of two moving areas, which is the most expensive shape a
+             * transition can have on a panel and the one that ghosts worst.
+             */
+                val eink = LocalEinkMode.current || desktop
+                val openNetworkCheck = remember(backStack) { { backStack.add(NetworkCheckKey) } }
+                val openReportCompare = remember(backStack) { { backStack.add(ReportCompareKey) } }
+                val stickerNavigation = remember(backStack) {
+                    val notices = StickerNotices()
+                    StickerNavigation(
+                        openManager = { backStack.add(StickerManageKey) },
+                        openSources = { backStack.add(StickerSourcesKey) },
+                        openImageHost = { backStack.add(ImageHostKey) },
+                        openAdd = { tab, source ->
+                            notices.clear()
+                            backStack.add(StickerAddKey(tab, source))
+                        },
+                        notices = notices,
+                    )
+                }
+                CompositionLocalProvider(
+                    LocalThreadTransition provides
+                        this@SharedTransitionLayout.takeUnless { isListDetailExpanded || eink },
+                    // 网络自检 from any screen's network-error state — see [LocalOpenNetworkCheck].
+                    LocalOpenNetworkCheck provides { openNetworkCheck() },
+                    // 测评对比 from any report card's 对比 (n), onto whichever tab the card is in.
+                    LocalOpenReportCompare provides { openReportCompare() },
+                    // 表情管理, 添加表情 and 图床 from an editor's emoji panel, onto whichever tab the editor is in.
+                    LocalStickerNavigation provides stickerNavigation,
+                ) {
+                    CompositionLocalProvider(LocalDesktopSelectedPost provides (backStack.lastOrNull() as? PostDetailKey)?.postId, LocalDesktopCloseDetail provides { backStack.closeDesktopDetails() }) {
+                        DesktopWorkspace(desktop, currentTab, if (backStack.lastOrNull() is PostDetailKey) backStack.dropLast(1).lastOrNull() else backStack.lastOrNull(), isSignedIn = desktopSession.isSignedIn, onSignIn = { backStack.add(SignInKey) }, onSelect = { key -> backStack.bringToTop(key) }) {
+                            NavDisplay(
+                                entries = entries,
+                                // The current tab first, and only when it is spent does back mean "leave this
+                                // tab". `NavDisplay` handles back whenever there is more than one entry, and
+                                // with 首页 underneath there always is — so popping blindly would empty a
+                                // secondary tab's stack.
+                                onBack = {
+                                    if (backStack.size > 1) {
+                                        backStack.removeLastOrNull()
+                                    } else {
+                                        currentTab = TopLevelDestination.HOME
+                                    }
+                                },
+                                sceneStrategies = listOf(listDetailSceneStrategy),
+                                sharedTransitionScope = this@SharedTransitionLayout,
+                                // Nav3's own defaults are a 700ms slide built from `tween` and `spring`, written
+                                // out rather than taken from the motion scheme — so `SeekTopTheme`'s snapped scheme,
+                                // which silences everything else, does not reach them. On paper a slide is the
+                                // whole screen redrawing for two thirds of a second; a cut is one refresh.
+                                transitionSpec = if (eink) SNAP_TRANSITION else defaultTransitionSpec(),
+                                popTransitionSpec =
+                                if (eink) SNAP_TRANSITION else defaultPopTransitionSpec(),
+                                predictivePopTransitionSpec =
+                                if (eink) {
+                                    { _ -> SNAP_CONTENT_TRANSFORM }
+                                } else {
+                                    defaultPredictivePopTransitionSpec()
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            SnackbarHost(
+                hostState = clipboardSnackbar,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)),
+            )
+        }
+    }
+}
+
+/*
+ * The entries for one tab's stack, with every "open this somewhere" closure bound to that same stack.
+ *
+ * Built per stack rather than once for the app because an entry's content lambda is created in a
+ * plain (non-composable) function, so whatever it captures is frozen at the moment the entry is
+ * built — and `rememberDecoratedNavEntries` only rebuilds entries when *its own* back stack changes.
+ * A closure over "whichever tab is current" therefore keeps pointing at whichever tab happened to be
+ * current when the entry was made: on a cold start that is the launch tab for all four stacks, and
+ * after a rotation or process death it is the restored tab for all four. 访问网站 in 我的 pushed its
+ * web view onto 首页's stack that way, and nothing appeared to happen.
+ *
+ * Top-level rather than local to `MainNavigation` so that the iOS shell, which gives every screen
+ * its own `UIViewController`, builds the very same entries for its own stacks. [NavigationDependencies]
+ * is what the enclosing composition used to provide for free.
+ *
+ * The entries themselves live in the region files beside this one — `TabEntries.kt`,
+ * `SettingsEntries.kt`, `AccountEntries.kt`, `SpaceEntries.kt`, `ToolsEntries.kt`,
+ * `ThreadEntries.kt`, `SessionEntries.kt` — assembled here through one [StackEntryScope] per stack,
+ * which is what keeps the per-stack binding this comment is about.
+ */
+internal fun destinationProvider(
+    backStack: NavBackStack<NavKey>,
+    dependencies: NavigationDependencies,
+): (NavKey) -> NavEntry<NavKey> {
+    val container = dependencies.container
+    /*
+     * Opening a web page, routed by host: nodeseek.com stays in the app's own web view, everything
+     * else goes to the browser.
+     *
+     * This is a cookie decision, not a cosmetic one. A Custom Tab is the browser doing the browsing —
+     * its process, and crucially its cookie jar — where this account is not signed in. A site page
+     * opened out there shows the user a logged-out stranger's view of their own forum, and a
+     * Cloudflare pass earned out there lands in a jar the app cannot read, so the app's own requests
+     * keep failing afterwards.
+     *
+     * By host rather than page by page because "does this one need the session" is a judgement we get
+     * wrong: an 内版 thread is an ordinary `/post-` URL right up until it 404s, and the site's own
+     * pages move between public and gated without telling us.
+     *
+     * [WebViewGoal.MANAGE] because there is no cookie to wait for here — the user is done when they
+     * say so. The web view carries its own way back out to a real browser; see `WebViewScreen`.
+     */
+    val openWebUrl: (String) -> Unit = { url ->
+        if (NodeSeekSite.isTrustedWebViewUrl(url)) {
+            backStack.add(WebKey(url, dependencies.siteTitle, WebViewGoal.MANAGE))
+        } else {
+            dependencies.openExternalUrl(url)
+        }
+    }
+
+    // Content links: our own post/space/mention URLs get a native screen, and everything else —
+    // including the rest of nodeseek.com — goes through the routing above.
+    val openSpace: (Long) -> Unit = { uid ->
+        backStack.add(UserSpaceKey(uid, isSelf = uid == container.profileRepository.selfUid.value))
+    }
+    val openContentUrl: (String) -> Unit = { url ->
+        when (val route = NodeSeekSite.parseInternalRoute(url)) {
+            is NodeSeekSite.InternalRoute.Post ->
+                backStack.add(PostDetailKey(route.postId, page = route.page))
+
+            is NodeSeekSite.InternalRoute.Space -> openSpace(route.uid)
+
+            is NodeSeekSite.InternalRoute.Member ->
+                // A mention carries only the user name; the uid comes from following the site's own
+                // /member?t= redirect. Any failure (offline, signed out, renamed user) falls back to
+                // the site itself.
+                dependencies.scope.launch {
+                    resolveMemberLink(
+                        name = route.name,
+                        resolveMemberUid = container.searchRepository::resolveMemberUid,
+                        onResolved = openSpace,
+                        onFailure = { openWebUrl(url) },
+                    )
+                }
+
+            // A link to a notification list is a link to a tab, and a tab is not something a stack
+            // can hold — 通知 is where it already lives.
+            is NodeSeekSite.InternalRoute.Notifications -> {
+                dependencies.selectTab(TopLevelDestination.NOTIFICATIONS)
+                route.group?.let { dependencies.notificationsViewModel.selectTab(it.toTab()) }
+            }
+
+            // The conversation goes on the stack that is open, unlike the tab switch above: a 私信
+            // link inside a thread should leave the thread underneath it.
+            is NodeSeekSite.InternalRoute.MessageThread ->
+                backStack.openMessageThread(route.uid)
+
+            null -> openWebUrl(NodeSeekSite.unwrapJumpUrl(url))
+        }
+    }
+
+    val entryScope =
+        StackEntryScope(
+            container = container,
+            backStack = backStack,
+            siteTitle = dependencies.siteTitle,
+            aboutSiteTitle = dependencies.aboutSiteTitle,
+            privacyTitle = dependencies.privacyTitle,
+            rssLabel = dependencies.rssLabel,
+            signInUrl = NodeSeekSite.BASE_URL + NodeSeekSite.SIGN_IN_PATH,
+            uriHandler = dependencies.uriHandler,
+            notificationsViewModel = dependencies.notificationsViewModel,
+            homeFeedStates = dependencies.homeFeedStates,
+            homeReselectRequests = dependencies.homeReselectRequests,
+            notificationsScrollToTopRequests = dependencies.notificationsScrollToTopRequests,
+            isListDetailExpanded = dependencies.isListDetailExpanded,
+            isEinkMode = dependencies.isEinkMode,
+            onTabBarHiddenByScroll = dependencies.onTabBarHiddenByScroll,
+            openExternalUrl = dependencies.openExternalUrl,
+            openWebUrl = openWebUrl,
+            openSpace = openSpace,
+            openContentUrl = openContentUrl,
+            openHomeTab = { dependencies.selectTab(TopLevelDestination.HOME) },
+            openProfileTab = { dependencies.selectTab(TopLevelDestination.PROFILE) },
+            pendingComposerShare = dependencies.pendingComposerShare,
+            pendingAttendance = dependencies.pendingAttendance,
+        )
+    return entryProvider {
+        tabRootEntries(entryScope)
+        settingsEntries(entryScope)
+        accountEntries(entryScope)
+        spaceEntries(entryScope)
+        toolsEntries(entryScope)
+        threadEntries(entryScope)
+        sessionEntries(entryScope)
+    }
+}
+
+/** Resolves a member-name link without turning coroutine cancellation into browser navigation. */
+internal suspend fun resolveMemberLink(
+    name: String,
+    resolveMemberUid: suspend (String) -> Long?,
+    onResolved: (Long) -> Unit,
+    onFailure: () -> Unit,
+) {
+    val uid = runCatchingExceptCancellation { resolveMemberUid(name) }.getOrNull()
+    if (uid != null) onResolved(uid) else onFailure()
+}
+
+@Composable
+private fun EmptyDetailPane(text: StringResource) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = stringResource(text),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Which half of a list-detail layout a destination is drawn in, or null if it takes the whole window.
+ *
+ * The single source of truth for that question. Two things read it, and they used to be two separate
+ * statements of the same fact: [paneMetadataOf] turns it into what [ListDetailSceneStrategy] reads to
+ * build a scene, and the app reads it directly to decide whether a detail still needs its own back
+ * arrow and whether the navigation area would be covering a list or sitting beside one. Those could
+ * disagree — a `listPane` on an entry whose key was missing here left a thread with a back arrow
+ * pointing at a list already on screen — so now the entries carry no pane metadata of their own and
+ * [stackScopedEntryProvider] derives it from here. Adding a destination is one edit, and a test can
+ * read the answer back.
+ */
+internal enum class PaneRole {
+    LIST,
+    DETAIL,
+}
+
+internal fun paneRoleOf(key: NavKey?): PaneRole? =
+    when (key) {
+        // Every list of things worth opening one of. 搜索 is one wherever it is reached from — it is
+        // pushed onto 首页's stack now, and a result opened from it still lands beside it. 我的 is not:
+        // it is a menu whose rows are settings pages, and a settings page is not a detail.
+        PostListKey, NotificationsKey -> PaneRole.LIST
+
+        is SearchKey -> PaneRole.LIST
+
+        // A user's space is a list wherever it is reached from — including on top of a thread, where
+        // tapping an author then leaves their posts beside the one being read.
+        is UserSpaceKey -> PaneRole.LIST
+
+        is PostDetailKey, is MessageThreadKey -> PaneRole.DETAIL
+
+        else -> null
+    }
+
+/**
+ * Whether a list is sharing the window with whatever is on top of this stack.
+ *
+ * Mirrors [ListDetailSceneStrategy.calculateScene]: a scene is built from the run of pane-carrying
+ * entries at the top of the stack, and that run ends at the first entry carrying no pane role. So a
+ * thread opened from 浏览历史 is full-screen and keeps its back arrow — 浏览历史 is not a pane — while
+ * the same thread opened from the feed, from search or from a user's space does not.
+ *
+ * Only meaningful once the window is wide enough for two panes; every caller checks that first.
+ */
+internal fun List<NavKey>.showsListPane(): Boolean =
+    asReversed()
+        .takeWhile { paneRoleOf(it) != null }
+        .any { paneRoleOf(it) == PaneRole.LIST }
+
+/**
+ * The pane metadata for a destination, derived from [paneRoleOf].
+ *
+ * The placeholder is resolved here rather than inside the lambda so that a list pane added without a
+ * matching line in [emptyDetailTextOf] fails when the key is pushed, not when a wide window happens
+ * to draw the empty half of it.
+ */
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+private fun paneMetadataOf(key: NavKey, destination: TopLevelDestination): Map<String, Any> =
+    when (paneRoleOf(key)) {
+        PaneRole.LIST -> {
+            val text = emptyDetailTextOf(key)
+            ListDetailSceneStrategy.listPane(
+                destination,
+                detailPlaceholder = { EmptyDetailPane(text) },
+            )
+        }
+
+        PaneRole.DETAIL -> ListDetailSceneStrategy.detailPane(destination)
+
+        null -> emptyMap()
+    }
+
+/** What the detail half says on a wide window before anything has been opened in it. */
+internal fun emptyDetailTextOf(key: NavKey): StringResource =
+    when (key) {
+        PostListKey -> Res.string.home_pane_empty
+        is SearchKey -> Res.string.search_pane_empty
+        NotificationsKey -> Res.string.notifications_pane_empty
+        is UserSpaceKey -> Res.string.space_pane_empty
+        else -> error("$key is a list pane with nothing to say when its detail is empty")
+    }
+
+private fun stackScopedEntryProvider(
+    destination: TopLevelDestination,
+    provider: (NavKey) -> NavEntry<NavKey>,
+): (NavKey) -> NavEntry<NavKey> = { key ->
+    val entry = provider(key)
+    NavEntry(
+        key = key,
+        contentKey = "${destination.name}:${entry.contentKey}",
+        metadata = entry.metadata + paneMetadataOf(key, destination),
+    ) {
+        entry.Content()
+    }
+}
+
+/**
+ * Puts [key] on top of this stack: pushed when it is not already there, and otherwise uncovered by
+ * popping what sits above it.
+ *
+ * Not a plain `add`, because the stack cannot hold the same key twice — an entry's saved state is
+ * keyed by it, and two live entries asking for one key is a crash rather than a second copy. A
+ * shortcut tapped twice, or a second share while the editor is open, would otherwise do exactly that.
+ */
+internal fun MutableList<NavKey>.bringToTop(key: NavKey) {
+    val existing = lastIndexOf(key)
+    if (existing < 0) {
+        add(key)
+    } else {
+        while (size > existing + 1) removeAt(lastIndex)
+    }
+}
+
+/**
+ * Opens a 私信 conversation, unless it is already the screen on top.
+ *
+ * The guard is for the notification tap and the deep link, which can both arrive again while the
+ * conversation they name is open — a second copy would only give Back something to undo.
+ *
+ * The name is left blank because a URL does not carry one: `MessageThreadViewModel` fills it in from
+ * the thread it loads, and the app bar falls back to 私信 until then.
+ */
+private fun NavBackStack<NavKey>.openMessageThread(uid: Long) {
+    if ((lastOrNull() as? MessageThreadKey)?.uid == uid) return
+    add(MessageThreadKey(uid, userName = ""))
+}
+
+/**
+ * Which list a `/notification` link lands on.
+ *
+ * `#/atMe` and `#/replyToMe` are one tab in the app — see [NotificationTab] — so a link to either
+ * resolves to the same place, and the row the reader came for is in it either way.
+ */
+private fun NodeSeekSite.NotificationGroup.toTab(): NotificationTab =
+    when (this) {
+        NodeSeekSite.NotificationGroup.MENTIONS -> NotificationTab.INTERACTIONS
+        NodeSeekSite.NotificationGroup.MESSAGES -> NotificationTab.MESSAGES
+    }
+
+/**
+ * The cut 墨水屏模式 uses in place of every navigation transition.
+ *
+ * `EnterTransition.None` rather than a fade with a zero duration: the two look the same on the first
+ * frame, but a fade still composes both destinations for the length of the animation, and on a panel
+ * the cost is the drawing rather than the clock.
+ */
+internal val SNAP_CONTENT_TRANSFORM = EnterTransition.None togetherWith ExitTransition.None
+
+private val SNAP_TRANSITION: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
+    SNAP_CONTENT_TRANSFORM
+}

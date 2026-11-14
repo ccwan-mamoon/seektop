@@ -1,3 +1,5 @@
+> 上游历史参考：本文保留原 Android/iOS 设计、实现与评估快照，不代表 SeekTop Windows 当前状态。当前客户端请以[项目说明](../README.md)、[桌面开发说明](../desktop/README.md)和[文档导航](README.md)为准。旧包名与工程名按历史原文保留。
+
 # Nodyssey 新版界面设计需求
 
 > 交付对象：open-design / UI 设计师。本文是旧版 `docs/design-brief.md` 的更新版，按当前代码和 2026-07-26 登录态论坛核对结果整理。设计先覆盖手机 compact 尺寸，再验证大屏；不要求一次实现所有功能，但所有 P0 页面都要有可落地的视觉方案。

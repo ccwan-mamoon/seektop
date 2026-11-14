@@ -1,0 +1,86 @@
+package io.github.seektop.ui.account
+
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import io.github.seektop.data.account.BlockedUser
+import io.github.seektop.foundation.designsys.theme.SeekTopTheme
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+/** 屏蔽用户: the list is the account's, and the page can add to it the way the site's form does. */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = "w360dp-h800dp")
+class BlockListScreenTest {
+    @get:Rule
+    val composeRule = createComposeRule()
+
+    private val blocks = mutableListOf<String>()
+
+    /** The name lives in Compose state so the send button re-enables the way it does in the app. */
+    private fun setContent(state: BlockListUiState) {
+        composeRule.setContent {
+            var nameInput by remember { mutableStateOf("") }
+            SeekTopTheme {
+                BlockListScreen(
+                    state = state.copy(nameInput = nameInput),
+                    titleState = TitleBlockUiState(),
+                    selectedTab = BlockTab.USERS,
+                    onSelectTab = {},
+                    snackbarHostState = SnackbarHostState(),
+                    onBack = {},
+                    onShowBlockedChange = {},
+                    onNameChange = { nameInput = it },
+                    onBlock = { blocks += nameInput },
+                    onRequestUnblock = {},
+                    onDismissUnblock = {},
+                    onConfirmUnblock = {},
+                    onOpenUser = {},
+                    onRuleInputChange = {},
+                    onRegexChange = {},
+                    onAddRule = {},
+                    onRemoveRule = {},
+                )
+            }
+        }
+    }
+
+    private val populated =
+        BlockListUiState(
+            isLoading = false,
+            blocked = listOf(BlockedUser(uid = 7, name = "vps_matthew")),
+        )
+
+    @Test
+    fun `sends the typed name to the site`() {
+        setContent(populated)
+
+        // By its label: the placeholder only renders once the field has focus.
+        composeRule.onNodeWithText("添加屏蔽").performScrollTo().performTextInput("someone")
+        composeRule.onNodeWithText("添加").performClick()
+
+        assertEquals(listOf("someone"), blocks)
+    }
+
+    @Test
+    fun `refuses an empty name`() {
+        setContent(populated)
+
+        composeRule.onNodeWithText("添加").performScrollTo().performClick()
+
+        assertEquals(emptyList<String>(), blocks)
+    }
+}

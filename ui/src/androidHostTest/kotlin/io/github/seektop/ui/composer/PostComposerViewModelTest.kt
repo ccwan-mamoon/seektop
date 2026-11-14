@@ -1,0 +1,610 @@
+package io.github.seektop.ui.composer
+
+import io.github.seektop.data.Board
+import io.github.seektop.data.MutableClock
+import io.github.seektop.data.ProfileRepository
+import io.github.seektop.data.UserProfile
+import io.github.seektop.data.VoteRepository
+import io.github.seektop.data.composer.ImageAttachment
+import io.github.seektop.data.composer.ImageUploader
+import io.github.seektop.data.composer.PickedImage
+import io.github.seektop.data.composer.PostComposerRepository
+import io.github.seektop.data.composer.PostDraft
+import io.github.seektop.data.composer.PostEditContent
+import io.github.seektop.data.composer.PostEditTarget
+import io.github.seektop.data.composer.PostEditor
+import io.github.seektop.data.composer.PostPermission
+import io.github.seektop.data.composer.PostSubmission
+import io.github.seektop.data.composer.UploadStatus
+import io.github.seektop.data.session.SessionState
+import io.github.seektop.foundation.core.net.SiteError
+import io.github.seektop.foundation.core.net.SiteException
+import io.github.seektop.model.Vote
+import io.github.seektop.ui.ViewModels
+import io.github.seektop.ui.typeText
+import io.github.seektop.ui.vote.VoteCreationState
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class PostComposerViewModelTest {
+    private val dispatcher = StandardTestDispatcher()
+    private val repository = FakeComposerRepository()
+    private val clock = MutableClock()
+    private val boards = MutableStateFlow(listOf(Board("tech", "技术", null)))
+    private val uploader = FakeImageUploader()
+    private val session = MutableStateFlow(SessionState(isSignedIn = true))
+    private val viewModels = ViewModels()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        viewModels.clear(dispatcher.scheduler)
+        Dispatchers.resetMain()
+    }
+
+    private fun viewModel(
+        profiles: ProfileRepository? = null,
+        votes: VoteRepository? = null,
+        editTarget: PostEditTarget? = null,
+        editor: PostEditor? = null,
+    ) = viewModels.track(
+        PostComposerViewModel(
+            repository,
+            boards,
+            session,
+            clock,
+            uploader,
+            profiles,
+            voteRepository = votes,
+            editTarget = editTarget,
+            editor = editor,
+        ),
+    )
+
+    // --- 编辑 ----------------------------------------------------------------
+
+    private val openingPost = PostEditTarget(postId = 876332, commentId = 9, page = 1, isOpeningPost = true)
+    private val reply = PostEditTarget(postId = 876332, commentId = 10, page = 3, isOpeningPost = false)
+
+    /** The editor opens on what is currently posted, not on an empty form. */
+    @Test
+    fun `edit mode fills the fields from the site`() = runTest(dispatcher) {
+        val editor = FakePostEditor(PostEditContent("原标题", PostPermission(2), "原正文"))
+        val viewModel = viewModel(editTarget = openingPost, editor = editor)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("原标题", state.title)
+        assertEquals("原正文", state.body)
+        assertEquals(PostPermission(2), state.permission)
+        assertEquals("原标题", viewModel.titleState.text.toString())
+        assertEquals("原正文", viewModel.bodyState.text.toString())
+        assertFalse(state.isLoadingEdit)
+    }
+
+    /**
+     * The window that would replace a post with nothing: until the current text lands the body is
+     * empty, and an enabled 保存 there overwrites the post with the empty form on screen.
+     */
+    @Test
+    fun `saving is refused while the current text is still loading`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val editor = FakePostEditor(PostEditContent("原标题", PostPermission.PUBLIC, "原正文"), loadGate = gate)
+        val viewModel = viewModel(editTarget = openingPost, editor = editor)
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.isLoadingEdit)
+        assertFalse(viewModel.uiState.value.canPublish)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.canPublish)
+    }
+
+    @Test
+    fun `a failed load is reported instead of an empty editor`() = runTest(dispatcher) {
+        val editor = FakePostEditor(loadError = SiteException(SiteError.Network))
+        val viewModel = viewModel(editTarget = openingPost, editor = editor)
+        advanceUntilIdle()
+
+        assertEquals(SiteError.Network, viewModel.uiState.value.editLoadError)
+        assertFalse(viewModel.uiState.value.canPublish)
+    }
+
+    @Test
+    fun `saving sends what is on screen to the floor being edited`() = runTest(dispatcher) {
+        val editor = FakePostEditor(PostEditContent("原标题", PostPermission.PUBLIC, "原正文"))
+        val viewModel = viewModel(editTarget = openingPost, editor = editor)
+        advanceUntilIdle()
+        viewModel.titleState.edit { replace(0, length, "新标题") }
+        viewModel.bodyState.edit { replace(0, length, "新正文") }
+        viewModel.selectPermission(PostPermission.PRIVATE)
+        var published: Long? = null
+        viewModel.publish { published = it }
+        advanceUntilIdle()
+
+        assertEquals(openingPost, editor.savedTarget)
+        assertEquals(PostEditContent("新标题", PostPermission.PRIVATE, "新正文"), editor.savedContent)
+        // The thread, so the caller returns to it rather than to a post id it has to look up.
+        assertEquals(876332L, published)
+        // Nothing goes to the publish endpoint — that would create a second thread.
+        assertNull(repository.submission)
+    }
+
+    /** A reply has no title, so an empty one must not hold 保存 back the way it does for a 主楼. */
+    @Test
+    fun `a reply saves without a title`() = runTest(dispatcher) {
+        val editor = FakePostEditor(PostEditContent("", PostPermission.PUBLIC, "原回复"))
+        val viewModel = viewModel(editTarget = reply, editor = editor)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isThreadLevelEdit)
+        assertTrue(viewModel.uiState.value.canPublish)
+    }
+
+    /**
+     * An edit is a change to something already posted. Autosaving one would put it in the recovery
+     * dialog on the next 发新帖, offering to publish somebody's edit as a new thread.
+     */
+    @Test
+    fun `edit mode writes no draft`() = runTest(dispatcher) {
+        val editor = FakePostEditor(PostEditContent("原标题", PostPermission.PUBLIC, "原正文"))
+        val viewModel = viewModel(editTarget = openingPost, editor = editor)
+        advanceUntilIdle()
+        viewModel.bodyState.edit { replace(0, length, "改过的正文") }
+        advanceUntilIdle()
+
+        assertNull(repository.savedDraft)
+    }
+
+    /** A stored draft belongs to an unsent post and must not leak into an edit of a live one. */
+    @Test
+    fun `edit mode never offers the new-post draft`() = runTest(dispatcher) {
+        repository.draftState.value = PostDraft(title = "草稿", body = "草稿正文")
+        val editor = FakePostEditor(PostEditContent("原标题", PostPermission.PUBLIC, "原正文"))
+        val viewModel = viewModel(editTarget = openingPost, editor = editor)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.pendingDraft)
+        assertEquals("原正文", viewModel.uiState.value.body)
+    }
+
+    // --- 插入投票 ------------------------------------------------------------
+
+    /**
+     * The vote has to exist server-side before the body can name it, so the id in the marker is the
+     * one the site handed back — never a guess.
+     */
+    @Test
+    fun `creating a vote splices the site's own id into the body`() = runTest(dispatcher) {
+        val votes = FakeVoteRepository(newId = 3001)
+        val viewModel = viewModel(votes = votes)
+        advanceUntilIdle()
+        viewModel.bodyState.edit { replace(0, length, "正文") }
+        var inserted = false
+
+        viewModel.createVote("标题", multiple = false, isPublic = true, items = listOf("甲", "乙")) {
+            inserted = true
+        }
+        advanceUntilIdle()
+
+        assertTrue(inserted)
+        assertTrue(viewModel.bodyState.text.contains("nsapp://vote?id=3001"))
+        assertEquals(
+            listOf(VoteCreationRequest("标题", multiple = false, isPublic = true, items = listOf("甲", "乙"))),
+            votes.created,
+        )
+        assertEquals(VoteCreationState.Idle, viewModel.uiState.value.voteCreation)
+    }
+
+    // --- 插入星辰收款码 -------------------------------------------------------
+
+    /**
+     * A receive code is pure text: no request, and the payee is always the author.
+     *
+     * Reading the uid from anywhere but the session would make it possible to post a code that
+     * collects into somebody else's account, which is the one mistake here that cannot be undone by
+     * editing the post.
+     */
+    @Test
+    fun `inserting a receive code writes the marker with this account as the payee`() = runTest(dispatcher) {
+        val viewModel = viewModel(profiles = FakeProfileRepository(rank = 3, selfUid = 52_425))
+        advanceUntilIdle()
+
+        viewModel.insertReceiveCode(amount = 2, refId = 100, description = "请我喝杯咖啡", onetime = true)
+        advanceUntilIdle()
+
+        val body = viewModel.bodyState.text.toString()
+        assertTrue(body, body.contains("nsapp://stardust-receive?member_id=52425"))
+        assertTrue(body, body.contains("&diff=2"))
+        assertTrue(body, body.contains("&onetime=true"))
+        // Mirrored too, or the draft would autosave the text without the code.
+        assertTrue(viewModel.uiState.value.body.contains("nsapp://stardust-receive"))
+    }
+
+    /** Without a uid there is nobody to collect for, and a marker naming nobody is worse than none. */
+    @Test
+    fun `inserting a receive code does nothing when the account is not known yet`() = runTest(dispatcher) {
+        val viewModel = viewModel(profiles = FakeProfileRepository(rank = 3, selfUid = null))
+        advanceUntilIdle()
+
+        assertNull(viewModel.receiveCodePayeeUid())
+        viewModel.insertReceiveCode(amount = 2, refId = 100, description = "", onetime = false)
+        advanceUntilIdle()
+
+        assertEquals("", viewModel.bodyState.text.toString())
+    }
+
+    /** The mirrored `body` has to see it too, or the draft would autosave the text without the vote. */
+    @Test
+    fun `the inserted marker reaches the mirrored body state`() = runTest(dispatcher) {
+        val viewModel = viewModel(votes = FakeVoteRepository(newId = 3001))
+        advanceUntilIdle()
+
+        viewModel.createVote("标题", multiple = false, isPublic = true, items = listOf("甲", "乙")) {}
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.body.contains("nsapp://vote?id=3001"))
+    }
+
+    /** A failed creation must leave the post exactly as it was — no marker pointing at nothing. */
+    @Test
+    fun `a refused creation keeps the body untouched and holds the site's sentence`() = runTest(dispatcher) {
+        val votes =
+            FakeVoteRepository(
+                newId = 3001,
+                failure = SiteException(SiteError.Unknown, detail = "没有发起投票的权限"),
+            )
+        val viewModel = viewModel(votes = votes)
+        advanceUntilIdle()
+        viewModel.bodyState.edit { replace(0, length, "正文") }
+        var inserted = false
+
+        viewModel.createVote("标题", multiple = false, isPublic = true, items = listOf("甲")) { inserted = true }
+        advanceUntilIdle()
+
+        assertFalse(inserted)
+        assertEquals("正文", viewModel.bodyState.text.toString())
+        assertEquals(
+            VoteCreationState.Failed("没有发起投票的权限"),
+            viewModel.uiState.value.voteCreation,
+        )
+
+        viewModel.dismissVoteCreation()
+        assertEquals(VoteCreationState.Idle, viewModel.uiState.value.voteCreation)
+    }
+
+    @Test
+    fun `a restored draft keeps a level the account has outgrown the menu`() = runTest(dispatcher) {
+        repository.draftState.value =
+            PostDraft(title = "标题", body = "正文", permission = PostPermission(4))
+        val viewModel = viewModel(FakeProfileRepository(rank = 2))
+        advanceUntilIdle()
+        viewModel.continueDraft()
+
+        assertEquals(PostPermission(4), viewModel.uiState.value.permission)
+        assertEquals(
+            listOf(0, 1, 2, 4, 255),
+            viewModel.uiState.value.permissionOptions.map { it.wireValue },
+        )
+    }
+
+    @Test
+    fun `offers a saved draft and restores every field`() = runTest(dispatcher) {
+        repository.draftState.value =
+            PostDraft(
+                title = "旧标题",
+                body = "旧正文",
+                boardSlug = "tech",
+                boardTitle = "技术",
+                savedAtMillis = 123L,
+            )
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        assertEquals("旧标题", viewModel.uiState.value.pendingDraft?.title)
+
+        viewModel.continueDraft()
+
+        assertEquals("旧标题", viewModel.uiState.value.title)
+        assertEquals("旧正文", viewModel.uiState.value.body)
+        assertEquals("tech", viewModel.uiState.value.boardSlug)
+    }
+
+    /**
+     * A share applied before 继续上次的草稿？ is answered is an edit, and an edit settles the question —
+     * the draft would vanish unoffered, or "continue" would then overwrite the shared text.
+     */
+    @Test
+    fun `a share waits for the draft question and lands after the restored draft`() = runTest(dispatcher) {
+        repository.draftState.value = PostDraft(title = "旧标题", body = "旧正文")
+        val viewModel = viewModel()
+        viewModel.receiveShare(ComposerShare(title = "分享标题", text = "分享的正文", images = emptyList()))
+        advanceUntilIdle()
+
+        assertEquals("旧标题", viewModel.uiState.value.pendingDraft?.title)
+
+        viewModel.continueDraft()
+        advanceUntilIdle()
+
+        assertEquals("旧标题", viewModel.titleState.text.toString())
+        assertTrue(viewModel.bodyState.text.startsWith("旧正文"))
+        assertTrue(viewModel.bodyState.text.endsWith("分享的正文"))
+    }
+
+    @Test
+    fun `editing autosaves without blocking each keystroke`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        viewModel.titleState.typeText("新标题")
+        viewModel.bodyState.typeText("正文")
+        runCurrent()
+        advanceTimeBy(749)
+        assertNull(repository.savedDraft)
+
+        advanceTimeBy(2)
+        advanceUntilIdle()
+
+        assertEquals("新标题", repository.savedDraft?.title)
+        assertEquals("正文", repository.savedDraft?.body)
+        assertEquals(clock.nowMillis(), viewModel.uiState.value.savedAtMillis)
+    }
+
+    @Test
+    fun `clearing the editor deletes the stored draft instead of resurrecting it`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.titleState.typeText("标题")
+        viewModel.bodyState.typeText("正文")
+        runCurrent()
+        advanceUntilIdle()
+        assertEquals("标题", repository.savedDraft?.title)
+
+        viewModel.titleState.typeText("")
+        viewModel.bodyState.typeText("")
+        runCurrent()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.deleteCount)
+        assertNull(repository.draftState.value)
+    }
+
+    @Test
+    fun `publish failure keeps the draft and exposes a retryable error`() = runTest(dispatcher) {
+        repository.publishError = SiteException(SiteError.Network)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.titleState.typeText("标题")
+        viewModel.bodyState.typeText("正文")
+        runCurrent()
+        advanceUntilIdle()
+        viewModel.selectBoard(boards.value.single())
+
+        viewModel.publish { error("must not publish") }
+        advanceUntilIdle()
+
+        assertEquals(SiteError.Network, viewModel.uiState.value.publishError)
+        assertFalse(viewModel.uiState.value.isPublishing)
+        assertEquals(0, repository.deleteCount)
+        assertEquals("正文", viewModel.uiState.value.body)
+    }
+
+    @Test
+    fun `successful retry clears the draft and returns the post id`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.titleState.typeText("标题")
+        viewModel.bodyState.typeText("正文")
+        runCurrent()
+        advanceUntilIdle()
+        viewModel.selectBoard(boards.value.single())
+        var publishedId: Long? = null
+
+        viewModel.publish { publishedId = it }
+        advanceUntilIdle()
+
+        assertEquals(456L, publishedId)
+        assertEquals(1, repository.deleteCount)
+        assertEquals("tech", repository.submission?.boardSlug)
+    }
+
+    @Test
+    fun `success without an id clears the draft instead of offering a duplicate retry`() = runTest(dispatcher) {
+        repository.publishedId = null
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.titleState.typeText("标题")
+        viewModel.bodyState.typeText("正文")
+        runCurrent()
+        advanceUntilIdle()
+        viewModel.selectBoard(boards.value.single())
+        var callbackInvoked = false
+
+        viewModel.publish { callbackInvoked = true }
+        advanceUntilIdle()
+
+        assertTrue(callbackInvoked)
+        assertEquals(1, repository.deleteCount)
+        assertNull(viewModel.uiState.value.publishError)
+    }
+
+    @Test
+    fun `an uploaded image is appended to the body and removed with its cell`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.bodyState.typeText("正文")
+        runCurrent()
+        advanceUntilIdle()
+
+        viewModel.addImages(listOf(PickedImage("content://pick/1", "screenshot.png")))
+        advanceUntilIdle()
+
+        val attachment = viewModel.uiState.value.attachments.single()
+        assertEquals(UploadStatus.UPLOADED, attachment.status)
+        assertEquals("正文\n\n![screenshot.png](https://cdn.nodeimage.com/i/fake.webp)", viewModel.uiState.value.body)
+
+        viewModel.removeAttachment(attachment)
+        advanceUntilIdle()
+
+        assertEquals("正文", viewModel.uiState.value.body)
+        assertTrue(viewModel.uiState.value.attachments.isEmpty())
+    }
+
+    @Test
+    fun `a failed upload is retryable and blocks publishing until it settles`() = runTest(dispatcher) {
+        uploader.failures = 1
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.titleState.typeText("标题")
+        viewModel.bodyState.typeText("正文")
+        runCurrent()
+        advanceUntilIdle()
+        viewModel.selectBoard(boards.value.single())
+
+        viewModel.addImages(listOf(PickedImage("content://pick/1", "a.png")))
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.failedUploadCount)
+        // A failed upload is settled: nothing more is coming, so publishing is allowed again.
+        assertTrue(viewModel.uiState.value.canPublish)
+
+        viewModel.retryFailedUploads()
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.uiState.value.failedUploadCount)
+        assertEquals(UploadStatus.UPLOADED, viewModel.uiState.value.attachments.single().status)
+    }
+}
+
+private class FakeProfileRepository(
+    private val rank: Int?,
+    selfUid: Long? = null,
+) : ProfileRepository {
+    override val selfUid = MutableStateFlow(selfUid)
+
+    override suspend fun profile(refresh: Boolean): UserProfile =
+        UserProfile(uid = 1L, name = "我", avatarUrl = "", rank = rank)
+
+    override suspend fun profile(uid: Long): UserProfile = profile(refresh = false)
+}
+
+private class FakeImageUploader : ImageUploader {
+    var failures = 0
+
+    override suspend fun upload(
+        attachment: ImageAttachment,
+        onProgress: (Float) -> Unit,
+    ): String {
+        if (failures > 0) {
+            failures--
+            throw SiteException(SiteError.Network)
+        }
+        onProgress(1f)
+        return "https://cdn.nodeimage.com/i/fake.webp"
+    }
+}
+
+private class FakeComposerRepository : PostComposerRepository {
+    val draftState = MutableStateFlow<PostDraft?>(null)
+    override val draft: Flow<PostDraft?> = draftState
+    var savedDraft: PostDraft? = null
+    var submission: PostSubmission? = null
+    var publishError: Throwable? = null
+    var publishedId: Long? = 456L
+    var deleteCount = 0
+
+    override suspend fun saveDraft(draft: PostDraft) {
+        savedDraft = draft
+        draftState.value = draft
+    }
+
+    override suspend fun deleteDraft() {
+        deleteCount++
+        draftState.value = null
+    }
+
+    override suspend fun publish(submission: PostSubmission): Long? {
+        this.submission = submission
+        publishError?.let { throw it }
+        return publishedId
+    }
+}
+
+private class FakePostEditor(
+    private val content: PostEditContent = PostEditContent("", PostPermission.PUBLIC, ""),
+    private val loadError: Throwable? = null,
+    /** Held open to inspect the in-flight state; null loads immediately. */
+    private val loadGate: CompletableDeferred<Unit>? = null,
+) : PostEditor {
+    var savedTarget: PostEditTarget? = null
+    var savedContent: PostEditContent? = null
+
+    override suspend fun load(target: PostEditTarget): PostEditContent {
+        loadGate?.await()
+        loadError?.let { throw it }
+        return content
+    }
+
+    override suspend fun save(target: PostEditTarget, content: PostEditContent) {
+        savedTarget = target
+        savedContent = content
+    }
+}
+
+private data class VoteCreationRequest(
+    val title: String,
+    val multiple: Boolean,
+    val isPublic: Boolean,
+    val items: List<String>,
+)
+
+private class FakeVoteRepository(
+    private val newId: Long,
+    private val failure: Throwable? = null,
+) : VoteRepository {
+    val created = mutableListOf<VoteCreationRequest>()
+
+    override suspend fun info(voteId: Long): Vote = error("not used")
+
+    override suspend fun submit(voteId: Long, itemIds: List<Long>) = error("not used")
+
+    override suspend fun create(
+        title: String,
+        multiple: Boolean,
+        isPublic: Boolean,
+        items: List<String>,
+    ): Long {
+        failure?.let { throw it }
+        created += VoteCreationRequest(title, multiple, isPublic, items)
+        return newId
+    }
+
+    override suspend fun setLocked(voteId: Long, locked: Boolean) = error("not used")
+
+    override suspend fun delete(voteId: Long) = error("not used")
+
+    override suspend fun voters(itemId: Long, page: Int): List<Long> = error("not used")
+}

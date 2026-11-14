@@ -1,0 +1,39 @@
+package io.github.seektop.data.session
+
+import io.github.seektop.foundation.core.net.SessionCookieStore
+
+/**
+ * A cookie store that is a map, standing in for the WebView's.
+ *
+ * Everything these tests are about happens *above* the store: which names count as a session, which
+ * ones Cloudflare rotates, and what a change in either should cost. What the store itself has to get
+ * right for that is one rule — a cookie written twice keeps only the second value, which is how a
+ * sign-out (`session=`) replaces a session rather than adding one — and it is one line here.
+ *
+ * Per-URL, and that *is* a dimension worth having: a cookie set without a `Domain` attribute is
+ * host-only, so a session finished on `nodeseek.com` is invisible to a read at `www.nodeseek.com`.
+ * That is the shape of a real bug — see [io.github.seektop.foundation.core.net.SiteConfig.sessionUrls] — and a
+ * single-host map cannot express it. No domain matching beyond that: what is written at a URL is
+ * what is read back at the same URL, which is exactly enough to tell the two hosts apart.
+ */
+class FakeSessionCookieStore : SessionCookieStore {
+    private val cookies = LinkedHashMap<String, LinkedHashMap<String, String>>()
+
+    override fun cookieHeader(url: String): String? =
+        cookies[url]
+            ?.entries
+            ?.joinToString("; ") { (name, value) -> "$name=$value" }
+            ?.ifEmpty { null }
+
+    override fun setCookie(url: String, cookie: String) {
+        // Attributes are the store's business, and this one keeps none of them.
+        val pair = cookie.substringBefore(';')
+        cookies
+            .getOrPut(url) { LinkedHashMap() }[pair.substringBefore('=').trim()] =
+            pair.substringAfter('=', "").trim()
+    }
+
+    override suspend fun removeAll() = cookies.clear()
+
+    override fun flush() = Unit
+}

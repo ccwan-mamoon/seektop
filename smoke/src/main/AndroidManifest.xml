@@ -3,6 +3,6 @@
      hides the app under test from them; this is what lets `getLaunchIntentForPackage` see it. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries>
-        <package android:name="io.github.nodyssey" />
+        <package android:name="io.github.seektop" />
     </queries>
 </manifest>
