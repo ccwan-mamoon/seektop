@@ -60,3 +60,7 @@ __pycache__/
 /desktop/resources/windows/browser-runtime/
 
 /desktop/resources/windows/SeekTopUpdater.exe
+
+# Vendored only for corresponding-source plugin archives; reproducible via go.sum.
+/plugins/network-tools/vendor/
+/.seektop-keys/

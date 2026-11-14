@@ -44,6 +44,8 @@ app.whenReady().then(() => {
     const forum = session.fromPartition("persist:nodyssey");
     const third = session.fromPartition("persist:third-party");
     const updatesSession = session.fromPartition("updates");
+    const pluginSession = session.fromPartition("plugin-market");
+    const pluginDownload = require("./plugin-download.cjs").createPluginDownloader(pluginSession);
     const updates = require("./updater.cjs").createUpdateService(updatesSession, require("node:path").join(process.env.SEEKTOP_BROWSER_DATA, "../updates/downloads"));
     app.on("before-quit", () => updates.dispose());
     let login = null;
@@ -84,6 +86,7 @@ app.whenReady().then(() => {
             const q = body ? JSON.parse(body) : {};
             let value;
             switch (req.url) {
+                case "/plugin-download": value = await pluginDownload(q); break;
                 case "/update-releases": value = await updates.releases(); break;
                 case "/update-start": value = await updates.start(q); break;
                 case "/update-status": value = updates.status(q.id); break;
@@ -117,6 +120,8 @@ app.whenReady().then(() => {
                         q.scope === "FORUM_ONLY" ? { mode: "system" } : config,
                     );
                     await updatesSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
+                    await pluginSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
+                    await pluginSession.closeAllConnections();
                     await updatesSession.closeAllConnections();
                     await forum.closeAllConnections();
                     await third.closeAllConnections();

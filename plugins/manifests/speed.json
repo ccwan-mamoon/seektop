@@ -1,0 +1,70 @@
+{
+  "api": 1,
+  "runtime": "native-tool-v1",
+  "timeoutSeconds": 120,
+  "version": "1.0.0",
+  "files": {},
+  "name": {
+    "zh": "网速测试",
+    "en": "Speed test",
+    "tw": "網速測試"
+  },
+  "description": {
+    "zh": "测试 HTTP 延迟、下载和上传速度，实时显示速率与流量。",
+    "en": "Measure HTTP latency, download and upload speeds with live traffic usage.",
+    "tw": "測試 HTTP 延遲、下載和上傳速度，即時顯示速率與流量。"
+  },
+  "notice": {
+    "zh": "使用直连或系统 TUN 网络，不继承客户端代理。Cloudflare 测试，每阶段最多 128 MiB，总计最多约 256 MiB；结果为当前服务节点的 HTTP 传输估算。",
+    "en": "Uses direct/system TUN networking, not the client proxy. Cloudflare tests transfer up to 128 MiB per phase (about 256 MiB total). Results estimate HTTP throughput to the current endpoint.",
+    "tw": "使用直连或系统 TUN 網路，不繼承客戶端代理。Cloudflare 測試，每階段最多 128 MiB，總计最多約 256 MiB；結果為目前服務節點的 HTTP 傳輸估算。"
+  },
+  "fields": [
+    {
+      "id": "duration",
+      "label": {
+        "zh": "每阶段时长（秒，3–10）",
+        "en": "Seconds per phase (3–10)",
+        "tw": "每階段時長（秒，3–10）"
+      },
+      "default": "5",
+      "options": []
+    },
+    {
+      "id": "streams",
+      "label": {
+        "zh": "并行连接数",
+        "en": "Parallel connections",
+        "tw": "平行連線數"
+      },
+      "default": "2",
+      "options": [
+        {
+          "value": "1",
+          "label": {
+            "zh": "1",
+            "en": "1",
+            "tw": "1"
+          }
+        },
+        {
+          "value": "2",
+          "label": {
+            "zh": "2",
+            "en": "2",
+            "tw": "2"
+          }
+        },
+        {
+          "value": "4",
+          "label": {
+            "zh": "4",
+            "en": "4",
+            "tw": "4"
+          }
+        }
+      ]
+    }
+  ],
+  "id": "io.github.seektop.toolbox.speed"
+}

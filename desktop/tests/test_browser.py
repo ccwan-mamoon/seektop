@@ -32,6 +32,10 @@ with (data/'stderr.log').open('w') as err:
    try:call('update-releases');raise AssertionError('Proxy rejection should fail update metadata')
    except urllib.error.HTTPError as e:assert e.code==500
    assert 'api.github.com:443' in proxy_hosts,'Update checks bypassed configured proxy'
+   try:call('plugin-download',{'url':'https://github.com/ccwan-mamoon/seektop/releases/download/plugin-market/catalog.json','limit':1048576});raise AssertionError('Proxy rejection should fail plugin metadata')
+   except urllib.error.HTTPError as e:assert e.code==500
+   assert 'github.com:443' in proxy_hosts,'Plugin downloads bypassed configured proxy'
+
    request=call('update-start',{'url':'https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v2.0.0/SeekTop-2.0.0-windows-x64.zip','digest':'a'*64,'size':8})
    for _ in range(200):
     status=call('update-status',request)

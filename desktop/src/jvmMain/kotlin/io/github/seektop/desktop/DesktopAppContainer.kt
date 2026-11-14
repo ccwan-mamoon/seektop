@@ -104,6 +104,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toPath
@@ -114,6 +115,11 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
     override val clock: AppClock = AppClock.System
     override val userAgent = UserAgent(browser.userAgent, true)
     private val appScope = CoroutineScope(SupervisorJob() + dispatchers.default)
+    private val desktopToolPlugins = DesktopToolPlugins(File(directory, "plugins"), appScope, remoteDownload = { url, limit ->
+        browser.applyProxy(proxySettings.config.first())
+        browser.downloadPlugin(url, limit)
+    })
+    override val toolPlugins: io.github.seektop.plugins.ToolPluginManager = desktopToolPlugins
     private val databaseDelegate = lazy { createNodeSeekDatabase(directory) }
     private val database by databaseDelegate
     private val sessionCookies by lazy { SessionCookies(NodeSeekSite.CONFIG, browser) }
@@ -354,6 +360,7 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
         override suspend fun evictImage(url: String) = browser.clearCache()
     }
     fun close() {
+        desktopToolPlugins.close()
         appScope.cancel()
         try {
             if (databaseDelegate.isInitialized()) database.close()

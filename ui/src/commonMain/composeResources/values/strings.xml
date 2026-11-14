@@ -1950,4 +1950,21 @@
     <string name="desktop_attendance_ask">首次使用请选择签到方式</string>
     <string name="desktop_attendance_method">启动签到方式</string>
     <string name="desktop_no_new_replies">暂无新回复</string>
+    <string name="plugin_center">插件</string>
+    <string name="plugin_installed">已安装</string>
+    <string name="plugin_market">插件市场</string>
+    <string name="plugin_import">导入插件包</string>
+    <string name="plugin_refresh">刷新市场</string>
+    <string name="plugin_empty">还没有插件。可打开插件市场下载，或导入官方签名的插件包。</string>
+    <string name="plugin_open">打开</string>
+    <string name="plugin_enable">启用</string>
+    <string name="plugin_disable">停用</string>
+    <string name="plugin_uninstall">卸载</string>
+    <string name="plugin_install">安装</string>
+    <string name="plugin_update">更新</string>
+    <string name="plugin_start">开始测试</string>
+    <string name="plugin_stop">停止</string>
+    <string name="plugin_native_title">安装官方网络工具</string>
+    <string name="plugin_native_consent">仅安装 SeekTop 官方签名的插件。工具将以独立的本地程序运行，具有与你相同的 Windows 用户权限，可访问网络；不是沙箱程序。客户端不会传递论坛 Cookie 或浏览器桥接凭据。测速可能消耗较多流量，服务端监听须手动开启。</string>
+    <string name="plugin_uninstall_confirm">卸载 %1$s 并删除已下载的版本文件？论坛数据不受影响。</string>
 </resources>

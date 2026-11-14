@@ -64,6 +64,8 @@ import io.github.seektop.foundation.core.update.ApkInstaller
  * interface to bring it down here with the ViewModels that name it.
  */
 interface AppContainer {
+    val toolPlugins: io.github.seektop.plugins.ToolPluginManager? get() = null
+
     /** Reserved metadata boundary. Platform shells opt in only after plugin execution is implemented. */
     val pluginRegistry: io.github.seektop.plugins.PluginRegistry
         get() = io.github.seektop.plugins.ReservedPluginRegistry

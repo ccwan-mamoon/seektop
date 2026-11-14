@@ -1,3 +1,5 @@
+> Windows 2026-11-15 补充：1.0.5 开发版已接入官方签名网络工具插件中心；Compose 原生表单/结果、独立进程和下载安装边界见[插件扩展](plugin-extension-points.md)。下文上游平台历史快照保持原样。
+
 > 上游历史参考：本文保留原 Android/iOS 设计、实现与评估快照，不代表 SeekTop Windows 当前状态。当前客户端请以[项目说明](../README.md)、[桌面开发说明](../desktop/README.md)和[文档导航](README.md)为准。旧包名与工程名按历史原文保留。
 
 # 实现状态

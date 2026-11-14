@@ -1,0 +1,164 @@
+{
+  "api": 1,
+  "runtime": "native-tool-v1",
+  "timeoutSeconds": 120,
+  "version": "1.0.0",
+  "files": {},
+  "name": {
+    "zh": "iperf3 工具",
+    "en": "iperf3",
+    "tw": "iperf3 工具"
+  },
+  "description": {
+    "zh": "TCP / UDP 上传、下载和双向吞吐测试，支持并行连接及限时服务端。",
+    "en": "TCP/UDP upload, download and bidirectional throughput, parallel streams and time-limited server mode.",
+    "tw": "TCP / UDP 上傳、下載和雙向吞吐測試，支持平行連線及限時服務端。"
+  },
+  "notice": {
+    "zh": "需要对端运行 iperf3 服务。使用直连或系统 TUN 网络，不继承客户端代理。服务端默认只监听 127.0.0.1；改为 0.0.0.0 后可能被其他设备访问，Windows 防火墙可能询问授权。监听最多 60 秒后自动停止。限速为每个方向的总速率。Windows TCP 重传和 RTT 不可用。",
+    "en": "Requires an iperf3 peer. Uses direct/system TUN networking, not the client proxy. Server mode binds to 127.0.0.1 by default; 0.0.0.0 allows other devices to connect and Windows Firewall may request permission. Listening stops after at most 60 seconds. Rate limits apply per direction across all streams. TCP retransmit/RTT statistics are unavailable on Windows.",
+    "tw": "需要對端執行 iperf3 服務。使用直连或系统 TUN 網路，不繼承客戶端代理。服務端預設只監聽 127.0.0.1；改為 0.0.0.0 後可能被其他裝置存取，Windows 防火牆可能詢問授權。監聽最多 60 秒後自動停止。限速為每个方向的總速率。Windows TCP 重傳和 RTT 無法使用。"
+  },
+  "fields": [
+    {
+      "id": "mode",
+      "label": {
+        "zh": "运行方式",
+        "en": "Mode",
+        "tw": "執行方式"
+      },
+      "default": "client",
+      "options": [
+        {
+          "value": "client",
+          "label": {
+            "zh": "客户端",
+            "en": "Client",
+            "tw": "客戶端"
+          }
+        },
+        {
+          "value": "server",
+          "label": {
+            "zh": "服务端（手动开启监听）",
+            "en": "Server (start listening)",
+            "tw": "服務端（手動开啟監聽）"
+          }
+        }
+      ]
+    },
+    {
+      "id": "host",
+      "label": {
+        "zh": "服务端地址 / 本地监听 IP",
+        "en": "Server hostname / local bind IP",
+        "tw": "服務端位址 / 本地監聽 IP"
+      },
+      "default": "127.0.0.1",
+      "options": []
+    },
+    {
+      "id": "port",
+      "label": {
+        "zh": "端口",
+        "en": "Port",
+        "tw": "端口"
+      },
+      "default": "5201",
+      "options": []
+    },
+    {
+      "id": "protocol",
+      "label": {
+        "zh": "协议",
+        "en": "Protocol",
+        "tw": "協定"
+      },
+      "default": "tcp",
+      "options": [
+        {
+          "value": "tcp",
+          "label": {
+            "zh": "TCP",
+            "en": "TCP",
+            "tw": "TCP"
+          }
+        },
+        {
+          "value": "udp",
+          "label": {
+            "zh": "UDP",
+            "en": "UDP",
+            "tw": "UDP"
+          }
+        }
+      ]
+    },
+    {
+      "id": "direction",
+      "label": {
+        "zh": "方向",
+        "en": "Direction",
+        "tw": "方向"
+      },
+      "default": "download",
+      "options": [
+        {
+          "value": "download",
+          "label": {
+            "zh": "下载",
+            "en": "Download",
+            "tw": "下載"
+          }
+        },
+        {
+          "value": "upload",
+          "label": {
+            "zh": "上传",
+            "en": "Upload",
+            "tw": "上傳"
+          }
+        },
+        {
+          "value": "bidir",
+          "label": {
+            "zh": "双向",
+            "en": "Bidirectional",
+            "tw": "雙向"
+          }
+        }
+      ]
+    },
+    {
+      "id": "parallel",
+      "label": {
+        "zh": "并行连接数（1–16）",
+        "en": "Parallel streams (1–16)",
+        "tw": "平行連線數（1–16）"
+      },
+      "default": "1",
+      "options": []
+    },
+    {
+      "id": "duration",
+      "label": {
+        "zh": "测试 / 最长监听秒数（1–60）",
+        "en": "Test / maximum listen seconds (1–60)",
+        "tw": "測試 / 最長監聽秒數（1–60）"
+      },
+      "default": "10",
+      "options": []
+    },
+    {
+      "id": "bandwidth",
+      "label": {
+        "zh": "每方向限速（Mbps，1–10000）",
+        "en": "Rate per direction (Mbps, 1–10000)",
+        "tw": "每方向限速（Mbps，1–10000）"
+      },
+      "default": "100",
+      "options": []
+    }
+  ],
+  "id": "io.github.seektop.toolbox.iperf"
+}

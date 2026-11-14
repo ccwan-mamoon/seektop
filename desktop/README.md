@@ -105,3 +105,18 @@ Windows 通知已接入，四类提醒各自选择检查间隔；运行或最小
 完整 app-image 重启演练：`python desktop/tests/test_updater.py --app-dir desktop/build/compose/binaries/main/app/SeekTop`，全程使用临时空配置和测试副本。
 
 更新下载使用独立 Chromium 会话，支持代理范围、续传和有限重试。下载校验后由用户点击重启，安装准备中阻止重复提交。
+
+## 官方工具插件（1.0.5 开发版）
+
+侧栏「插件」进入已安装和市场；官方签名 `.stplugin` 可下载或本地导入。工具文件和索引保存在 `%LOCALAPPDATA%/SeekTop/plugins`，主体升级保留。签名目录地址为本仓库 `plugin-market` Release，不参与客户端稳定版更新。
+
+宿主界面为 Compose，独立原生进程只接受结构化参数并回传 NDJSON，不获得浏览器桥接或论坛会话。它有普通 Windows 用户权限，不是任意第三方代码的安全沙箱。首次安装/更新会确认这个边界。插件使用直连/系统 TUN 网络，不继承应用代理。详细构建、签名和来源见 [plugins/README.md](../plugins/README.md)。
+
+```powershell
+python plugins/test_tools.py --build-with go --directory build/plugin-smoke
+SeekTop.exe --check-tool-plugins E:/path/to/built/plugin-packages
+```
+
+第二个检查使用临时插件目录，验证正式公钥、包安装、IPC、取消与端口释放；不会读写实际账号配置。插件引擎构建独立于主体，不要求所有客户端开发者都安装 Go。
+
+市场下载使用单独且不携带 Cookie 的 Chromium 会话，遵守应用代理范围；网络工具本身仍使用直连/系统 TUN，不继承应用代理。可使用 `SeekTop.exe --open-plugins` 或 `SeekTop.exe --plugin io.github.seektop.toolbox.iperf` 打开插件入口。

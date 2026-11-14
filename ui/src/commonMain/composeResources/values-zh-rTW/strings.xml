@@ -1674,4 +1674,21 @@
     <string name="desktop_attendance_ask">首次使用請選擇簽到方式</string>
     <string name="desktop_attendance_method">啟動簽到方式</string>
     <string name="desktop_no_new_replies">暫無新回覆</string>
+    <string name="plugin_center">插件</string>
+    <string name="plugin_installed">已安裝</string>
+    <string name="plugin_market">插件市場</string>
+    <string name="plugin_import">匯入插件包</string>
+    <string name="plugin_refresh">重新整理市場</string>
+    <string name="plugin_empty">還沒有插件。可開啟插件市場下載，或匯入官方簽章的插件包。</string>
+    <string name="plugin_open">開啟</string>
+    <string name="plugin_enable">啟用</string>
+    <string name="plugin_disable">停用</string>
+    <string name="plugin_uninstall">解除安裝</string>
+    <string name="plugin_install">安裝</string>
+    <string name="plugin_update">更新</string>
+    <string name="plugin_start">開始測試</string>
+    <string name="plugin_stop">停止</string>
+    <string name="plugin_native_title">安裝官方網路工具</string>
+    <string name="plugin_native_consent">僅安裝 SeekTop 官方簽章的插件。工具將以獨立本機程式執行，具有與你相同的 Windows 使用者權限，可存取網路；不是沙箱程式。客戶端不會傳遞論壇 Cookie 或瀏覽器橋接憑證。測速可能消耗較多流量，伺服器監聽須手動開啟。</string>
+    <string name="plugin_uninstall_confirm">解除安裝 %1$s 並刪除已下載的版本檔案？論壇資料不受影響。</string>
 </resources>

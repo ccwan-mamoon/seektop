@@ -109,6 +109,19 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
         Unit
     }
 
+    internal suspend fun downloadPlugin(url: String, limit: Long): ByteArray = withContext(Dispatchers.IO) {
+        val value = kotlinx.coroutines.runInterruptible {
+            call(
+                "plugin-download",
+                buildJsonObject {
+                    put("url", url)
+                    put("limit", limit)
+                },
+            )
+        }
+        Base64.getDecoder().decode(value.getValue("body").jsonPrimitive.content)
+    }
+
     /** A scoped, cancellable verification request; no credentials are given to the widget window. */
     suspend fun verify(dark: Boolean, host: java.awt.Component): String? {
         val id = UUID.randomUUID().toString()

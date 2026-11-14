@@ -9,6 +9,7 @@
 浏览器分区 persist:nodyssey、JVM 语言偏好节点和旧 Keychain 服务是兼容存储标识，不得直接替换。
 
 桌面环境需要 JDK 21、Python 3.11+、Windows .NET Framework 编译器及 provision-browser.py 准备的浏览器。
+官方网络工具在 plugins/ 独立构建，需 Go 1.24+；依赖锁在 go.mod/go.sum，不捆绑进主体。仅接受官方签名的 native-tool-v1 进程，不能把这一信任级别扩大到任意第三方 JS。发布私钥不得进入 Git 或分发包，见 plugins/README.md。
 当前构建仍配置 Android 模块和目标，完整 Gradle 配置需要 Android SDK 37；iOS 需在 Mac 上验证。
 提交前执行 .github/workflows/windows-desktop.yml 中的 JVM、Python、Node 和打包检查，完成后停止 Gradle。
 

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
@@ -55,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -86,6 +88,7 @@ import io.github.seektop.ui.resources.desktop_manage_boards
 import io.github.seektop.ui.resources.desktop_menu_collapse
 import io.github.seektop.ui.resources.desktop_menu_expand
 import io.github.seektop.ui.resources.home_search_hint
+import io.github.seektop.ui.resources.plugin_center
 import io.github.seektop.ui.resources.settings_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -93,6 +96,9 @@ import org.jetbrains.compose.resources.stringResource
 val LocalDesktopExperience = staticCompositionLocalOf { false }
 
 val LocalDesktopNotificationsAvailable = staticCompositionLocalOf { true }
+
+/** Optional native shortcut: empty string opens the center, otherwise selects an installed tool. */
+val LocalDesktopPluginLaunch = staticCompositionLocalOf<String?> { null }
 
 /** The shell supplies its platform resize cursor without exposing AWT to common UI. */
 val LocalDesktopResizePointerIcon = staticCompositionLocalOf { androidx.compose.ui.input.pointer.PointerIcon.Default }
@@ -114,6 +120,8 @@ internal fun DesktopAwareNavigationFrame(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
     searchSession: DesktopSearchSession? = null,
+    toolPlugins: io.github.seektop.plugins.ToolPluginManager? = null,
+    workspaceKey: Any? = null,
     pinnedBoards: List<String> = listOf("daily", "tech"),
     onPinnedBoardsChange: (List<String>) -> Unit = {},
     onOpenBoard: () -> Unit = { onSelect(TopLevelDestination.HOME) },
@@ -124,12 +132,34 @@ internal fun DesktopAwareNavigationFrame(
         mobileNavigation(content)
         return
     }
+    val initialPlugin = LocalDesktopPluginLaunch.current
+    var pluginsVisible by rememberSaveable { mutableStateOf(initialPlugin != null) }
+    val pluginStateHolder = rememberSaveableStateHolder()
+    var previousWorkspace by remember { mutableStateOf(workspaceKey) }
+    LaunchedEffect(workspaceKey) {
+        if (previousWorkspace != workspaceKey) pluginsVisible = false
+        previousWorkspace = workspaceKey
+    }
+    val goBack = { if (pluginsVisible) pluginsVisible = false else onBack() }
+    val search = {
+        pluginsVisible = false
+        onSearch()
+    }
+    val createPost = {
+        pluginsVisible = false
+        onCreatePost()
+    }
+    val settings = {
+        pluginsVisible = false
+        onSettings()
+    }
     val searchFocus = remember { FocusRequester() }
     LaunchedEffect(searchSession?.focusRequests) { if ((searchSession?.focusRequests ?: 0) > 0) searchFocus.requestFocus() }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     val boardNavigation = remember { DesktopBoardNavigation() }
     val selectDestination: (TopLevelDestination) -> Unit = { destination ->
+        pluginsVisible = false
         if (destination == TopLevelDestination.HOME) boardNavigation.select(null)
         onSelect(destination)
     }
@@ -144,22 +174,28 @@ internal fun DesktopAwareNavigationFrame(
             if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
             when {
                 event.isCtrlPressed && event.key == Key.K -> {
-                    if (searchSession != null) searchFocus.requestFocus() else onSearch()
+                    if (pluginsVisible) {
+                        search()
+                    } else if (searchSession != null) {
+                        searchFocus.requestFocus()
+                    } else {
+                        search()
+                    }
                     true
                 }
 
                 event.isCtrlPressed && event.key == Key.N -> {
-                    onCreatePost()
+                    createPost()
                     true
                 }
 
                 event.isCtrlPressed && event.key == Key.Comma -> {
-                    onSettings()
+                    settings()
                     true
                 }
 
                 event.isAltPressed && event.key == Key.DirectionLeft -> {
-                    onBack()
+                    goBack()
                     true
                 }
 
@@ -184,17 +220,17 @@ internal fun DesktopAwareNavigationFrame(
                 }
                 TopLevelDestination.entries.forEach { destination ->
                     if (menuCollapsed) {
-                        DesktopMenuIcon(stringResource(destination.label), current == destination, { selectDestination(destination) }) {
+                        DesktopMenuIcon(stringResource(destination.label), current == destination && !pluginsVisible, { selectDestination(destination) }) {
                             androidx.compose.material3.BadgedBox(badge = {
                                 if (destination == TopLevelDestination.NOTIFICATIONS && unreadCount > 0) androidx.compose.material3.Badge { Text(unreadCount.toString()) }
-                            }) { Icon(if (current == destination) destination.selectedIcon else destination.icon, null) }
+                            }) { Icon(if (current == destination && !pluginsVisible) destination.selectedIcon else destination.icon, null) }
                         }
                     } else {
                         NavigationDrawerItem(
                             label = { Text(stringResource(destination.label)) },
-                            selected = current == destination,
+                            selected = current == destination && !pluginsVisible,
                             onClick = { selectDestination(destination) },
-                            icon = { Icon(if (current == destination) destination.selectedIcon else destination.icon, null) },
+                            icon = { Icon(if (current == destination && !pluginsVisible) destination.selectedIcon else destination.icon, null) },
                             badge = if (destination == TopLevelDestination.NOTIFICATIONS && unreadCount > 0) {
                                 { Text(unreadCount.toString()) }
                             } else {
@@ -213,6 +249,13 @@ internal fun DesktopAwareNavigationFrame(
                                 unselectedBadgeColor = MaterialTheme.colorScheme.onSurface,
                             ),
                         )
+                    }
+                }
+                if (toolPlugins != null) {
+                    if (menuCollapsed) {
+                        DesktopMenuIcon(stringResource(Res.string.plugin_center), pluginsVisible, { pluginsVisible = true }) { Icon(Icons.Default.Build, null) }
+                    } else {
+                        NavigationDrawerItem(selected = pluginsVisible, onClick = { pluginsVisible = true }, label = { Text(stringResource(Res.string.plugin_center)) }, icon = { Icon(Icons.Default.Build, null) }, modifier = Modifier.height(42.dp), shape = RoundedCornerShape(6.dp))
                     }
                 }
                 HorizontalDivider(Modifier.padding(horizontal = 10.dp, vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
@@ -235,14 +278,16 @@ internal fun DesktopAwareNavigationFrame(
                                     LazyColumn(modifier = Modifier.fillMaxWidth(), state = boardListState, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         items(boardNavigation.boards.filter { it.slug == null || it.slug in pinnedBoards }, key = { it.slug ?: "front" }) { board ->
                                             if (menuCollapsed) {
-                                                DesktopMenuIcon(board.title, current == TopLevelDestination.HOME && boardNavigation.selectedSlug == board.slug, {
+                                                DesktopMenuIcon(board.title, current == TopLevelDestination.HOME && !pluginsVisible && boardNavigation.selectedSlug == board.slug, {
+                                                    pluginsVisible = false
                                                     onOpenBoard()
                                                     boardNavigation.select(board.slug)
                                                 }) { Text(board.title.take(2), style = MaterialTheme.typography.labelMedium, maxLines = 1) }
                                             } else {
                                                 NavigationDrawerItem(
-                                                    selected = current == TopLevelDestination.HOME && boardNavigation.selectedSlug == board.slug,
+                                                    selected = current == TopLevelDestination.HOME && !pluginsVisible && boardNavigation.selectedSlug == board.slug,
                                                     onClick = {
+                                                        pluginsVisible = false
                                                         onOpenBoard()
                                                         boardNavigation.select(board.slug)
                                                     },
@@ -260,9 +305,9 @@ internal fun DesktopAwareNavigationFrame(
                     }
                 }
                 if (menuCollapsed) {
-                    DesktopMenuIcon(stringResource(Res.string.settings_title), false, onSettings) { Icon(Icons.Default.Settings, null) }
+                    DesktopMenuIcon(stringResource(Res.string.settings_title), false, settings) { Icon(Icons.Default.Settings, null) }
                 } else {
-                    TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
+                    TextButton(onClick = settings, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
                         Icon(Icons.Default.Settings, null)
                         Spacer(Modifier.width(12.dp))
                         Text(stringResource(Res.string.settings_title))
@@ -273,11 +318,13 @@ internal fun DesktopAwareNavigationFrame(
         }
         Column(Modifier.weight(1f).background(MaterialTheme.colorScheme.surfaceContainerLow)) {
             Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(onClick = onBack, enabled = canGoBack, colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface, disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f))) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.action_back)) }
-                if (searchSession != null) {
+                IconButton(onClick = goBack, enabled = canGoBack || pluginsVisible, colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface, disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f))) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.action_back)) }
+                if (pluginsVisible) {
+                    Text(stringResource(Res.string.plugin_center), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                } else if (searchSession != null) {
                     DesktopSearchBox(searchSession, searchFocus, Modifier.weight(1f))
                 } else {
-                    OutlinedButton(onClick = onSearch, modifier = Modifier.weight(1f).height(42.dp), shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                    OutlinedButton(onClick = search, modifier = Modifier.weight(1f).height(42.dp), shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
                         Icon(Icons.Default.Search, null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(Res.string.home_search_hint))
@@ -285,7 +332,7 @@ internal fun DesktopAwareNavigationFrame(
                         Text("Ctrl K", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                     }
                 }
-                Button(onClick = onCreatePost, shape = RoundedCornerShape(6.dp), modifier = Modifier.height(36.dp)) {
+                Button(onClick = createPost, shape = RoundedCornerShape(6.dp), modifier = Modifier.height(36.dp)) {
                     Icon(Icons.Default.Edit, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(Res.string.action_create_post))
@@ -293,7 +340,13 @@ internal fun DesktopAwareNavigationFrame(
             }
             Box(Modifier.weight(1f).fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
                 Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))) {
-                    CompositionLocalProvider(LocalDesktopRefreshTargets provides refreshTargets, LocalDesktopBoardNavigation provides boardNavigation, LocalDesktopSearch provides searchSession) { content() }
+                    CompositionLocalProvider(LocalDesktopRefreshTargets provides refreshTargets, LocalDesktopBoardNavigation provides boardNavigation, LocalDesktopSearch provides searchSession) {
+                        if (pluginsVisible && toolPlugins != null) {
+                            pluginStateHolder.SaveableStateProvider("plugins") { io.github.seektop.ui.plugins.ToolPluginCenter(toolPlugins, initialPlugin?.takeIf { it.isNotEmpty() }) }
+                        } else {
+                            content()
+                        }
+                    }
                 }
             }
         }

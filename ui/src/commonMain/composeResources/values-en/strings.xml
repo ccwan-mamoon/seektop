@@ -1682,4 +1682,21 @@
     <string name="desktop_attendance_ask">Choose your check-in method on first use</string>
     <string name="desktop_attendance_method">Startup attendance method</string>
     <string name="desktop_no_new_replies">No new replies</string>
+    <string name="plugin_center">Plugins</string>
+    <string name="plugin_installed">Installed</string>
+    <string name="plugin_market">Marketplace</string>
+    <string name="plugin_import">Import package</string>
+    <string name="plugin_refresh">Refresh marketplace</string>
+    <string name="plugin_empty">No plugins yet. Download from the marketplace or import an officially signed package.</string>
+    <string name="plugin_open">Open</string>
+    <string name="plugin_enable">Enable</string>
+    <string name="plugin_disable">Disable</string>
+    <string name="plugin_uninstall">Uninstall</string>
+    <string name="plugin_install">Install</string>
+    <string name="plugin_update">Update</string>
+    <string name="plugin_start">Start test</string>
+    <string name="plugin_stop">Stop</string>
+    <string name="plugin_native_title">Install official network tool</string>
+    <string name="plugin_native_consent">Only SeekTop publisher-signed packages are accepted. Tools run as separate native programs with your Windows user permissions and network access; they are not sandboxed. Forum cookies and browser bridge credentials are not passed to them. Speed tests can consume significant data. Server listening must be started manually.</string>
+    <string name="plugin_uninstall_confirm">Uninstall %1$s and remove its downloaded versions? Forum data is unaffected.</string>
 </resources>

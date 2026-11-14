@@ -46,12 +46,24 @@ jobs:
         run: ./desktop/provision-installer.ps1
       - name: Test JVM modules and check formatting
         run: ./gradlew.bat :desktop:jvmTest :shared:jvmTest :ui:jvmTest :designsys:jvmTest :richtext:jvmTest spotlessCheck --no-daemon --max-workers=4
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: plugins/network-tools/go.mod
+          cache-dependency-path: plugins/network-tools/go.sum
+      - name: Test independent network tool workers
+        shell: pwsh
+        run: |
+          go -C plugins/network-tools test ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python plugins/test_tools.py --build-with go --directory build/plugin-smoke
       - name: Test native Windows updater
         run: python desktop/tests/test_updater.py
       - name: Test session bridge without account sign-in
         run: python desktop/tests/test_browser.py
       - name: Test resumable update transfers
         run: node desktop/tests/test_update_transfer.cjs
+      - name: Test isolated plugin downloads
+        run: node desktop/tests/test_plugin_download.cjs
       - name: Test Windows Toast lifecycle
         run: node desktop/tests/test_notifications.cjs
       - name: Test release artifacts and installer lifecycle

@@ -596,6 +596,8 @@ fun MainNavigation(
         }
     }
     DesktopAwareNavigationFrame(
+        toolPlugins = container.toolPlugins,
+        workspaceKey = backStack.lastOrNull() to launchRequest,
         desktop = desktop,
         searchSession = desktopSearch,
         pinnedBoards = desktopPreferences.desktopBoardSlugs,

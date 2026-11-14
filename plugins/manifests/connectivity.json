@@ -1,0 +1,62 @@
+{
+  "api": 1,
+  "runtime": "native-tool-v1",
+  "timeoutSeconds": 120,
+  "version": "1.0.0",
+  "files": {},
+  "name": {
+    "zh": "连通性测试",
+    "en": "Connectivity",
+    "tw": "連通性測試"
+  },
+  "description": {
+    "zh": "检测常用平台或自定义 HTTPS 网址，区分可访问、登录要求、验证拦截与访问限制。",
+    "en": "Check common platforms or custom HTTPS URLs, distinguishing reachability, authentication, challenges and restrictions.",
+    "tw": "檢測常用平台或自訂 HTTPS 網址，區分可存取、登入要求、驗證拦截與存取限制。"
+  },
+  "notice": {
+    "zh": "使用直连或系统 TUN 网络，不继承客户端代理或论坛登录。检测结果不代表账号权限或完整地区解锁；地区信息仅展示服务返回的明确数据。自定义可输入最多 8 个 HTTPS 网址，以空格分隔。",
+    "en": "Uses direct/system TUN networking, without the client proxy or forum login. Results do not prove account access or full regional availability. Region data is displayed only when explicitly returned by the service. Enter up to 8 custom HTTPS URLs separated by spaces.",
+    "tw": "使用直连或系统 TUN 網路，不繼承客戶端代理或论坛登入。檢測結果不代表帳號權限或完整地區解鎖；地區資訊僅顯示服務回傳的明確數据。自訂可輸入最多 8 个 HTTPS 網址，以空格分隔。"
+  },
+  "fields": [
+    {
+      "id": "targets",
+      "label": {
+        "zh": "检测范围",
+        "en": "Targets",
+        "tw": "檢測範圍"
+      },
+      "default": "common",
+      "options": [
+        {
+          "value": "common",
+          "label": {
+            "zh": "常用平台",
+            "en": "Common platforms",
+            "tw": "常用平台"
+          }
+        },
+        {
+          "value": "custom",
+          "label": {
+            "zh": "自定义网址",
+            "en": "Custom URLs",
+            "tw": "自訂網址"
+          }
+        }
+      ]
+    },
+    {
+      "id": "url",
+      "label": {
+        "zh": "自定义 HTTPS 网址",
+        "en": "Custom HTTPS URLs",
+        "tw": "自訂 HTTPS 網址"
+      },
+      "default": "https://www.nodeseek.com/",
+      "options": []
+    }
+  ],
+  "id": "io.github.seektop.toolbox.connectivity"
+}

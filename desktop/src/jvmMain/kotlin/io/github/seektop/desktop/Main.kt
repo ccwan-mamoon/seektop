@@ -21,6 +21,7 @@ import coil3.SingletonImageLoader
 import io.github.seektop.LaunchRequest
 import io.github.seektop.LocalDesktopExperience
 import io.github.seektop.LocalDesktopNotificationsAvailable
+import io.github.seektop.LocalDesktopPluginLaunch
 import io.github.seektop.LocalDesktopResizePointerIcon
 import io.github.seektop.SeekTopRoot
 import io.github.seektop.data.NotificationDestination
@@ -51,6 +52,15 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 
 fun main(args: Array<String>) {
+    if (args.size == 2 && args[0] in setOf("--check-tool-plugins", "--check-tool-market")) {
+        try {
+            checkToolPlugins(File(args[1]), args[0] == "--check-tool-market")
+        } catch (failure: Exception) {
+            System.err.println(failure.message)
+            kotlin.system.exitProcess(1)
+        }
+        return
+    }
     if (args.size == 2 && args[0] == "--check-runtime") {
         checkDesktopRuntime(File(args[1]))
         return
@@ -63,7 +73,8 @@ fun main(args: Array<String>) {
                 Json.decodeFromJsonElement(NotificationDestination.serializer(), activation.getValue("destination"))
             }.getOrNull()
         }
-        launchDesktop(target?.let(LaunchRequest::OpenNotification) ?: if (args.contains("--open-notifications")) LaunchRequest.OpenTab(TopLevelDestination.NOTIFICATIONS) else null)
+        val pluginId = args.indexOf("--plugin").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
+        launchDesktop(target?.let(LaunchRequest::OpenNotification) ?: if (args.contains("--open-notifications")) LaunchRequest.OpenTab(TopLevelDestination.NOTIFICATIONS) else null, pluginId ?: "".takeIf { args.contains("--open-plugins") })
     } catch (failure: Throwable) {
         val directory = File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"), "SeekTop").apply { mkdirs() }
         val log = File(directory, "startup-error.log")
@@ -72,7 +83,7 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun launchDesktop(initialNotification: LaunchRequest?) {
+private fun launchDesktop(initialNotification: LaunchRequest?, initialPlugin: String? = null) {
     val directory = File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"), "SeekTop").apply { mkdirs() }
     val resources = System.getProperty("compose.application.resources.dir")
     val bundle = File(System.getProperty("seektop.browser.bundle") ?: resources?.let { "$it/browser-runtime" } ?: "desktop/resources/windows/browser-runtime")
@@ -275,7 +286,7 @@ private fun launchDesktop(initialNotification: LaunchRequest?) {
                 }
             }
             window.minimumSize = java.awt.Dimension(1100, 700)
-            CompositionLocalProvider(LocalDesktopBrowser provides browser::login, LocalDesktopVerification provides browser::verify, LocalDesktopExperience provides true, LocalDesktopNotificationsAvailable provides if (notificationSettings.desktopWindowsToast) toastAvailable else notifier.isAvailable, LocalDesktopResizePointerIcon provides PointerIcon(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.E_RESIZE_CURSOR))) {
+            CompositionLocalProvider(LocalDesktopBrowser provides browser::login, LocalDesktopVerification provides browser::verify, LocalDesktopExperience provides true, LocalDesktopPluginLaunch provides initialPlugin, LocalDesktopNotificationsAvailable provides if (notificationSettings.desktopWindowsToast) toastAvailable else notifier.isAvailable, LocalDesktopResizePointerIcon provides PointerIcon(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.E_RESIZE_CURSOR))) {
                 val updateState by container.appUpdateRepository.state.collectAsState()
                 androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                     SeekTopRoot(container, initial, TopLevelDestination.HOME, notificationRequest, { notificationRequest = null })

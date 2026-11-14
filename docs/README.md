@@ -6,7 +6,7 @@
 
 Windows 功能变化更新根 README、desktop/README.md 和 CHANGELOG；模块或构建入口变化更新 client-development.md 与 AGENTS.md。
 
-[插件扩展预留](plugin-extension-points.md)记录当前关闭的插件契约入口、Seek.li 与 NodeImage 的扩展类型，以及 SDK、隔离运行时和市场的后续接入顺序。
+[插件扩展](plugin-extension-points.md)记录 1.0.5 开发版的官方网络工具中心，以及仍保留的 JS、Seek.li 与 NodeImage 契约和第三方隔离运行时计划。
 
 下表是上游历史文档导航，其“当前事实”和执行顺序仅对应原文当时的 Android/iOS 项目，不代表 SeekTop Windows 状态。历史包名和产品名保留以便追溯，共享架构约束仍可参考。
 
