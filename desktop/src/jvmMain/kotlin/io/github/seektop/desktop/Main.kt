@@ -17,10 +17,12 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import coil3.SingletonImageLoader
+import io.github.seektop.LaunchRequest
 import io.github.seektop.LocalDesktopExperience
 import io.github.seektop.LocalDesktopNotificationsAvailable
 import io.github.seektop.LocalDesktopResizePointerIcon
 import io.github.seektop.SeekTopRoot
+import io.github.seektop.data.NotificationDestination
 import io.github.seektop.ui.login.LocalDesktopBrowser
 import io.github.seektop.ui.login.LocalDesktopVerification
 import io.github.seektop.ui.navigation.TopLevelDestination
@@ -29,6 +31,9 @@ import io.github.seektop.ui.resources.action_cancel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 
@@ -38,7 +43,14 @@ fun main(args: Array<String>) {
         return
     }
     try {
-        launchDesktop()
+        val encodedTarget = args.indexOf("--notification-target").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
+        val target = encodedTarget?.let {
+            runCatching {
+                val activation = Json.parseToJsonElement(String(java.util.Base64.getUrlDecoder().decode(it), Charsets.UTF_8)).jsonObject
+                Json.decodeFromJsonElement(NotificationDestination.serializer(), activation.getValue("destination"))
+            }.getOrNull()
+        }
+        launchDesktop(target?.let(LaunchRequest::OpenNotification) ?: if (args.contains("--open-notifications")) LaunchRequest.OpenTab(TopLevelDestination.NOTIFICATIONS) else null)
     } catch (failure: Throwable) {
         val directory = File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"), "SeekTop").apply { mkdirs() }
         val log = File(directory, "startup-error.log")
@@ -47,7 +59,7 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun launchDesktop() {
+private fun launchDesktop(initialNotification: LaunchRequest?) {
     val directory = File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"), "SeekTop").apply { mkdirs() }
     val resources = System.getProperty("compose.application.resources.dir")
     val bundle = File(System.getProperty("seektop.browser.bundle") ?: resources?.let { "$it/browser-runtime" } ?: "desktop/resources/windows/browser-runtime")
@@ -103,6 +115,20 @@ private fun launchDesktop() {
             val browser = ready.browser
             val container = ready.container
             val initial = ready.settings
+            var notificationRequest by remember { mutableStateOf(initialNotification) }
+            val openNotifications: (NotificationDestination?) -> Unit = { target ->
+                notificationRequest = target?.let(LaunchRequest::OpenNotification) ?: LaunchRequest.OpenTab(TopLevelDestination.NOTIFICATIONS)
+                window.isVisible = true
+                window.extendedState = window.extendedState and java.awt.Frame.ICONIFIED.inv()
+                val wasAlwaysOnTop = window.isAlwaysOnTop
+                try {
+                    window.isAlwaysOnTop = true
+                    window.toFront()
+                    window.requestFocus()
+                } finally {
+                    window.isAlwaysOnTop = wasAlwaysOnTop
+                }
+            }
             SideEffect {
                 window.iconImage = windowIcon
                 container.desktopUpdateInstaller.requestExit = { exitApplication() }
@@ -117,12 +143,7 @@ private fun launchDesktop() {
                 }
             }
             val notifier = remember {
-                DesktopNotifier(windowIcon) {
-                    window.isVisible = true
-                    window.extendedState = java.awt.Frame.NORMAL
-                    window.toFront()
-                    window.requestFocus()
-                }
+                DesktopNotifier(windowIcon) { openNotifications(null) }
             }
             DisposableEffect(notifier) { onDispose { notifier.close() } }
             val notificationSettings by container.settingsRepository.settings.collectAsState(initial)
@@ -135,10 +156,10 @@ private fun launchDesktop() {
                         toastAvailable = status["available"]?.jsonPrimitive?.content == "true"
                         configured = toastAvailable
                         if (status["clicked"]?.jsonPrimitive?.content == "true") {
-                            window.isVisible = true
-                            window.extendedState = java.awt.Frame.NORMAL
-                            window.toFront()
-                            window.requestFocus()
+                            val destination = status["activations"]?.jsonArray?.firstOrNull()?.jsonObject?.get("destination")?.let {
+                                Json.decodeFromJsonElement(NotificationDestination.serializer(), it)
+                            }
+                            openNotifications(destination)
                         }
                     } catch (cancelled: kotlinx.coroutines.CancellationException) {
                         throw cancelled
@@ -151,8 +172,8 @@ private fun launchDesktop() {
             }
             LaunchedEffect(notifier) {
                 withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    monitorDesktopNotifications(container) { title, body ->
-                        if (container.settingsRepository.settings.first().desktopWindowsToast) browser.toast(title, body) else notifier.deliver(title, body)
+                    monitorDesktopNotifications(container) { title, body, destination ->
+                        if (container.settingsRepository.settings.first().desktopWindowsToast) browser.toast(title, body, destination) else notifier.deliver(title, body)
                     }
                 }
             }
@@ -160,7 +181,7 @@ private fun launchDesktop() {
             CompositionLocalProvider(LocalDesktopBrowser provides browser::login, LocalDesktopVerification provides browser::verify, LocalDesktopExperience provides true, LocalDesktopNotificationsAvailable provides if (notificationSettings.desktopWindowsToast) toastAvailable else notifier.isAvailable, LocalDesktopResizePointerIcon provides PointerIcon(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.E_RESIZE_CURSOR))) {
                 val updateState by container.appUpdateRepository.state.collectAsState()
                 androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
-                    SeekTopRoot(container, initial, TopLevelDestination.HOME, null, {})
+                    SeekTopRoot(container, initial, TopLevelDestination.HOME, notificationRequest, { notificationRequest = null })
                     if (updateState.check == io.github.seektop.foundation.core.update.UpdateCheck.Checking) {
                         androidx.compose.material3.Surface(modifier = androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(16.dp), shadowElevation = 4.dp, shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)) {
                             androidx.compose.foundation.layout.Row(modifier = androidx.compose.ui.Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {

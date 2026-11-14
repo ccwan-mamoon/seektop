@@ -33,7 +33,7 @@ internal fun DesktopSessionGate(destination: NavKey?, isSignedIn: Boolean, onSig
 }
 
 internal fun NavKey?.requiresDesktopSession(): Boolean = when (this) {
-    MyTopicsKey, MyCommentsKey, BookmarksKey, NotificationsKey,
+    MyTopicsKey, MyCommentsKey, BookmarksKey,
     AccountSettingsKey, AccountProfileFieldsKey, AccountSecurityKey, AccountContactKey,
     AccountPreferencesKey, AssetsKey, CreditKey, StardustKey,
     is FollowKey, is AccountBlockListKey, is MessageThreadKey, is PostComposerKey,

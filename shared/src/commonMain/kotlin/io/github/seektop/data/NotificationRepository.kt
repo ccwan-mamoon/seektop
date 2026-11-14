@@ -47,16 +47,20 @@ enum class NotificationCategory(val endpoint: String?, val viewedField: String) 
  * that is joined.
  *
  * An App decision, not the site's — noted as such in `docs/implementation-status.md`.
+ * Windows also shows [REMINDERS], the device-local keyword/tracked-thread inbox, which has no site endpoint.
  */
+@kotlinx.serialization.Serializable
 enum class NotificationTab(val categories: List<NotificationCategory>) {
     INTERACTIONS(listOf(NotificationCategory.REPLIES, NotificationCategory.MENTIONS)),
     MESSAGES(listOf(NotificationCategory.MESSAGES)),
+    REMINDERS(emptyList()),
 }
 
 data class NotificationCounts(
     val replies: Int = 0,
     val mentions: Int = 0,
     val messages: Int = 0,
+    val reminders: Int = 0,
     /**
      * How many unread rows the loaded page proved are one comment counted twice.
      *
@@ -68,10 +72,10 @@ data class NotificationCounts(
      */
     val overlap: Int = 0,
 ) {
-    /** The 通知 badge: both groups, less what they double-counted. */
+    /** The 通知 badge: site groups plus local reminders, less duplicate interactions. */
     val interactions: Int get() = (replies + mentions - overlap).coerceAtLeast(0)
 
-    val all: Int get() = interactions + messages
+    val all: Int get() = interactions + messages + reminders
 
     fun forCategory(category: NotificationCategory): Int =
         when (category) {
@@ -84,6 +88,7 @@ data class NotificationCounts(
         when (tab) {
             NotificationTab.INTERACTIONS -> interactions
             NotificationTab.MESSAGES -> messages
+            NotificationTab.REMINDERS -> reminders
         }
 }
 

@@ -41,6 +41,9 @@ jobs:
           "SEEKTOP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Prepare verified browser runtime
         run: python desktop/provision-browser.py
+      - name: Prepare verified installer compiler
+        shell: pwsh
+        run: ./desktop/provision-installer.ps1
       - name: Test JVM modules and check formatting
         run: ./gradlew.bat :desktop:jvmTest :shared:jvmTest :ui:jvmTest :designsys:jvmTest :richtext:jvmTest spotlessCheck --no-daemon --max-workers=4
       - name: Test native Windows updater
@@ -51,12 +54,19 @@ jobs:
         run: node desktop/tests/test_update_transfer.cjs
       - name: Test Windows Toast lifecycle
         run: node desktop/tests/test_notifications.cjs
+      - name: Test release artifacts and installer lifecycle
+        shell: pwsh
+        run: |
+          python desktop/tests/test_release_package.py --iscc "$env:SEEKTOP_ISCC"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop/tests/test_installer.py --iscc "$env:SEEKTOP_ISCC"
       - name: Build Windows app-image
         run: ./gradlew.bat :desktop:createDistributable --no-daemon --max-workers=4
       - name: Check packaged Java modules and native SQLite
         run: python desktop/tests/test_packaged_runtime.py --app-dir desktop/build/compose/binaries/main/app/SeekTop
       - name: Package app and matching source
-        run: python desktop/package_release.py --app-dir desktop/build/compose/binaries/main/app/SeekTop --output-dir release
+        shell: pwsh
+        run: python desktop/package_release.py --app-dir desktop/build/compose/binaries/main/app/SeekTop --output-dir release --iscc "$env:SEEKTOP_ISCC"
       - name: Report package components and duplicate files
         run: python desktop/package_report.py --app-dir desktop/build/compose/binaries/main/app/SeekTop --output release/PACKAGE-SIZE.json
       - uses: actions/upload-artifact@v7
@@ -72,7 +82,7 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:SEEKTOP_VERSION
-          $releaseArgs = @("release", "create", "desktop-v$version", "release/SeekTop-$version-windows-x64.zip", "release/SeekTop-$version-source.zip", "release/SHA256SUMS.txt", "--target", $env:GITHUB_SHA, "--title", "SeekTop $version · 寻桌", "--notes-file", "desktop/RELEASE_NOTES.md")
+          $releaseArgs = @("release", "create", "desktop-v$version", "release/SeekTop-$version-windows-x64-setup.exe", "release/SeekTop-$version-windows-x64.zip", "release/SeekTop-$version-source.zip", "release/SHA256SUMS.txt", "--target", $env:GITHUB_SHA, "--title", "SeekTop $version · 寻桌", "--notes-file", "desktop/RELEASE_NOTES.md")
           if ('${{ inputs.prerelease }}' -eq 'true') { $releaseArgs += "--prerelease" }
           & gh @releaseArgs
       - name: Stop Gradle

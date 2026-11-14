@@ -115,6 +115,9 @@ internal fun EntryProviderScope<NavKey>.tabRootEntries(nav: StackEntryScope) = w
             onDismissOneHandTip = { scope.launch { container.settingsRepository.dismissOneHandTip() } },
             onOpenSettings = { backStack.add(SettingsKey) },
             scrollToTopRequests = notificationsScrollToTopRequests(),
+            onReminderClick = { backStack.add(PostDetailKey(it.postId)) },
+            onOpenKeywords = { backStack.add(TitleKeywordsKey(alerts = true)) },
+            onOpenTracked = { backStack.add(TrackedThreadsKey) },
         )
     }
 

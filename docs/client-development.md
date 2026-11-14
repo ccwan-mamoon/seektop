@@ -13,6 +13,8 @@
 
 业务包名为 `io.github.seektop`；通用库位于 `io.github.seektop.foundation`，与站点专属的 `io.github.seektop.core` 分开。Gradle 插件前缀为 `seektop`，根工程为 `SeekTop`，iOS 工程为 `SeekTop.xcodeproj`，framework 为 `SeekTopShell`。
 
+插件预留位于 `shared` 的 `io.github.seektop.plugins`，通过 `AppContainer.pluginRegistry` 暴露只读入口，目前保持关闭。具体边界见[插件扩展预留](plugin-extension-points.md)。
+
 ## 新电脑准备
 
 使用 JDK 21、Python 3.11+、Windows .NET Framework 编译器和仓库 Gradle wrapper。当前构建仍配置 Android 模块，需要 Android SDK 37。
@@ -29,6 +31,8 @@ node desktop/tests/test_notifications.cjs
 ```
 
 输出为 `desktop/build/compose/binaries/main/app/SeekTop`，保留整个目录。发布以 `.github/workflows/windows-desktop.yml` 为准。桌面版本来自 `gradle/libs.versions.toml` 的 `versions.seektop`；Android 版本属性为 `seektop.android.versionCode/versionName`，与桌面版本独立。
+
+正式发布同时生成 EXE 安装包、便携 ZIP、源码包和 SHA-256 清单。安装编译器准备、安装卸载回归及本机打包命令见[桌面发布说明](../desktop/README.md#发布安装包与便携包)。自动更新继续使用 ZIP。
 
 ## 改名兼容
 

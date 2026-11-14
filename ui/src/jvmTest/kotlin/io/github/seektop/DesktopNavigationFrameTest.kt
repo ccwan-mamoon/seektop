@@ -2,6 +2,9 @@ package io.github.seektop
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -26,7 +29,8 @@ class DesktopNavigationFrameTest {
         var created = 0
         var wentBack = 0
         var openedBoard = 0
-        var slug: String? = null
+        var feedRefreshes = 0
+        var slug by mutableStateOf<String?>(null)
         setContent {
             MaterialTheme {
                 DesktopAwareNavigationFrame(
@@ -45,7 +49,8 @@ class DesktopNavigationFrameTest {
                     onOpenBoard = { openedBoard++ },
                     mobileNavigation = { error("Desktop must not use mobile navigation") },
                 ) {
-                    PublishDesktopBoards(io.github.seektop.data.CategoryRepository.initialBoards, slug) { slug = it }
+                    PublishDesktopBoards(io.github.seektop.data.CategoryRepository.initialBoards, slug)
+                    ConsumeDesktopBoardSelection(slug, 1, { slug = it }, { feedRefreshes++ })
                     Text("Nested reader")
                 }
             }
@@ -56,8 +61,22 @@ class DesktopNavigationFrameTest {
         // Compact board navigation must open Home as well as publish the slug:
         // merely changing the board while a nested page is shown is invisible.
         onNodeWithContentDescription("技术").performClick()
+        waitForIdle()
         assertEquals(1, openedBoard)
         assertEquals("tech", slug)
+        assertEquals(1, feedRefreshes)
+        onNodeWithContentDescription("首页").performClick()
+        waitForIdle()
+        assertEquals(TopLevelDestination.HOME, selected)
+        assertEquals(null, slug)
+        assertEquals(2, feedRefreshes)
+        onNodeWithContentDescription("技术").performClick()
+        waitForIdle()
+        onNodeWithContentDescription("SeekTop").performClick()
+        waitForIdle()
+        assertEquals(TopLevelDestination.HOME, selected)
+        assertEquals(null, slug)
+        assertEquals(4, feedRefreshes)
         onNodeWithText("发帖").performClick()
         assertEquals(1, created)
         onNodeWithContentDescription("返回").performClick()

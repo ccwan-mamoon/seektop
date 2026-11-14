@@ -15,6 +15,8 @@ import io.github.seektop.ui.navigation.TopLevelDestination
  * a navigation fact, and the only thing platform-shaped about it is where it arrives from.
  */
 sealed interface LaunchRequest {
+    data class OpenNotification(val destination: io.github.seektop.data.NotificationDestination) : LaunchRequest
+
     /** A notification tap, or the 通知 launcher shortcut. */
     data class OpenTab(val tab: TopLevelDestination) : LaunchRequest
 

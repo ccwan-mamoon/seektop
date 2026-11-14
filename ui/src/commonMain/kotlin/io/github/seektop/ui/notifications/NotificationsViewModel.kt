@@ -15,6 +15,8 @@ import io.github.seektop.data.NotificationTab
 import io.github.seektop.data.SearchRepository
 import io.github.seektop.data.UserSearchResult
 import io.github.seektop.data.session.SessionRepository
+import io.github.seektop.data.settings.Reminder
+import io.github.seektop.data.settings.ReminderInbox
 import io.github.seektop.di.AppContainer
 import io.github.seektop.foundation.core.AppClock
 import io.github.seektop.foundation.core.net.SiteError
@@ -37,6 +39,7 @@ class NotificationsViewModel(
     private val search: SearchRepository,
     private val session: SessionRepository,
     private val clock: AppClock,
+    private val reminderInbox: ReminderInbox? = null,
 ) : ViewModel() {
     private val _uiState =
         MutableStateFlow(NotificationsUiState(isSignedIn = session.state.value.isSignedIn))
@@ -48,8 +51,14 @@ class NotificationsViewModel(
         session.state
             .distinctUntilChangedBy { it.generation }
             .onEach { value ->
+                loadJob?.cancel()
                 _uiState.update {
-                    if (value.isSignedIn) it.copy(isSignedIn = true) else NotificationsUiState()
+                    NotificationsUiState(
+                        isSignedIn = value.isSignedIn,
+                        selectedTab = it.selectedTab,
+                        reminders = it.reminders,
+                        counts = NotificationCounts(reminders = it.reminders.count { row -> row.isUnread }),
+                    )
                 }
                 // Signing out has to empty the badge at the source too, or the counts the previous
                 // account was carrying stay in the repository waiting to be re-emitted.
@@ -58,8 +67,11 @@ class NotificationsViewModel(
         // The badges are the repository's, not this screen's: a conversation read on board 7f has to
         // move them too, and that happens while this view model is doing nothing at all.
         repository.counts
-            .onEach { counts -> _uiState.update { it.copy(counts = counts) } }
+            .onEach { counts -> _uiState.update { it.copy(counts = counts.copy(reminders = it.reminders.count { row -> row.isUnread })) } }
             .launchIn(viewModelScope)
+        reminderInbox?.reminders?.onEach { reminders ->
+            _uiState.update { it.copy(reminders = reminders, counts = it.counts.copy(reminders = reminders.count { row -> row.isUnread })) }
+        }?.launchIn(viewModelScope)
     }
 
     /**
@@ -72,7 +84,7 @@ class NotificationsViewModel(
     fun selectTab(tab: NotificationTab) {
         if (_uiState.value.selectedTab == tab) return
         _uiState.update { it.copy(selectedTab = tab) }
-        refresh()
+        if (tab != NotificationTab.REMINDERS) refresh()
     }
 
     /**
@@ -153,6 +165,10 @@ class NotificationsViewModel(
      */
     fun markAllRead() {
         val tab = _uiState.value.selectedTab
+        if (tab == NotificationTab.REMINDERS) {
+            viewModelScope.launch { reminderInbox?.markRead() }
+            return
+        }
         val state = _uiState.value
         // Only the groups the button belongs to. Zeroing the whole `NotificationCounts` used to wipe
         // every badge, so 全部已读 on 通知 also claimed the unread 私信 had been read.
@@ -161,8 +177,8 @@ class NotificationsViewModel(
         }
         _uiState.update {
             it.copy(
-                items = it.items.map(ForumNotification::read),
-                conversations = it.conversations.map { row -> row.copy(unreadCount = 0) },
+                items = if (tab == NotificationTab.INTERACTIONS) it.items.map(ForumNotification::read) else it.items,
+                conversations = if (tab == NotificationTab.MESSAGES) it.conversations.map { row -> row.copy(unreadCount = 0) } else it.conversations,
             )
         }
         viewModelScope.launch {
@@ -197,6 +213,10 @@ class NotificationsViewModel(
             // folded row is two unread rows on the server.
             runCatchingExceptCancellation { repository.markViewed(item.sources) }
         }
+    }
+
+    fun markReminderOpened(id: String) {
+        viewModelScope.launch { reminderInbox?.markRead(id) }
     }
 
     /**
@@ -277,6 +297,7 @@ class NotificationsViewModel(
                         search = container.searchRepository,
                         session = container.sessionRepository,
                         clock = container.clock,
+                        reminderInbox = container.settingsRepository.reminderInbox,
                     )
                 }
             }
@@ -303,6 +324,7 @@ data class NotificationsUiState(
     val counts: NotificationCounts = NotificationCounts(),
     val items: List<ForumNotification> = emptyList(),
     val conversations: List<MessageConversation> = emptyList(),
+    val reminders: List<Reminder> = emptyList(),
     val isLoading: Boolean = false,
     /** What each group's last load failed with, if it did. Absent groups loaded, or never ran. */
     val errors: Map<NotificationTab, SiteError> = emptyMap(),
@@ -311,7 +333,11 @@ data class NotificationsUiState(
     val newConversation: NewConversationState = NewConversationState(),
 ) {
     val hasUnread: Boolean
-        get() = items.any(ForumNotification::isUnread) || conversations.any { it.unreadCount > 0 }
+        get() = when (selectedTab) {
+            NotificationTab.INTERACTIONS -> items.any(ForumNotification::isUnread)
+            NotificationTab.MESSAGES -> conversations.any { it.unreadCount > 0 }
+            NotificationTab.REMINDERS -> reminders.any { it.isUnread }
+        }
 
     val isEmpty: Boolean
         get() = isEmptyOf(selectedTab)
@@ -321,5 +347,9 @@ data class NotificationsUiState(
         get() = errors[selectedTab]
 
     fun isEmptyOf(tab: NotificationTab): Boolean =
-        if (tab == NotificationTab.MESSAGES) conversations.isEmpty() else items.isEmpty()
+        when (tab) {
+            NotificationTab.MESSAGES -> conversations.isEmpty()
+            NotificationTab.INTERACTIONS -> items.isEmpty()
+            NotificationTab.REMINDERS -> reminders.isEmpty()
+        }
 }

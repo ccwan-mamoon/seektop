@@ -1665,4 +1665,8 @@
     <string name="desktop_start_failed">Startup could not finish</string>
     <string name="desktop_start_failed_detail">The application environment could not be prepared. Please retry. Details are saved in the local startup log.</string>
     <string name="desktop_start_exit">Exit application</string>
+    <string name="notifications_reminders">Reminders</string>
+    <string name="notifications_reminders_empty">No reminders yet. Keyword matches and tracked replies appear here.</string>
+    <string name="notifications_keyword_match">Matched keyword: %1$s</string>
+    <string name="notifications_tracked_update">Tracked thread: %1$s new replies</string>
 </resources>

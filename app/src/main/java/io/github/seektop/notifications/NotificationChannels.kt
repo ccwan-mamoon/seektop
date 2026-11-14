@@ -40,6 +40,7 @@ object NotificationChannels {
         when (tab) {
             NotificationTab.INTERACTIONS -> INTERACTIONS
             NotificationTab.MESSAGES -> MESSAGES
+            NotificationTab.REMINDERS -> error("Local reminders use thread-specific channels")
         }
 
     fun ensure(context: Context) {

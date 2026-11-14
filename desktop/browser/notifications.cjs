@@ -1,14 +1,24 @@
 const path = require("node:path");
 const fs = require("node:fs");
+const targets = require("./notification-target.cjs");
 const AUMID = "ccwan.SeekTop.Desktop";
 const CLSID = "{A274136F-8EC4-419A-A415-451745E39130}";
 
 // Electron 45 registers its native COM activator. Use a stable identity and its
 // official shortcut API so toasts participate in Windows Notification Center.
-function createNotificationService({ app, Notification, shell }, desktopExe) {
+function createNotificationService({ app, Notification, shell }, desktopExe, activationFile) {
     let configured = false;
     let error = "";
     let clicked = false;
+    const pending = [];
+    const seen = new Set();
+    function activate(value) {
+        if (disposed || seen.has(value.id)) return;
+        seen.add(value.id);
+        if (seen.size > 512) seen.delete(seen.values().next().value);
+        pending.push(value);
+        clicked = true;
+    }
     let disposed = false;
     const active = new Set();
     app.setName("SeekTop");
@@ -16,7 +26,10 @@ function createNotificationService({ app, Notification, shell }, desktopExe) {
         app.setAppUserModelId(AUMID);
         app.setToastActivatorCLSID(CLSID);
     }
-    Notification.handleActivation(() => { if (!disposed) clicked = true; });
+    Notification.handleActivation(details => {
+        try { activate(targets.decode(details.arguments)); }
+        catch { if (!disposed) clicked = true; } // Notifications from older versions open the inbox.
+    });
 
     function configure() {
         if (configured) return status();
@@ -48,11 +61,25 @@ function createNotificationService({ app, Notification, shell }, desktopExe) {
         return status();
     }
     function status() {
-        const result = { available: configured && !error && !disposed, clicked, error };
+        // Windows may activate a fresh helper process rather than the live one.
+        // Its handoff is consumed once by the authenticated parent's polling loop.
+        if (activationFile) {
+            try {
+                const age = Date.now() - fs.statSync(activationFile).mtimeMs;
+                const content = fs.readFileSync(activationFile, "utf8");
+                fs.unlinkSync(activationFile);
+                if (age >= -1000 && age < 30000 && !disposed) {
+                    try { activate(targets.decode(content)); } catch { clicked = true; }
+                }
+            } catch (failure) {
+                if (failure.code !== "ENOENT") error = failure.message;
+            }
+        }
+        const result = { available: configured && !error && !disposed, clicked: clicked || pending.length > 0, activations: pending.splice(0, 1), error };
         clicked = false;
         return result;
     }
-    async function show({ title, body }) {
+    async function show({ title, body, destination }) {
         if (disposed) throw Error("Notification service has stopped");
         if (!configured && !configure().available) throw Error(error);
         if (typeof title !== "string" || typeof body !== "string" || title.length > 256 || body.length > 4096)
@@ -60,7 +87,10 @@ function createNotificationService({ app, Notification, shell }, desktopExe) {
         // Retain a bounded set: close removes a toast from Action Center. Never
         // close on timeout, otherwise reminders disappear before they are read.
         if (active.size >= 128) active.delete(active.values().next().value);
-        const notification = new Notification({ title, body, icon: path.join(__dirname, "seektop.png"), groupId: "seektop", groupTitle: "SeekTop" });
+        const target = targets.activation(destination);
+        const iconUrl = require("node:url").pathToFileURL(path.join(__dirname, "seektop.png")).href;
+        const toastXml = `<toast launch="seektop:${targets.encode(target)}"><visual><binding template="ToastGeneric"><text>${targets.xml(title)}</text><text>${targets.xml(body)}</text><image placement="appLogoOverride" src="${targets.xml(iconUrl)}"/></binding></visual></toast>`;
+        const notification = new Notification({ title, body, toastXml, icon: path.join(__dirname, "seektop.png"), groupId: "seektop", groupTitle: "SeekTop" });
         active.add(notification);
         await new Promise((resolve, reject) => {
             let settled = false;
@@ -81,7 +111,7 @@ function createNotificationService({ app, Notification, shell }, desktopExe) {
                 active.delete(notification);
             });
             notification.on("click", () => {
-                if (!disposed) clicked = true;
+                activate(target);
                 active.delete(notification);
             });
             notification.on("close", (_event, details) => {

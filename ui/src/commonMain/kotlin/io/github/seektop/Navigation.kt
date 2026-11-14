@@ -301,7 +301,30 @@ fun MainNavigation(
         when (val request = launchRequest) {
             null -> return@LaunchedEffect
 
-            is LaunchRequest.OpenTab -> currentTab = request.tab
+            is LaunchRequest.OpenNotification -> {
+                val target = request.destination
+                currentTab = TopLevelDestination.NOTIFICATIONS
+                notificationsViewModel.selectTab(target.tab)
+                if (notificationsStack.openDesktopNotification(target, container.sessionRepository.state.value.fingerprint)) {
+                    target.reminderId?.let { container.settingsRepository.reminderInbox.markRead(it) }
+                }
+            }
+
+            is LaunchRequest.OpenTab -> {
+                currentTab = request.tab
+                if (desktop) {
+                    when (request.tab) {
+                        TopLevelDestination.HOME -> homeStack.returnToDesktopRoot()
+
+                        TopLevelDestination.NOTIFICATIONS -> {
+                            notificationsStack.returnToDesktopRoot()
+                            notificationsViewModel.refresh()
+                        }
+
+                        TopLevelDestination.PROFILE -> profileStack.returnToDesktopRoot()
+                    }
+                }
+            }
 
             // 搜索 and 发帖 ride 首页's stack wherever else they are opened from, so a shortcut or a
             // text selection lands them there too — and Back walks out through the feed.
@@ -579,7 +602,15 @@ fun MainNavigation(
         onPinnedBoardsChange = { slugs -> scope.launch { container.settingsRepository.setDesktopBoardSlugs(slugs) } },
         current = currentTab,
         unreadCount = notificationsState.counts.all,
-        onSelect = { currentTab = it },
+        onSelect = { destination ->
+            desktopSearch.exitSearch()
+            when (destination) {
+                TopLevelDestination.HOME -> homeStack.returnToDesktopRoot()
+                TopLevelDestination.NOTIFICATIONS -> notificationsStack.returnToDesktopRoot()
+                TopLevelDestination.PROFILE -> profileStack.returnToDesktopRoot()
+            }
+            currentTab = destination
+        },
         canGoBack = backStack.size > 1,
         onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
         onSearch = { if (backStack.lastOrNull() != SearchKey()) backStack.add(SearchKey()) },

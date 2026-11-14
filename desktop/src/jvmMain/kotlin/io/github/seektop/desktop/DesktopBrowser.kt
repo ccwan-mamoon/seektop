@@ -70,12 +70,13 @@ class DesktopBrowser(executable: File, helper: File, directory: File) :
 
     suspend fun notificationStatus(): JsonObject = withContext(Dispatchers.IO) { call("notification-status") }
 
-    suspend fun toast(title: String, body: String): Unit = withContext(Dispatchers.IO) {
+    suspend fun toast(title: String, body: String, destination: io.github.seektop.data.NotificationDestination): Unit = withContext(Dispatchers.IO) {
         call(
             "notification-show",
             buildJsonObject {
                 put("title", title)
                 put("body", body)
+                put("destination", Json { encodeDefaults = true }.encodeToJsonElement(io.github.seektop.data.NotificationDestination.serializer(), destination))
             },
         )
         Unit

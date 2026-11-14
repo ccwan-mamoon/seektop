@@ -1,7 +1,11 @@
 package io.github.seektop.desktop
 
 import io.github.seektop.data.NotificationCounts
+import io.github.seektop.data.NotificationDestination
+import io.github.seektop.data.NotificationTab
 import io.github.seektop.data.settings.DesktopNotificationKind
+import io.github.seektop.data.settings.Reminder
+import io.github.seektop.data.settings.ReminderKind
 import io.github.seektop.data.settings.UserSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +51,7 @@ private data class NotificationMonitorKey(
     val account: Int?,
 )
 
-internal suspend fun monitorDesktopNotifications(container: DesktopAppContainer, deliver: suspend (String, String) -> Unit) {
+internal suspend fun monitorDesktopNotifications(container: DesktopAppContainer, deliver: suspend (String, String, NotificationDestination) -> Unit) {
     var tracker = DesktopUnreadTracker()
     var account: Int? = null
     var activeSiteKinds = emptySet<DesktopNotificationKind>()
@@ -103,22 +107,49 @@ internal suspend fun monitorDesktopNotifications(container: DesktopAppContainer,
             if (siteKinds.isNotEmpty()) {
                 val success = check {
                     val (interactions, messages) = tracker.accept(counts(), settings, quiet(), DesktopNotificationKind.INTERACTIONS in due, DesktopNotificationKind.MESSAGES in due)
-                    if (interactions > 0) deliver("SeekTop · 新互动", "有 $interactions 条新回复或提及，点击打开 SeekTop 查看。")
-                    if (messages > 0) deliver("SeekTop · 新私信", "有 $messages 条新私信，点击打开 SeekTop 查看。")
+                    if (interactions > 0) {
+                        val rows = container.notificationRepository.interactions().filter { it.isUnread && it.postId != null }
+                            .sortedByDescending { it.createdAtMillis ?: 0 }.take(interactions.coerceAtMost(20))
+                        if (rows.isEmpty()) deliver("SeekTop · 新互动", "有 $interactions 条新回复或提及。", NotificationDestination(account = key.account))
+                        rows.forEach { row ->
+                            deliver("SeekTop · 新互动", "${row.actorName} · ${row.threadTitle.orEmpty()}", NotificationDestination(postId = row.postId, floor = row.floor, account = key.account))
+                        }
+                    }
+                    if (messages > 0) {
+                        val rows = container.messageRepository.conversations().filter { it.unreadCount > 0 }
+                            .sortedByDescending { it.updatedAtMillis ?: 0 }.take(20)
+                        if (rows.isEmpty()) deliver("SeekTop · 新私信", "有 $messages 条新私信。", NotificationDestination(tab = NotificationTab.MESSAGES, account = key.account))
+                        rows.forEach { row ->
+                            deliver("SeekTop · 新私信", "${row.userName} · ${row.unreadCount} 条未读私信", NotificationDestination(tab = NotificationTab.MESSAGES, uid = row.uid, userName = row.userName, account = key.account))
+                        }
+                    }
                 }
                 siteKinds.forEach { schedule.completed(it, now(), success) }
             }
             if (DesktopNotificationKind.KEYWORDS in due) {
                 val success = check {
                     val hits = container.backgroundAlerts.checkKeywords()
-                    if (!quiet() && hits.isNotEmpty()) deliver("SeekTop · 关键词提醒", "${hits.size} 个新主题匹配关键词：${hits.first().title}")
+                    val reminders = hits.map { Reminder("keyword:${it.postId}", ReminderKind.KEYWORD, it.postId, it.title, it.keyword, container.clock.nowMillis()) }
+                    container.settingsRepository.reminderInbox.add(reminders)
+                    if (!quiet()) {
+                        reminders.forEach { reminder ->
+                            deliver("SeekTop · 关键词提醒", reminder.title, NotificationDestination(NotificationTab.REMINDERS, postId = reminder.postId, reminderId = reminder.id))
+                        }
+                    }
                 }
                 schedule.completed(DesktopNotificationKind.KEYWORDS, now(), success)
             }
             if (DesktopNotificationKind.TRACKED in due) {
                 val success = check {
                     val updates = container.backgroundAlerts.checkTrackedThreads()
-                    if (!quiet() && updates.isNotEmpty()) deliver("SeekTop · 追踪的新回复", "${updates.size} 个追踪主题有新回复：${updates.first().title}")
+                    val stamp = container.clock.nowMillis()
+                    val reminders = updates.map { Reminder("tracked:${it.postId}:$stamp", ReminderKind.TRACKED, it.postId, it.title, it.newReplies.toString(), stamp) }
+                    container.settingsRepository.reminderInbox.add(reminders)
+                    if (!quiet()) {
+                        reminders.forEach { reminder ->
+                            deliver("SeekTop · 追踪的新回复", reminder.title, NotificationDestination(NotificationTab.REMINDERS, postId = reminder.postId, reminderId = reminder.id))
+                        }
+                    }
                 }
                 schedule.completed(DesktopNotificationKind.TRACKED, now(), success)
             }

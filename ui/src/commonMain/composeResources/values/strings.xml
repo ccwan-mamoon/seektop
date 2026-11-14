@@ -1933,4 +1933,8 @@
     <string name="desktop_start_failed">启动未完成</string>
     <string name="desktop_start_failed_detail">无法准备运行环境，请重试。详细信息已保存到本机启动日志。</string>
     <string name="desktop_start_exit">退出应用</string>
+    <string name="notifications_reminders">提醒</string>
+    <string name="notifications_reminders_empty">还没有提醒。关键词命中和追踪的新回复会显示在这里。</string>
+    <string name="notifications_keyword_match">命中关键词：%1$s</string>
+    <string name="notifications_tracked_update">追踪主题新增 %1$s 条回复</string>
 </resources>

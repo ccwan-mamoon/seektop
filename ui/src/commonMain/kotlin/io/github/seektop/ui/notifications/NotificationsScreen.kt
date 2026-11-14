@@ -73,6 +73,8 @@ import io.github.seektop.data.NotificationCounts
 import io.github.seektop.data.NotificationSource
 import io.github.seektop.data.NotificationTab
 import io.github.seektop.data.UserSearchResult
+import io.github.seektop.data.settings.Reminder
+import io.github.seektop.data.settings.ReminderKind
 import io.github.seektop.foundation.core.TimeFormat
 import io.github.seektop.foundation.designsys.component.GroupedListItem
 import io.github.seektop.foundation.designsys.component.LayerPageGutter
@@ -103,6 +105,7 @@ import io.github.seektop.ui.resources.history_section_earlier
 import io.github.seektop.ui.resources.history_section_today
 import io.github.seektop.ui.resources.history_section_week
 import io.github.seektop.ui.resources.history_section_yesterday
+import io.github.seektop.ui.resources.keywords_alert_title
 import io.github.seektop.ui.resources.notification_sentence_mention
 import io.github.seektop.ui.resources.notification_sentence_reply
 import io.github.seektop.ui.resources.notification_sentence_reply_mention
@@ -110,11 +113,16 @@ import io.github.seektop.ui.resources.notification_time_pair
 import io.github.seektop.ui.resources.notification_unknown_thread
 import io.github.seektop.ui.resources.notifications_empty
 import io.github.seektop.ui.resources.notifications_interactions
+import io.github.seektop.ui.resources.notifications_keyword_match
 import io.github.seektop.ui.resources.notifications_mark_all_read
 import io.github.seektop.ui.resources.notifications_messages
 import io.github.seektop.ui.resources.notifications_one_hand_tip
 import io.github.seektop.ui.resources.notifications_one_hand_tip_settings
+import io.github.seektop.ui.resources.notifications_reminders
+import io.github.seektop.ui.resources.notifications_reminders_empty
+import io.github.seektop.ui.resources.notifications_tracked_update
 import io.github.seektop.ui.resources.tab_notifications
+import io.github.seektop.ui.resources.tracked_threads_title
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
@@ -135,6 +143,9 @@ fun NotificationsRoute(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     scrollToTopRequests: Int = 0,
+    onReminderClick: (Reminder) -> Unit = {},
+    onOpenKeywords: () -> Unit = {},
+    onOpenTracked: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // Coming back into view is the refresh trigger this screen was missing: the view model outlives
@@ -172,6 +183,12 @@ fun NotificationsRoute(
         onOpenSettings = onOpenSettings,
         modifier = modifier,
         scrollToTopRequests = scrollToTopRequests,
+        onReminderClick = {
+            viewModel.markReminderOpened(it.id)
+            onReminderClick(it)
+        },
+        onOpenKeywords = onOpenKeywords,
+        onOpenTracked = onOpenTracked,
     )
 }
 
@@ -268,9 +285,12 @@ fun NotificationsScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     scrollToTopRequests: Int = 0,
+    onReminderClick: (Reminder) -> Unit = {},
+    onOpenKeywords: () -> Unit = {},
+    onOpenTracked: () -> Unit = {},
 ) {
     if (io.github.seektop.LocalDesktopExperience.current) {
-        DesktopNotifications(state, onSignIn, onVerify, onTabChange, onRetry, onMarkAllRead, onNotificationClick, onConversationClick, onNewConversation, onNewConversationQueryChange, onNewConversationSearch, onNewConversationDismiss, onRecipientClick, modifier, scrollToTopRequests)
+        DesktopNotifications(state, onSignIn, onVerify, onTabChange, onRetry, onMarkAllRead, onNotificationClick, onConversationClick, onNewConversation, onNewConversationQueryChange, onNewConversationSearch, onNewConversationDismiss, onRecipientClick, modifier, scrollToTopRequests, onReminderClick, onOpenKeywords, onOpenTracked)
         return
     }
     val appBarState = rememberOneHandAppBarState()
@@ -306,7 +326,7 @@ fun NotificationsScreen(
      * The pager also settles the gesture: the list inside claims a drag that crosses its own slop
      * vertically first, and from then on the pager sees every change as consumed and cannot start.
      */
-    val tabs = NotificationTab.entries
+    val tabs = NotificationTab.entries.filter { it != NotificationTab.REMINDERS }
     val pagerState =
         rememberTabPagerState(
             selectedIndex = tabs.indexOf(state.selectedTab).coerceAtLeast(0),
@@ -799,6 +819,7 @@ private fun NotificationTab.label(): String =
         when (this) {
             NotificationTab.INTERACTIONS -> Res.string.notifications_interactions
             NotificationTab.MESSAGES -> Res.string.notifications_messages
+            NotificationTab.REMINDERS -> Res.string.notifications_reminders
         },
     )
 
@@ -923,10 +944,18 @@ private fun DesktopNotifications(
     onRecipientClick: (UserSearchResult) -> Unit,
     modifier: Modifier,
     scrollToTopRequests: Int,
+    onReminderClick: (Reminder) -> Unit,
+    onOpenKeywords: () -> Unit,
+    onOpenTracked: () -> Unit,
 ) {
     val notifications = rememberLazyListState()
     val conversations = rememberLazyListState()
-    val selectedState = if (state.selectedTab == NotificationTab.MESSAGES) conversations else notifications
+    val reminders = rememberLazyListState()
+    val selectedState = when (state.selectedTab) {
+        NotificationTab.MESSAGES -> conversations
+        NotificationTab.REMINDERS -> reminders
+        NotificationTab.INTERACTIONS -> notifications
+    }
     val scope = rememberCoroutineScope()
     var answered by rememberSaveable { mutableIntStateOf(scrollToTopRequests) }
     LaunchedEffect(scrollToTopRequests) {
@@ -936,7 +965,7 @@ private fun DesktopNotifications(
         }
     }
     fun refresh() {
-        onRetry()
+        if (state.selectedTab != NotificationTab.REMINDERS) onRetry()
         scope.launch { selectedState.scrollToItem(0) }
     }
     io.github.seektop.DesktopRefreshTarget(1, ::refresh)
@@ -952,7 +981,9 @@ private fun DesktopNotifications(
         }
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (!state.isSignedIn) {
+            if (state.selectedTab == NotificationTab.REMINDERS) {
+                ReminderList(state.reminders, reminders, onReminderClick, onOpenKeywords, onOpenTracked)
+            } else if (!state.isSignedIn) {
                 SignedOutState(onSignIn = onSignIn)
             } else {
                 io.github.seektop.ui.common.DesktopScrollbars(selectedState) {
@@ -965,7 +996,48 @@ private fun DesktopNotifications(
                     }
                 }
             }
-            io.github.seektop.ui.common.DesktopRefreshButton(::refresh, Modifier.align(Alignment.BottomEnd).padding(16.dp), enabled = !state.isLoading)
+            if (state.selectedTab != NotificationTab.REMINDERS) {
+                io.github.seektop.ui.common.DesktopRefreshButton(::refresh, Modifier.align(Alignment.BottomEnd).padding(16.dp), enabled = !state.isLoading)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ReminderList(
+    reminders: List<Reminder>,
+    listState: LazyListState,
+    onOpen: (Reminder) -> Unit,
+    onKeywords: () -> Unit,
+    onTracked: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.padding(horizontal = 16.dp)) {
+            TextButton(onClick = onKeywords) { Text(stringResource(Res.string.keywords_alert_title)) }
+            TextButton(onClick = onTracked) { Text(stringResource(Res.string.tracked_threads_title)) }
+        }
+        if (reminders.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(stringResource(Res.string.notifications_reminders_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            io.github.seektop.ui.common.DesktopScrollbars(listState) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 72.dp)) {
+                    items(reminders, key = { it.id }) { reminder ->
+                        androidx.compose.material3.ListItem(
+                            headlineContent = { Text(reminder.title, fontWeight = if (reminder.isUnread) FontWeight.SemiBold else FontWeight.Normal) },
+                            supportingContent = {
+                                Column {
+                                    Text(stringResource(if (reminder.kind == ReminderKind.KEYWORD) Res.string.notifications_keyword_match else Res.string.notifications_tracked_update, reminder.detail))
+                                    Text(TimeFormat.absolute(reminder.createdAtMillis), style = MaterialTheme.typography.labelSmall)
+                                }
+                            },
+                            trailingContent = { if (reminder.isUnread) Badge() },
+                            modifier = Modifier.clickable { onOpen(reminder) },
+                        )
+                    }
+                }
+            }
         }
     }
 }

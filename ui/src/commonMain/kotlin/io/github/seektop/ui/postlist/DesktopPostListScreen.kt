@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +61,7 @@ import io.github.seektop.ui.resources.desktop_search_login_required
 import io.github.seektop.ui.resources.sort_by_post_time
 import io.github.seektop.ui.resources.sort_by_reply_time
 import io.github.seektop.ui.resources.tab_home
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
@@ -95,8 +97,14 @@ internal fun DesktopPostListScreen(
         scope.launch { listState.scrollToItem(0) }
     }
     io.github.seektop.DesktopRefreshTarget(priority = 1, onRefresh = ::refreshFromTop)
-    io.github.seektop.PublishDesktopBoards((state.boards + state.parkedBoards).distinctBy { it.slug }, state.categorySlug) { slug ->
-        onBoardClick(slug)
+    io.github.seektop.PublishDesktopBoards((state.boards + state.parkedBoards).distinctBy { it.slug }, state.categorySlug)
+    io.github.seektop.ConsumeDesktopBoardSelection(state.categorySlug, state.startPage, onBoardClick) {
+        // Paging installs its refresh receiver when the first generation is presented.
+        // A click received while returning from Settings must wait for that receiver.
+        snapshotFlow { posts.loadState.source.refresh }.first { it !is LoadState.Loading }
+        posts.refresh()
+        topRequest++
+        listState.scrollToItem(0)
     }
     val boardRequest = io.github.seektop.LocalDesktopBoardNavigation.current?.selectionGeneration ?: 0
     var lastSlug by rememberSaveable { mutableStateOf(state.categorySlug) }

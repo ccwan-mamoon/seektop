@@ -263,6 +263,7 @@ class NotificationPollWorker(
         when (tab) {
             NotificationTab.INTERACTIONS -> R.string.notifications_interactions
             NotificationTab.MESSAGES -> R.string.notifications_messages
+            NotificationTab.REMINDERS -> error("Local reminders use thread-specific notifications")
         }
 
     private companion object {
@@ -278,5 +279,6 @@ class NotificationPollWorker(
         when (tab) {
             NotificationTab.INTERACTIONS -> R.plurals.notify_body_interactions
             NotificationTab.MESSAGES -> R.plurals.notify_body_messages
+            NotificationTab.REMINDERS -> error("Local reminders use thread-specific notifications")
         }
 }

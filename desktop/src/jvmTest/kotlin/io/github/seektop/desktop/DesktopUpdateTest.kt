@@ -80,6 +80,7 @@ class DesktopUpdateTest {
         assertEquals(null, newestDesktopRelease(list, "1.0.0", true))
         assertEquals(null, newestDesktopRelease("[${updateFixture().replace(DESKTOP_REPOSITORY, "https://example.com/repo")}]", "0.4.0", true))
         assertEquals(null, newestDesktopRelease("[${updateFixture().replace("-windows-x64.zip", "-source.zip")}]", "0.4.0", true))
+        assertEquals(null, newestDesktopRelease("[${updateFixture().replace("-windows-x64.zip", "-windows-x64-setup.exe")}]", "0.4.0", true))
         assertEquals(null, newestDesktopRelease("[${updateFixture(digest = "broken")}]", "0.4.0", true))
         assertFalse(trustedUpdateConnection("http://github.com/file"))
         assertFalse(trustedUpdateConnection("https://github.com.evil.example/file"))

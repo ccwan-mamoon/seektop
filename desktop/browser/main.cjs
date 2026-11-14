@@ -1,18 +1,43 @@
 const { app, BrowserWindow, session, Menu } = require("electron");
 const http = require("http");
 const token = process.env.SEEKTOP_BRIDGE_TOKEN;
+const notificationTargets = require("./notification-target.cjs");
+const activationPath = require("node:path").join(
+    process.env.SEEKTOP_BROWSER_DATA || require("node:path").join(process.env.LOCALAPPDATA || require("node:path").join(require("node:os").homedir(), "AppData/Local"), "SeekTop/browser"),
+    "notification-activation",
+);
 // A Start Menu / Action Center launch must open the desktop shell, rather than
 // leave an invisible Chromium helper running without its authenticated parent.
 if (!token) {
     const path = require("node:path");
     const launcher = path.resolve(process.resourcesPath, "../../../../SeekTop.exe");
-    if (require("node:fs").existsSync(launcher)) {
-        require("node:child_process").spawn(launcher, [], { detached: true, stdio: "ignore", windowsHide: true }).unref();
-    }
-    app.quit();
+    const fs = require("node:fs");
+    fs.mkdirSync(path.dirname(activationPath), { recursive: true });
+    const writeActivation = value => fs.writeFileSync(activationPath, notificationTargets.encode(value));
+    let activationReceived = false;
+    const { Notification } = require("electron");
+    const { AUMID, CLSID } = require("./notifications.cjs");
+    app.setName("SeekTop");
+    app.setAppUserModelId(AUMID);
+    app.setToastActivatorCLSID(CLSID);
+    Notification.handleActivation(details => {
+        activationReceived = true;
+        try { writeActivation(notificationTargets.decode(details.arguments)); }
+        catch { writeActivation(notificationTargets.activation()); }
+    });
+    // Give the live shell a chance to acknowledge the click; otherwise cold-start it.
+    setTimeout(() => {
+        if (!activationReceived) writeActivation(notificationTargets.activation());
+        if (fs.existsSync(activationPath) && fs.existsSync(launcher)) {
+            const target = fs.readFileSync(activationPath, "utf8");
+            fs.unlinkSync(activationPath);
+            require("node:child_process").spawn(launcher, ["--notification-target", target], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+        }
+        app.quit();
+    }, 2000);
 } else {
 app.setPath("userData", process.env.SEEKTOP_BROWSER_DATA);
-const notifications = require("./notifications.cjs").createNotificationService(require("electron"), process.env.SEEKTOP_DESKTOP_EXE);
+const notifications = require("./notifications.cjs").createNotificationService(require("electron"), process.env.SEEKTOP_DESKTOP_EXE, activationPath);
 app.on("before-quit", () => notifications.dispose());
 app.whenReady().then(() => {
     // Storage compatibility: retain existing SeekTop users' forum cookies.

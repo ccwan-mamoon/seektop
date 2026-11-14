@@ -2,6 +2,7 @@ package io.github.seektop
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,6 +69,7 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -127,6 +129,10 @@ internal fun DesktopAwareNavigationFrame(
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     val boardNavigation = remember { DesktopBoardNavigation() }
+    val selectDestination: (TopLevelDestination) -> Unit = { destination ->
+        if (destination == TopLevelDestination.HOME) boardNavigation.select(null)
+        onSelect(destination)
+    }
     var managingBoards by remember { mutableStateOf(false) }
     var menuCollapsed by rememberSaveable { mutableStateOf(true) }
     var boardsExpanded by rememberSaveable { mutableStateOf(true) }
@@ -164,7 +170,7 @@ internal fun DesktopAwareNavigationFrame(
         Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, contentColor = MaterialTheme.colorScheme.onSurface) {
             Column(Modifier.width(if (menuCollapsed) 72.dp else 216.dp).fillMaxHeight().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                    androidx.compose.foundation.Image(seekTopIconPainter(), "SeekTop", Modifier.size(34.dp))
+                    androidx.compose.foundation.Image(seekTopIconPainter(), "SeekTop", Modifier.size(34.dp).clickable(role = Role.Button) { selectDestination(TopLevelDestination.HOME) })
                     if (!menuCollapsed) {
                         Spacer(Modifier.width(12.dp))
                         Column {
@@ -178,7 +184,7 @@ internal fun DesktopAwareNavigationFrame(
                 }
                 TopLevelDestination.entries.forEach { destination ->
                     if (menuCollapsed) {
-                        DesktopMenuIcon(stringResource(destination.label), current == destination, { onSelect(destination) }) {
+                        DesktopMenuIcon(stringResource(destination.label), current == destination, { selectDestination(destination) }) {
                             androidx.compose.material3.BadgedBox(badge = {
                                 if (destination == TopLevelDestination.NOTIFICATIONS && unreadCount > 0) androidx.compose.material3.Badge { Text(unreadCount.toString()) }
                             }) { Icon(if (current == destination) destination.selectedIcon else destination.icon, null) }
@@ -187,7 +193,7 @@ internal fun DesktopAwareNavigationFrame(
                         NavigationDrawerItem(
                             label = { Text(stringResource(destination.label)) },
                             selected = current == destination,
-                            onClick = { onSelect(destination) },
+                            onClick = { selectDestination(destination) },
                             icon = { Icon(if (current == destination) destination.selectedIcon else destination.icon, null) },
                             badge = if (destination == TopLevelDestination.NOTIFICATIONS && unreadCount > 0) {
                                 { Text(unreadCount.toString()) }

@@ -30,6 +30,25 @@ python desktop/provision-browser.py --mirror https://npmmirror.com/mirrors/elect
 
 首次增加依赖时需要按仓库规则刷新锁文件。应用镜像位于 `desktop/build/compose/binaries/main/app/SeekTop`，保留完整目录并打开其中的 `SeekTop.exe`。发行目录包含 Java 运行时，使用者无需安装 Java 或 Python。
 
+## 发布安装包与便携包
+
+Windows 发布工作流会同时上传 `SeekTop-X.Y.Z-windows-x64-setup.exe` 安装包、`SeekTop-X.Y.Z-windows-x64.zip` 便携包、对应源码 ZIP 和 `SHA256SUMS.txt`。安装包与便携包来自同一 app-image，三份分发文件均写入校验清单。安装包编译或校验失败时，工作流不会进入发布步骤。
+
+安装包使用固定版本 Inno Setup 7.1.1，准备脚本验证官方发布者的 Authenticode 签名及编译器版本。默认安装至当前用户的 `%LOCALAPPDATA%/Programs/SeekTop`，不请求管理员权限，创建开始菜单入口，并可选择桌面快捷方式。登录与偏好仍位于 `%LOCALAPPDATA%/SeekTop`。
+
+```powershell
+$seekTopIscc = ./desktop/provision-installer.ps1
+python desktop/tests/test_release_package.py --iscc $seekTopIscc
+python desktop/tests/test_installer.py --iscc $seekTopIscc
+python desktop/package_release.py --app-dir desktop/build/compose/binaries/main/app/SeekTop --output-dir release --iscc $seekTopIscc
+```
+
+发布前先提交源码，并用该提交构建 app-image；`--source-ref` 默认为 `HEAD`。打包脚本会拒绝 app-image 版本与发布版本不一致的情况。本机只需便携测试包时，可使用 `--skip-installer`；正式发布工作流不使用这个选项。
+
+应用内更新继续下载 ZIP。卸载程序及日志放在 `%LOCALAPPDATA%/SeekTop/installer`，不会被 ZIP 更新替换程序目录的过程覆盖。卸载会清理程序管理的 `app`、`runtime` 目录，保留用户数据。ZIP 更新不会自动刷新 Windows 卸载登记中的版本号；系统登记版本会在再次运行安装包后更新。
+
+安装器回归使用独立 AppId 和临时目录，不安装真实账号环境。当前生成的 SeekTop 安装包尚未接入代码签名证书；编译器下载的签名验证不等于 SeekTop 安装包已签名。
+
 ## 平台实现
 
 桌面壳组装原 Repository；Room 使用 JVM SQLite 驱动，设置使用原 DataStore。应用数据位于 `%LOCALAPPDATA%/SeekTop`。
@@ -38,15 +57,15 @@ python desktop/provision-browser.py --mirror https://npmmirror.com/mirrors/elect
 
 图片、头像和图床上传同样由平台网络通道服务。文件选择和文本导入导出使用桌面文件选择器。
 
-## 当前桌面版 1.0.2
+## 当前桌面版 1.0.3
 
-Windows 原生 Toast 独立开关默认开启，通知进入系统通知中心，点击可唤回应用；关闭此开关则使用托盘提醒。
+Windows 原生 Toast 独立开关默认开启，通知进入系统通知中心。每条通知保留自己的目标：互动打开对应帖子楼层，私信打开对应会话，关键词和追踪提醒打开对应帖子。关闭此开关则使用托盘提醒。
 启动时左侧菜单默认折叠，保留常用板块简称与完整名称提示，仍可点击切换和管理。通知总开关保留用户原有选择。
 
 可折叠菜单、常用板块管理、分隔线调宽、整合搜索、列表与详情浮动刷新、可输入页码、主题和统一图标均已接入。
 “我的”、通知、设置与宽屏编辑器使用桌面布局。人机验证仅在官方验证区域准备好后显示，未准备好或存在账号表单的容器不会直接展示。
 
-游客打开个人主题帖、评论、收藏、关注、通知或账号设置时，会显示登录提示；登录前不加载这些页面，登录成功后返回原入口。浏览历史、应用设置、主题外观和公开用户主页仍允许游客访问。
+游客打开个人主题帖、评论、收藏、关注或账号设置时，会显示登录提示；登录前不加载这些页面，登录成功后返回原入口。通知页分为“互动 / 私信 / 提醒”：互动和私信未登录时显示登录提示，提醒保存本机关键词命中和追踪回复记录，游客也可查看。提醒可逐条或全部标记已读，重启后保留最近 500 条。浏览历史、应用设置、主题外观和公开用户主页仍允许游客访问。
 
 窗口会先显示启动状态，再异步准备浏览器、设置和账号环境；失败后可重试或退出，详情保存在数据目录的 `startup-error.log`。登录状态变化会释放个人页面的旧状态，公开阅读页保持原有状态。更新程序只在完整界面准备好后收到启动确认，不会把加载画面当作升级成功。
 

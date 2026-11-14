@@ -30,7 +30,7 @@ class DesktopSessionGateTest {
                 }
             }
         }
-        for (page in listOf(MyTopicsKey, MyCommentsKey, BookmarksKey, FollowKey(), FollowKey(true), AccountSettingsKey, NotificationsKey, PostComposerKey())) {
+        for (page in listOf(MyTopicsKey, MyCommentsKey, BookmarksKey, FollowKey(), FollowKey(true), AccountSettingsKey, PostComposerKey())) {
             runOnIdle { destination = page }
             waitForIdle()
             assertEquals(0, screenStarts, "A guest must not start the private page: $page")
@@ -64,10 +64,10 @@ class DesktopSessionGateTest {
         }
         waitForIdle()
         assertEquals(1, screenStarts)
-        for (page in listOf(SettingsKey, ThemeSettingsKey, UserSpaceKey(42), SignInKey)) {
+        for (page in listOf(SettingsKey, ThemeSettingsKey, UserSpaceKey(42), SignInKey, NotificationsKey)) {
             runOnIdle { destination = page }
             waitForIdle()
         }
-        assertEquals(5, screenStarts)
+        assertEquals(6, screenStarts)
     }
 }

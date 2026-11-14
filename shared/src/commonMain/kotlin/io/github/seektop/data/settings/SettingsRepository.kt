@@ -53,6 +53,7 @@ class SettingsRepository(
 
     /** 表情管理's settings — CDN choice, group order — kept in this same store; see [StickerSettingsStore]. */
     val stickerSettings: StickerSettingsStore = StickerSettingsStore(dataStore)
+    val reminderInbox: ReminderInbox = ReminderInbox(dataStore)
 
     val settings: Flow<UserSettings> = dataStore.data
         // A corrupt or unreadable store must not take the app down; fall back to defaults.

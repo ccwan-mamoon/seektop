@@ -1657,4 +1657,8 @@
     <string name="desktop_start_failed">啟動未完成</string>
     <string name="desktop_start_failed_detail">無法準備執行環境，請重試。詳細資訊已儲存至本機啟動記錄。</string>
     <string name="desktop_start_exit">結束應用程式</string>
+    <string name="notifications_reminders">提醒</string>
+    <string name="notifications_reminders_empty">還沒有提醒。關鍵字命中和追蹤的新回覆會顯示在這裡。</string>
+    <string name="notifications_keyword_match">命中關鍵字：%1$s</string>
+    <string name="notifications_tracked_update">追蹤主題新增 %1$s 則回覆</string>
 </resources>
