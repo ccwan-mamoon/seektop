@@ -18,6 +18,7 @@ data class TrackedThreadUpdate(
     val postId: Long,
     val title: String,
     val newReplies: Int,
+    val firstNewFloor: String? = null,
 )
 
 /**
@@ -102,7 +103,7 @@ class BackgroundAlertChecker(
             tracked.advance(thread.postId, count)
             // First sighting: recorded, not announced.
             if (thread.lastKnownCount < 0) return@mapNotNull null
-            TrackedThreadUpdate(thread.postId, thread.title, count - thread.lastKnownCount)
+            TrackedThreadUpdate(thread.postId, thread.title, count - thread.lastKnownCount, (thread.lastKnownCount + 1).toString())
         }
     }
 

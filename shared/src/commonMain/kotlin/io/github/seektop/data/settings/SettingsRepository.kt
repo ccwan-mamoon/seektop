@@ -110,6 +110,7 @@ class SettingsRepository(
                 messageToolbarActions = decodeValues(preferences[KEY_MESSAGE_TOOLBAR]),
                 desktopNotificationSeconds = DesktopNotificationKind.entries.associateWith { kind -> kind.normalize(preferences[intPreferencesKey("desktop_notify_${kind.storageName}_seconds")] ?: kind.defaultSeconds) },
                 desktopWindowsToast = preferences[KEY_DESKTOP_WINDOWS_TOAST] ?: true,
+                desktopAttendanceMode = io.github.seektop.data.AttendanceMode.entries.firstOrNull { it.name == preferences[KEY_DESKTOP_ATTENDANCE_MODE] },
                 notificationsEnabled = preferences[KEY_NOTIFICATIONS_ENABLED] ?: false,
                 notificationPollMinutes =
                 (preferences[KEY_NOTIFICATION_POLL_MINUTES] ?: DEFAULT_POLL_MINUTES)
@@ -300,6 +301,16 @@ class SettingsRepository(
 
     suspend fun setDesktopNotificationSeconds(kind: DesktopNotificationKind, seconds: Int) =
         edit { it[intPreferencesKey("desktop_notify_${kind.storageName}_seconds")] = kind.normalize(seconds) }
+
+    suspend fun setDesktopAttendanceMode(mode: io.github.seektop.data.AttendanceMode?) {
+        dataStore.edit { preferences ->
+            if (mode == null) {
+                preferences.remove(KEY_DESKTOP_ATTENDANCE_MODE)
+            } else {
+                preferences[KEY_DESKTOP_ATTENDANCE_MODE] = mode.name
+            }
+        }
+    }
 
     suspend fun setDesktopWindowsToast(enabled: Boolean) =
         edit { it[KEY_DESKTOP_WINDOWS_TOAST] = enabled }
@@ -685,6 +696,7 @@ class SettingsRepository(
         private val KEY_ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
         private val KEY_ONE_HAND_TIP_DISMISSED = booleanPreferencesKey("one_hand_tip_dismissed")
         private val KEY_HOLIDAY_THEME = booleanPreferencesKey("holiday_theme")
+        private val KEY_DESKTOP_ATTENDANCE_MODE = stringPreferencesKey("desktop_attendance_mode")
         private val KEY_DESKTOP_WINDOWS_TOAST = booleanPreferencesKey("desktop_windows_toast")
         private val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         private val KEY_NOTIFICATION_POLL_MINUTES = intPreferencesKey("notification_poll_minutes")
@@ -902,6 +914,7 @@ data class UserSettings(
      */
     val desktopNotificationSeconds: Map<DesktopNotificationKind, Int> = emptyMap(),
     val desktopWindowsToast: Boolean = true,
+    val desktopAttendanceMode: io.github.seektop.data.AttendanceMode? = null,
     val notificationsEnabled: Boolean = false,
     val notificationPollMinutes: Int = SettingsRepository.DEFAULT_POLL_MINUTES,
     val notificationsWifiOnly: Boolean = false,

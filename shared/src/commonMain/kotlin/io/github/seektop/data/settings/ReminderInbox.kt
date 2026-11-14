@@ -23,6 +23,7 @@ data class Reminder(
     val detail: String,
     val createdAtMillis: Long,
     val isUnread: Boolean = true,
+    val floor: String? = null,
 )
 
 class ReminderInbox(private val store: DataStore<Preferences>) {

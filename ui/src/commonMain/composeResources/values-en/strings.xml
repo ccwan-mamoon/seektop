@@ -1669,4 +1669,17 @@
     <string name="notifications_reminders_empty">No reminders yet. Keyword matches and tracked replies appear here.</string>
     <string name="notifications_keyword_match">Matched keyword: %1$s</string>
     <string name="notifications_tracked_update">Tracked thread: %1$s new replies</string>
+    <string name="desktop_tray_open">Open SeekTop</string>
+    <string name="desktop_close_exit">Exit application</string>
+    <string name="desktop_close_title">Close application</string>
+    <string name="desktop_close_hint">Exiting stops reminders. Keep running in the system tray to receive reminders.</string>
+    <string name="desktop_close_tray">Keep in system tray</string>
+    <string name="desktop_attendance_checking">Checking daily attendance…</string>
+    <string name="desktop_attendance_done">Already checked in today</string>
+    <string name="desktop_attendance_signed">Automatic check-in completed</string>
+    <string name="desktop_attendance_login">Sign in to check daily attendance</string>
+    <string name="desktop_attendance_failed">Attendance could not complete. Retry in Account and growth.</string>
+    <string name="desktop_attendance_ask">Choose your check-in method on first use</string>
+    <string name="desktop_attendance_method">Startup attendance method</string>
+    <string name="desktop_no_new_replies">No new replies</string>
 </resources>

@@ -3,10 +3,26 @@ package io.github.seektop
 import androidx.navigation3.runtime.NavKey
 import io.github.seektop.data.NotificationDestination
 import io.github.seektop.data.NotificationTab
+import io.github.seektop.ui.navigation.TopLevelDestination
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class DesktopDetailNavigationTest {
+    @Test fun `switching tabs retains a conversation and search until explicit home or reselect`() {
+        val stack = mutableListOf<NavKey>(NotificationsKey, MessageThreadKey(88, "member"))
+        var search = "query"
+        stack.selectDesktopTab(TopLevelDestination.HOME, TopLevelDestination.NOTIFICATIONS) { search = "" }
+        assertEquals(listOf<NavKey>(NotificationsKey, MessageThreadKey(88, "member")), stack)
+        assertEquals("query", search)
+        stack.selectDesktopTab(TopLevelDestination.NOTIFICATIONS, TopLevelDestination.NOTIFICATIONS) { search = "" }
+        assertEquals(listOf<NavKey>(NotificationsKey), stack)
+        assertEquals("query", search)
+        val home = mutableListOf<NavKey>(PostListKey, SettingsKey)
+        home.selectDesktopTab(TopLevelDestination.NOTIFICATIONS, TopLevelDestination.HOME) { search = "" }
+        assertEquals(listOf<NavKey>(PostListKey), home)
+        assertEquals("", search)
+    }
+
     @Test fun `native notifications open their own post floor conversation or reminder thread`() {
         val stack = mutableListOf<NavKey>(NotificationsKey, SettingsKey)
         stack.openDesktopNotification(NotificationDestination(postId = 7, floor = "#29", account = 42), 42)

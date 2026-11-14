@@ -25,7 +25,29 @@ import kotlin.test.assertTrue
 class DesktopDetailRefreshTest {
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun `desktop refresh from later comments requests the opening post and clears the scroll anchor`() = runComposeUiTest {
+    fun `failed desktop refresh leaves the reading position and visible replies intact`() = runComposeUiTest {
+        val targets = DesktopRefreshTargets()
+        val comments = (0..79).map { index -> PostContent(index.toLong(), (401 + index).toString(), "reader", null, null, false, emptyList(), null, null, null, emptyList()) }
+        var state by mutableStateOf(PostDetailUiState(postId = 7, title = "Thread", comments = comments, commentPages = List(80) { 9 }, firstLoadedPage = 9, lastLoadedPage = 9, totalPages = 12))
+        setContent {
+            MaterialTheme {
+                CompositionLocalProvider(LocalDesktopExperience provides true, LocalDesktopRefreshTargets provides targets) {
+                    PostDetailScreen(state, "https://www.nodeseek.com/post-7-9", {}, {}, {}, {}, {}, onRefreshPage = {
+                        state = state.copy(error = io.github.seektop.foundation.core.net.SiteError.Network)
+                    }, onVerify = {})
+                }
+            }
+        }
+        onNode(hasScrollAction()).performScrollToIndex(40)
+        runOnIdle { targets.refresh() }
+        waitForIdle()
+        assertTrue(onNode(hasScrollAction()).fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() > 0f)
+        assertEquals(comments, state.comments)
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `desktop refresh fetches the latest page and moves to its bottom`() = runComposeUiTest {
         val targets = DesktopRefreshTargets()
         val comments = (0..79).map { index -> PostContent(index.toLong(), (401 + index).toString(), "reader-$index", null, null, false, emptyList(), null, null, null, emptyList()) }
         var state by mutableStateOf(PostDetailUiState(postId = 7, title = "Fixture thread", comments = comments, commentPages = List(80) { 9 }, firstLoadedPage = 9, lastLoadedPage = 9, totalPages = 12))
@@ -45,12 +67,12 @@ class DesktopDetailRefreshTest {
         assertTrue(onNode(hasScrollAction()).fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() > 0f)
         runOnIdle { assertTrue(targets.refresh()) }
         waitForIdle()
-        assertEquals(1, requestedPage)
-        assertEquals(0f, onNode(hasScrollAction()).fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value())
+        assertEquals(12, requestedPage)
+        assertTrue(onNode(hasScrollAction()).fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() > 0f, "Refresh must show the latest replies rather than the opening post")
         onNode(hasScrollAction()).performMouseInput {
             moveTo(center)
             press()
-            repeat(5) { moveBy(Offset(0f, -40f), delayMillis = 20) }
+            repeat(5) { moveBy(Offset(0f, 40f), delayMillis = 20) }
             release()
         }
         waitForIdle()

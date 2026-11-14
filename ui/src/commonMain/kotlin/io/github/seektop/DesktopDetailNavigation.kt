@@ -3,6 +3,13 @@ package io.github.seektop
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation3.runtime.NavKey
 import io.github.seektop.data.NotificationDestination
+import io.github.seektop.ui.navigation.TopLevelDestination
+
+/** Switching tabs restores their stack. A repeated selection explicitly opens the tab root. */
+internal fun MutableList<NavKey>.selectDesktopTab(current: TopLevelDestination, destination: TopLevelDestination, exitSearch: () -> Unit) {
+    if (destination == TopLevelDestination.HOME) exitSearch()
+    if (destination == TopLevelDestination.HOME || destination == current) returnToDesktopRoot()
+}
 
 internal val LocalDesktopCloseDetail = staticCompositionLocalOf<(() -> Unit)?> { null }
 internal val LocalDesktopSelectedPost = staticCompositionLocalOf<Long?> { null }

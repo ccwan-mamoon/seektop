@@ -65,6 +65,9 @@ import io.github.seektop.ui.common.describedAsLoading
 import io.github.seektop.ui.common.rememberFileSizeLabel
 import io.github.seektop.ui.resources.Res
 import io.github.seektop.ui.resources.action_back
+import io.github.seektop.ui.resources.assets_sign_in_fixed_label
+import io.github.seektop.ui.resources.assets_sign_in_random_label
+import io.github.seektop.ui.resources.desktop_attendance_method
 import io.github.seektop.ui.resources.imagehost_connected
 import io.github.seektop.ui.resources.imagehost_not_connected
 import io.github.seektop.ui.resources.imagehost_title
@@ -168,6 +171,7 @@ fun SettingsRoute(
         onBack = onBack,
         onOpenTheme = onOpenTheme,
         onThemeModeChange = viewModel::setThemeMode,
+        onDesktopAttendanceModeChange = viewModel::setDesktopAttendanceMode,
         onAppLanguageChange = viewModel::setAppLanguage,
         onOneHandModeChange = viewModel::setOneHandMode,
         onEinkModeChange = viewModel::setEinkMode,
@@ -223,6 +227,7 @@ fun SettingsScreen(
     onOpenAbout: () -> Unit = {},
     onOpenLicenses: () -> Unit = {},
     onOpenBlockKeywords: () -> Unit = {},
+    onDesktopAttendanceModeChange: (io.github.seektop.data.AttendanceMode?) -> Unit = {},
     onAppLanguageChange: (AppLanguage) -> Unit = {},
     onEinkModeChange: (Boolean) -> Unit = {},
     /** Null hides 识别剪贴板中的帖子: a platform where reading the clipboard costs a prompt each time. */
@@ -537,6 +542,26 @@ fun SettingsScreen(
                         onClick = onOpenNetworkCheck,
                         icon = SeekTopIcons.NetworkCheck,
                     )
+                }
+            }
+
+            if (io.github.seektop.LocalDesktopExperience.current) {
+                SectionLabel(stringResource(Res.string.desktop_attendance_method))
+                SettingsGroup {
+                    listOf(io.github.seektop.data.AttendanceMode.RANDOM, io.github.seektop.data.AttendanceMode.FIXED_FIVE).forEachIndexed { index, mode ->
+                        GroupedRow(
+                            title = stringResource(
+                                when (mode) {
+                                    io.github.seektop.data.AttendanceMode.RANDOM -> Res.string.assets_sign_in_random_label
+                                    io.github.seektop.data.AttendanceMode.FIXED_FIVE -> Res.string.assets_sign_in_fixed_label
+                                },
+                            ),
+                            first = index == 0,
+                            last = index == 1,
+                            onClick = { onDesktopAttendanceModeChange(mode) },
+                            trailing = { androidx.compose.material3.RadioButton(selected = state.settings.desktopAttendanceMode == mode, onClick = { onDesktopAttendanceModeChange(mode) }) },
+                        )
+                    }
                 }
             }
 

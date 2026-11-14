@@ -53,6 +53,9 @@ private data class NotificationMonitorKey(
 
 internal suspend fun monitorDesktopNotifications(container: DesktopAppContainer, deliver: suspend (String, String, NotificationDestination) -> Unit) {
     var tracker = DesktopUnreadTracker()
+    var messagesTracker = DesktopMessageArrivals()
+    var interactionsTracker = DesktopInteractionArrivals()
+    val outbox = DesktopNotificationOutbox()
     var account: Int? = null
     var activeSiteKinds = emptySet<DesktopNotificationKind>()
     val schedule = DesktopNotificationSchedule()
@@ -69,6 +72,9 @@ internal suspend fun monitorDesktopNotifications(container: DesktopAppContainer,
         if (account != key.account || !key.enabled) {
             account = key.account
             tracker = DesktopUnreadTracker()
+            messagesTracker = DesktopMessageArrivals()
+            interactionsTracker = DesktopInteractionArrivals()
+            outbox.clear()
             activeSiteKinds = emptySet()
             schedule.update(emptyMap(), now())
         }
@@ -98,31 +104,33 @@ internal suspend fun monitorDesktopNotifications(container: DesktopAppContainer,
         val newlyEnabled = siteEnabled - activeSiteKinds
         activeSiteKinds = siteEnabled
         if (key.account != null && (!tracker.isSeeded || newlyEnabled.isNotEmpty()) && siteEnabled.isNotEmpty()) {
-            check { tracker.accept(counts(), settings, true, !tracker.isSeeded || DesktopNotificationKind.INTERACTIONS in newlyEnabled, !tracker.isSeeded || DesktopNotificationKind.MESSAGES in newlyEnabled) }
+            check {
+                val baseline = counts()
+                if (DesktopNotificationKind.INTERACTIONS in siteEnabled) interactionsTracker.accept(container.notificationRepository.interactions().map { it.id })
+                if (DesktopNotificationKind.MESSAGES in siteEnabled) messagesTracker.accept(container.messageRepository.conversations())
+                tracker.accept(baseline, settings, true)
+            }
         }
         while (currentCoroutineContext().isActive) {
-            delay(schedule.waitMillis(now()))
+            delay(minOf(schedule.waitMillis(now()), if (outbox.hasPending) 30_000L else Long.MAX_VALUE))
             val due = schedule.due(now())
             val siteKinds = due.filter { it == DesktopNotificationKind.INTERACTIONS || it == DesktopNotificationKind.MESSAGES }
             if (siteKinds.isNotEmpty()) {
                 val success = check {
-                    val (interactions, messages) = tracker.accept(counts(), settings, quiet(), DesktopNotificationKind.INTERACTIONS in due, DesktopNotificationKind.MESSAGES in due)
-                    if (interactions > 0) {
-                        val rows = container.notificationRepository.interactions().filter { it.isUnread && it.postId != null }
-                            .sortedByDescending { it.createdAtMillis ?: 0 }.take(interactions.coerceAtMost(20))
-                        if (rows.isEmpty()) deliver("SeekTop · 新互动", "有 $interactions 条新回复或提及。", NotificationDestination(account = key.account))
-                        rows.forEach { row ->
-                            deliver("SeekTop · 新互动", "${row.actorName} · ${row.threadTitle.orEmpty()}", NotificationDestination(postId = row.postId, floor = row.floor, account = key.account))
+                    val fetched = counts()
+                    val interactions = if (DesktopNotificationKind.INTERACTIONS in due) container.notificationRepository.interactions() else emptyList()
+                    val conversations = if (DesktopNotificationKind.MESSAGES in due) container.messageRepository.conversations() else emptyList()
+                    val newInteractions = if (DesktopNotificationKind.INTERACTIONS in due) interactionsTracker.accept(interactions.map { it.id }) else emptySet()
+                    val newMessages = if (DesktopNotificationKind.MESSAGES in due) messagesTracker.accept(conversations) else emptyList()
+                    if (!quiet()) {
+                        interactions.filter { it.id in newInteractions && it.isUnread && it.postId != null }.forEach { row ->
+                            outbox.enqueue("interaction:${row.id}", DesktopPendingNotification("SeekTop · 新互动", "${row.actorName} · ${row.threadTitle.orEmpty()}", NotificationDestination(postId = row.postId, floor = row.floor, account = key.account)))
+                        }
+                        newMessages.forEach { row ->
+                            outbox.enqueue("message:${row.uid}:${row.updatedAtMillis}:${row.unreadCount}", DesktopPendingNotification("SeekTop · 新私信", "${row.userName} · ${row.unreadCount} 条未读私信", NotificationDestination(tab = NotificationTab.MESSAGES, uid = row.uid, userName = row.userName, account = key.account)))
                         }
                     }
-                    if (messages > 0) {
-                        val rows = container.messageRepository.conversations().filter { it.unreadCount > 0 }
-                            .sortedByDescending { it.updatedAtMillis ?: 0 }.take(20)
-                        if (rows.isEmpty()) deliver("SeekTop · 新私信", "有 $messages 条新私信。", NotificationDestination(tab = NotificationTab.MESSAGES, account = key.account))
-                        rows.forEach { row ->
-                            deliver("SeekTop · 新私信", "${row.userName} · ${row.unreadCount} 条未读私信", NotificationDestination(tab = NotificationTab.MESSAGES, uid = row.uid, userName = row.userName, account = key.account))
-                        }
-                    }
+                    tracker.accept(fetched, settings, true, DesktopNotificationKind.INTERACTIONS in due, DesktopNotificationKind.MESSAGES in due)
                 }
                 siteKinds.forEach { schedule.completed(it, now(), success) }
             }
@@ -133,7 +141,7 @@ internal suspend fun monitorDesktopNotifications(container: DesktopAppContainer,
                     container.settingsRepository.reminderInbox.add(reminders)
                     if (!quiet()) {
                         reminders.forEach { reminder ->
-                            deliver("SeekTop · 关键词提醒", reminder.title, NotificationDestination(NotificationTab.REMINDERS, postId = reminder.postId, reminderId = reminder.id))
+                            outbox.enqueue(reminder.id, DesktopPendingNotification("SeekTop · 关键词提醒", reminder.title, NotificationDestination(NotificationTab.REMINDERS, postId = reminder.postId, floor = reminder.floor, reminderId = reminder.id)))
                         }
                     }
                 }
@@ -143,16 +151,17 @@ internal suspend fun monitorDesktopNotifications(container: DesktopAppContainer,
                 val success = check {
                     val updates = container.backgroundAlerts.checkTrackedThreads()
                     val stamp = container.clock.nowMillis()
-                    val reminders = updates.map { Reminder("tracked:${it.postId}:$stamp", ReminderKind.TRACKED, it.postId, it.title, it.newReplies.toString(), stamp) }
+                    val reminders = updates.map { Reminder("tracked:${it.postId}:$stamp", ReminderKind.TRACKED, it.postId, it.title, it.newReplies.toString(), stamp, floor = it.firstNewFloor) }
                     container.settingsRepository.reminderInbox.add(reminders)
                     if (!quiet()) {
                         reminders.forEach { reminder ->
-                            deliver("SeekTop · 追踪的新回复", reminder.title, NotificationDestination(NotificationTab.REMINDERS, postId = reminder.postId, reminderId = reminder.id))
+                            outbox.enqueue(reminder.id, DesktopPendingNotification("SeekTop · 追踪的新回复", reminder.title, NotificationDestination(NotificationTab.REMINDERS, postId = reminder.postId, floor = reminder.floor, reminderId = reminder.id)))
                         }
                     }
                 }
                 schedule.completed(DesktopNotificationKind.TRACKED, now(), success)
             }
+            if (quiet()) outbox.clear() else outbox.flush(deliver)
         }
     }
 }
@@ -176,6 +185,14 @@ internal class DesktopNotifier(image: java.awt.Image, onOpen: () -> Unit) : Auto
     }
 
     val isAvailable: Boolean get() = tray != null
+
+    fun configureMenu(openLabel: String, exitLabel: String, onShow: () -> Unit, onExit: () -> Unit) {
+        tray?.popupMenu = java.awt.PopupMenu().apply {
+            add(java.awt.MenuItem(openLabel).apply { addActionListener { onShow() } })
+            addSeparator()
+            add(java.awt.MenuItem(exitLabel).apply { addActionListener { onExit() } })
+        }
+    }
 
     suspend fun deliver(title: String, body: String) = withContext(Dispatchers.Swing) {
         tray?.displayMessage(title, body, java.awt.TrayIcon.MessageType.INFO)

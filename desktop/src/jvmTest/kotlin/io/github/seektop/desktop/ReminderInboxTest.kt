@@ -27,7 +27,7 @@ class ReminderInboxTest {
             first.add(
                 listOf(
                     Reminder("keyword:7", ReminderKind.KEYWORD, 7, "keyword thread", "deal", 1),
-                    Reminder("tracked:8:2", ReminderKind.TRACKED, 8, "tracked thread", "3", 2),
+                    Reminder("tracked:8:2", ReminderKind.TRACKED, 8, "tracked thread", "3", 2, floor = "29"),
                 ),
             )
             first.markRead("keyword:7")
@@ -37,6 +37,8 @@ class ReminderInboxTest {
             val rows = restarted.reminders.first()
             assertEquals(listOf(8L, 7L), rows.map { it.postId })
             assertTrue(rows[0].isUnread)
+            assertEquals("29", rows[0].floor)
+            assertEquals(null, rows[1].floor)
             assertFalse(rows[1].isUnread)
             restarted.add(listOf(rows[1].copy(isUnread = true)))
             assertFalse(restarted.reminders.first().last().isUnread, "Polling must not resurrect an existing read reminder")

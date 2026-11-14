@@ -1661,4 +1661,17 @@
     <string name="notifications_reminders_empty">還沒有提醒。關鍵字命中和追蹤的新回覆會顯示在這裡。</string>
     <string name="notifications_keyword_match">命中關鍵字：%1$s</string>
     <string name="notifications_tracked_update">追蹤主題新增 %1$s 則回覆</string>
+    <string name="desktop_tray_open">開啟 SeekTop</string>
+    <string name="desktop_close_exit">退出客戶端</string>
+    <string name="desktop_close_title">關閉客戶端</string>
+    <string name="desktop_close_hint">退出後停止提醒；最小化到系統匣可繼續接收提醒。</string>
+    <string name="desktop_close_tray">最小化到系統匣</string>
+    <string name="desktop_attendance_checking">正在檢查今日簽到…</string>
+    <string name="desktop_attendance_done">今日已簽到</string>
+    <string name="desktop_attendance_signed">自動簽到完成</string>
+    <string name="desktop_attendance_login">登入後自動檢查簽到</string>
+    <string name="desktop_attendance_failed">自動簽到未完成，請到帳戶與成長重試</string>
+    <string name="desktop_attendance_ask">首次使用請選擇簽到方式</string>
+    <string name="desktop_attendance_method">啟動簽到方式</string>
+    <string name="desktop_no_new_replies">暫無新回覆</string>
 </resources>

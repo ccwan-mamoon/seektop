@@ -603,12 +603,12 @@ fun MainNavigation(
         current = currentTab,
         unreadCount = notificationsState.counts.all,
         onSelect = { destination ->
-            desktopSearch.exitSearch()
-            when (destination) {
-                TopLevelDestination.HOME -> homeStack.returnToDesktopRoot()
-                TopLevelDestination.NOTIFICATIONS -> notificationsStack.returnToDesktopRoot()
-                TopLevelDestination.PROFILE -> profileStack.returnToDesktopRoot()
+            val selectedStack = when (destination) {
+                TopLevelDestination.HOME -> homeStack
+                TopLevelDestination.NOTIFICATIONS -> notificationsStack
+                TopLevelDestination.PROFILE -> profileStack
             }
+            selectedStack.selectDesktopTab(currentTab, destination, desktopSearch::exitSearch)
             currentTab = destination
         },
         canGoBack = backStack.size > 1,

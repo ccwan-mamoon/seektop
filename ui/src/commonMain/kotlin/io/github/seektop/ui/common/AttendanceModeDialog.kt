@@ -21,6 +21,7 @@ import io.github.seektop.data.AttendanceMode
 import io.github.seektop.foundation.designsys.component.SeekTopIcons
 import io.github.seektop.foundation.designsys.component.TonalTile
 import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.action_cancel
 import io.github.seektop.ui.resources.assets_sign_in_choice_hint
 import io.github.seektop.ui.resources.assets_sign_in_choice_title
 import io.github.seektop.ui.resources.assets_sign_in_fixed_label
@@ -29,18 +30,7 @@ import io.github.seektop.ui.resources.assets_sign_in_random_label
 import io.github.seektop.ui.resources.assets_sign_in_random_value
 import org.jetbrains.compose.resources.stringResource
 
-/**
- * The site's sign-in is a choice, not a button: gamble on a random count or take a flat five.
- *
- * Presented at tap time rather than as a setting, because it is a daily decision and the site's own
- * page asks it the same way. Shared with 我的 so that signing in there is the same two taps it is on
- * 账户与成长 — the profile entry used to push this screen just to reach this dialog.
- *
- * 9a draws the two answers as two big side-by-side tiles and nothing else: tapping one *is* signing
- * in, so there is no confirm button, and no cancel button either — a tap outside or back dismisses it,
- * as it always could. 9a's 「1~15 个」 under 随机 is not repeated: the site publishes no range, so the
- * tile says 拼手气 and the hint below keeps the site's own caveat.
- */
+/** Shared choice UI. The desktop startup caller saves the first choice; manual callers may use it once. */
 @Composable
 fun AttendanceModeDialog(
     onPick: (AttendanceMode) -> Unit,
@@ -96,5 +86,8 @@ fun AttendanceModeDialog(
             }
         },
         confirmButton = {},
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(Res.string.action_cancel)) }
+        },
     )
 }

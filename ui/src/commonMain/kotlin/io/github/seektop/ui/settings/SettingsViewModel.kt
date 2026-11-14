@@ -117,6 +117,10 @@ class SettingsViewModel(
     }
 
     /** 明暗 is the one theme control 设置 kept; the rest are on [ThemeSettingsViewModel]. */
+    fun setDesktopAttendanceMode(mode: io.github.seektop.data.AttendanceMode?) {
+        viewModelScope.launch { settings.setDesktopAttendanceMode(mode) }
+    }
+
     fun setThemeMode(value: ThemeMode) {
         viewModelScope.launch { settings.setThemeMode(value) }
     }

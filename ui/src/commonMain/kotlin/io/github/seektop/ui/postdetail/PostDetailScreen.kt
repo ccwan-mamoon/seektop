@@ -183,6 +183,7 @@ import io.github.seektop.ui.resources.chicken_dialog_body
 import io.github.seektop.ui.resources.chicken_dialog_body_free
 import io.github.seektop.ui.resources.chicken_dialog_confirm
 import io.github.seektop.ui.resources.chicken_dialog_title
+import io.github.seektop.ui.resources.desktop_no_new_replies
 import io.github.seektop.ui.resources.dislike_dialog_body
 import io.github.seektop.ui.resources.dislike_dialog_confirm
 import io.github.seektop.ui.resources.dislike_dialog_title
@@ -665,22 +666,34 @@ fun PostDetailScreen(
         }
     }
 
+    val noNewRepliesText = stringResource(Res.string.desktop_no_new_replies)
+    var desktopRefreshEndBefore by remember { mutableStateOf<Pair<Int, String?>?>(null) }
     var desktopRefreshPending by remember { mutableStateOf(false) }
-    fun refreshDesktopFromTop() {
+    var desktopRefreshPage by remember { mutableIntStateOf(1) }
+    fun refreshDesktopFromLatest() {
         pendingBottom = false
-        onScrollHandled()
         desktopRefreshPending = true
-        onRefreshPage(1)
-        scope.launch { listState.scrollToItem(0) }
+        desktopRefreshEndBefore = state.lastLoadedPage to state.comments.lastOrNull()?.floor
+        desktopRefreshPage = state.totalPages.coerceAtLeast(1)
+        onRefreshPage(desktopRefreshPage)
     }
-    LaunchedEffect(desktopRefreshPending, state.isLoading, state.firstLoadedPage, state.error) {
-        if (desktopRefreshPending && !state.isLoading && (state.firstLoadedPage == 1 || state.error != null)) {
-            listState.scrollToItem(0)
+    LaunchedEffect(desktopRefreshPending, state.isLoading, state.lastLoadedPage, state.totalPages, state.error) {
+        if (!desktopRefreshPending || state.isLoading) return@LaunchedEffect
+        if (state.error != null) {
+            desktopRefreshPending = false
+        } else if (state.totalPages > desktopRefreshPage) {
+            desktopRefreshPage = state.totalPages
+            onRefreshPage(desktopRefreshPage)
+        } else if (state.lastLoadedPage >= desktopRefreshPage) {
+            listState.scrollToItem(state.lastItemIndex)
             onScrollHandled()
             desktopRefreshPending = false
+            if (desktopRefreshEndBefore == (state.totalPages to state.comments.lastOrNull()?.floor)) {
+                scope.launch { snackbarHostState.showSnackbar(noNewRepliesText) }
+            }
         }
     }
-    io.github.seektop.DesktopRefreshTarget(priority = 2, onRefresh = ::refreshDesktopFromTop)
+    io.github.seektop.DesktopRefreshTarget(priority = 2, onRefresh = ::refreshDesktopFromLatest)
 
     val imageActions = rememberImageActionsState()
     ImageActionsSheet(imageActions, snackbarHostState)
@@ -696,7 +709,7 @@ fun PostDetailScreen(
                 postUrl = postUrl,
                 onBack = onBack,
                 onOpenInBrowser = { onOpenBrowser(postUrl) },
-                onRefresh = { if (desktop) refreshDesktopFromTop() else onRefreshPage(visiblePage) },
+                onRefresh = { if (desktop) refreshDesktopFromLatest() else onRefreshPage(visiblePage) },
                 showBackButton = showBackButton,
                 tracked = state.tracked,
                 onToggleTrack = onToggleTrack,
@@ -839,7 +852,7 @@ fun PostDetailScreen(
 
             if (desktop && !replyOpen) {
                 io.github.seektop.ui.common.DesktopRefreshButton(
-                    ::refreshDesktopFromTop,
+                    ::refreshDesktopFromLatest,
                     Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = bottomActionsHeight + 12.dp),
                     enabled = !state.isRefreshing,
                 )

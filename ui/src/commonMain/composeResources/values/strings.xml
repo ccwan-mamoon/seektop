@@ -1937,4 +1937,17 @@
     <string name="notifications_reminders_empty">还没有提醒。关键词命中和追踪的新回复会显示在这里。</string>
     <string name="notifications_keyword_match">命中关键词：%1$s</string>
     <string name="notifications_tracked_update">追踪主题新增 %1$s 条回复</string>
+    <string name="desktop_tray_open">打开 SeekTop</string>
+    <string name="desktop_close_exit">退出客户端</string>
+    <string name="desktop_close_title">关闭客户端</string>
+    <string name="desktop_close_hint">退出后停止提醒；最小化到系统托盘可继续接收提醒。</string>
+    <string name="desktop_close_tray">最小化到托盘</string>
+    <string name="desktop_attendance_checking">正在检查今日签到…</string>
+    <string name="desktop_attendance_done">今日已签到</string>
+    <string name="desktop_attendance_signed">自动签到完成</string>
+    <string name="desktop_attendance_login">登录后自动检查签到</string>
+    <string name="desktop_attendance_failed">自动签到未完成，请到账户与成长重试</string>
+    <string name="desktop_attendance_ask">首次使用请选择签到方式</string>
+    <string name="desktop_attendance_method">启动签到方式</string>
+    <string name="desktop_no_new_replies">暂无新回复</string>
 </resources>
