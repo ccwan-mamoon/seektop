@@ -66,6 +66,7 @@ import io.github.seektop.foundation.core.update.ApkInstaller
 interface AppContainer {
     val externalLinkRouting: io.github.seektop.links.ExternalLinkRouting? get() = null
     val postAnalysis: io.github.seektop.ai.PostAnalysisService? get() = null
+    val vpsCalculator: io.github.seektop.vps.VpsCalculatorService? get() = null
     val toolPlugins: io.github.seektop.plugins.ToolPluginManager? get() = null
 
     /** Reserved metadata boundary. Platform shells opt in only after plugin execution is implemented. */

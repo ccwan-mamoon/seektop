@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vps_title">剩餘價值計算器</string>
+    <string name="vps_manual">手動匯率</string>
+    <string name="vps_convention">按固定週期天數折算；負溢價表示折價。日期以到期時刻為界，不含到期後的時間。</string>
+    <string name="vps_renewal">續費金額</string>
+    <string name="vps_days">天</string>
+    <string name="vps_dates">估值 → 到期</string>
+    <string name="vps_remaining_days">剩餘時間</string>
+    <string name="vps_remaining">剩餘價值</string>
+    <string name="vps_payment">實付賣家</string>
+    <string name="vps_push">Push 費用</string>
+    <string name="vps_buyer">買家承擔</string>
+    <string name="vps_seller">賣家承擔</string>
+    <string name="vps_split">雙方平攤</string>
+    <string name="vps_middleman">中介費用</string>
+    <string name="vps_seller_premium">賣家淨溢價</string>
+    <string name="vps_buyer_premium">買家溢價 / 溢價率</string>
+    <string name="vps_na">不適用</string>
+    <string name="vps_total">買家總支出</string>
+    <string name="vps_daily">買家日均成本</string>
+    <string name="vps_residual_mode">僅算剩餘價值</string>
+    <string name="vps_trade_mode">交易溢價</string>
+    <string name="vps_period">完整計費週期（天，可自訂）</string>
+    <string name="vps_precise">精確到分鐘</string>
+    <string name="vps_trade_date">估值 / 交易日期</string>
+    <string name="vps_expiry">到期日期</string>
+    <string name="vps_middleman_percent">中介費率（實付賣家金額的 %）</string>
+    <string name="vps_error_rate">缺少有效匯率，請填寫每單位外幣兌人民幣的匯率。</string>
+    <string name="vps_error_date">請檢查日期，格式為 YYYY-MM-DD 或 YYYY-MM-DD HH:mm。</string>
+    <string name="vps_error_period">完整計費週期須為 1–3660 天。</string>
+    <string name="vps_error_amount">請填寫有效金額（最多兩位小數），續費金額須大於零；中介費率為 0–100%。</string>
+    <string name="vps_hint">填寫續費金額、週期和到期日期即可計算。匯率沿用設定中的儲存值，也可在此暫時修改。</string>
+    <string name="vps_insert">插入正文 · Markdown</string>
+    <string name="vps_item">項目</string>
+    <string name="vps_result">結果</string>
+</resources>

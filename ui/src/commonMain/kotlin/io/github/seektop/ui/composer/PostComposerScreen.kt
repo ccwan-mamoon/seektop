@@ -557,6 +557,7 @@ private fun EditorContent(
     var customizing by rememberSaveable { mutableStateOf(false) }
     var composingVote by rememberSaveable { mutableStateOf(false) }
     var composingReceiveCode by rememberSaveable { mutableStateOf(false) }
+    var calculating by rememberSaveable { mutableStateOf(false) }
     var pickingHosted by rememberSaveable { mutableStateOf(false) }
 
     // The keyboard padding is the caller's — [paddingWithKeyboard] has to sit next to the Scaffold
@@ -619,7 +620,10 @@ private fun EditorContent(
                 )
             },
         )
+        VpsCalculatorEntry(enabled = !state.isPublishing, onOpen = { calculating = true })
     }
+
+    if (calculating) VpsCalculatorDialog(bodyState = bodyState, onDismiss = { calculating = false })
 
     if (composingVote) {
         VoteComposeDialog(

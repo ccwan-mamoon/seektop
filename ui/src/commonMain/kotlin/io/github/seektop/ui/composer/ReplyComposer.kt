@@ -172,6 +172,7 @@ fun ReplyComposerHost(
     // a ModalBottomSheet's content stacks two windows, and the sheet's own scrim ends up over it.
     var composingVote by rememberSaveable { mutableStateOf(false) }
     var composingReceiveCode by rememberSaveable { mutableStateOf(false) }
+    var calculating by rememberSaveable { mutableStateOf(false) }
     // A sheet as well, so a sibling for the wrench panel's reason.
     var pickingHosted by rememberSaveable { mutableStateOf(false) }
     val launchPicker =
@@ -223,8 +224,11 @@ fun ReplyComposerHost(
             onCustomize = { customizing = true },
             onInsertVote = { composingVote = true },
             onInsertStardust = { composingReceiveCode = true },
+            onCalculate = { calculating = true },
         )
     }
+
+    if (calculating) VpsCalculatorDialog(bodyState = bodyState, onDismiss = { calculating = false })
 
     if (customizing) {
         ToolbarCustomizeSheet(
@@ -285,6 +289,7 @@ private fun ReplyEditorSheet(
     onCustomize: () -> Unit,
     onInsertVote: () -> Unit,
     onInsertStardust: () -> Unit,
+    onCalculate: () -> Unit,
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
     val stickerPictures = rememberStickerPictures()
@@ -438,6 +443,7 @@ private fun ReplyEditorSheet(
                 },
                 inlinePictures = stickerPictures,
             )
+            VpsCalculatorEntry(enabled = !state.isPublishing, onOpen = onCalculate)
         }
     }
 }

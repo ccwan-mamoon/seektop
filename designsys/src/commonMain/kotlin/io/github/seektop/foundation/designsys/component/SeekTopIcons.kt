@@ -19,6 +19,13 @@ import androidx.compose.ui.unit.dp
  * one site's own concepts goes to that app instead.
  */
 object SeekTopIcons {
+    val Calculate: ImageVector by lazy {
+        materialIcon(
+            name = "Calculate",
+            pathData = "M19,3H5C3.9,3 3,3.9 3,5v14c0,1.1 0.9,2 2,2h14c1.1,0 2,-0.9 2,-2V5c0,-1.1 -0.9,-2 -2,-2zM11,17H7v-2h4v2zM11,13H7v-2h4v2zM17,17h-4v-2h4v2zM17,13h-4v-2h4v2zM17,8H7V5h10v3z",
+        )
+    }
+
     /** Decorative welcome glyph used by the signed-out profile illustration (board c7). */
     val WavingHand: ImageVector by lazy {
         materialIcon(

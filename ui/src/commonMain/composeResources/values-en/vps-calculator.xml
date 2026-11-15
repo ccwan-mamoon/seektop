@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vps_title">Remaining value calculator</string>
+    <string name="vps_manual">Manual rate</string>
+    <string name="vps_convention">Prorated by fixed billing days; negative premiums are discounts. Time after expiration is excluded.</string>
+    <string name="vps_renewal">Renewal amount</string>
+    <string name="vps_days">days</string>
+    <string name="vps_dates">Valuation → expiry</string>
+    <string name="vps_remaining_days">Time remaining</string>
+    <string name="vps_remaining">Remaining value</string>
+    <string name="vps_payment">Payment to seller</string>
+    <string name="vps_push">Push fee</string>
+    <string name="vps_buyer">Buyer pays</string>
+    <string name="vps_seller">Seller pays</string>
+    <string name="vps_split">Split equally</string>
+    <string name="vps_middleman">Escrow fee</string>
+    <string name="vps_seller_premium">Seller net premium</string>
+    <string name="vps_buyer_premium">Buyer premium / rate</string>
+    <string name="vps_na">N/A</string>
+    <string name="vps_total">Buyer total cost</string>
+    <string name="vps_daily">Buyer cost per day</string>
+    <string name="vps_residual_mode">Remaining value</string>
+    <string name="vps_trade_mode">Transaction premium</string>
+    <string name="vps_period">Full billing period (days, editable)</string>
+    <string name="vps_precise">Use minute precision</string>
+    <string name="vps_trade_date">Valuation / trade date</string>
+    <string name="vps_expiry">Expiration date</string>
+    <string name="vps_middleman_percent">Escrow rate (% of seller payment)</string>
+    <string name="vps_error_rate">Enter a valid CNY-per-unit exchange rate.</string>
+    <string name="vps_error_date">Check dates: YYYY-MM-DD or YYYY-MM-DD HH:mm.</string>
+    <string name="vps_error_period">The billing period must be 1–3660 days.</string>
+    <string name="vps_error_amount">Enter valid amounts with at most two decimals. Renewal must be positive; escrow rate must be 0–100%.</string>
+    <string name="vps_hint">Enter renewal, billing days and expiry. Rates come from saved settings and can be overridden here.</string>
+    <string name="vps_insert">Insert into editor · Markdown</string>
+    <string name="vps_item">Item</string>
+    <string name="vps_result">Result</string>
+</resources>

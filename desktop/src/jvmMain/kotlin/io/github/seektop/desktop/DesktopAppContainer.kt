@@ -136,6 +136,7 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
         exchangeContext = { exchangeRates.analysisContext() },
         rates = exchangeRates,
     )
+    override val vpsCalculator: io.github.seektop.vps.VpsCalculatorService = DesktopVpsCalculator(exchangeRates)
     private val databaseDelegate = lazy { createNodeSeekDatabase(directory) }
     private val database by databaseDelegate
     private val sessionCookies by lazy { SessionCookies(NodeSeekSite.CONFIG, browser) }
