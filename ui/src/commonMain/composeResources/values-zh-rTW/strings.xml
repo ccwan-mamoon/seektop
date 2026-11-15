@@ -1699,4 +1699,19 @@
     <string name="tool_done">完成</string>
     <string name="tool_down">下載</string>
     <string name="tool_up">上傳</string>
+    <string name="speed_network">出站網路</string>
+    <string name="speed_route">路由方式</string>
+    <string name="speed_server">測速伺服器</string>
+    <string name="speed_direct">直連 / 系統 TUN</string>
+    <string name="speed_system_route">使用作業系統路由</string>
+    <string name="speed_latency">延遲</string>
+    <string name="speed_jitter">抖動</string>
+    <string name="speed_engine_note">目前插件引擎僅支援 Cloudflare HTTP 測速；Apple、Speedtest、HTTP/3 與代理節點選擇尚未接入。未提供的測量值顯示為 —。</string>
+    <string name="connection_all">全部</string>
+    <string name="connection_stream">串流媒體</string>
+    <string name="connection_other">待檢測</string>
+    <string name="connection_checked">已檢測</string>
+    <string name="connection_restricted">存取受限</string>
+    <string name="connection_retry">重新檢測此平台</string>
+    <string name="connection_settings">檢測設定</string>
 </resources>

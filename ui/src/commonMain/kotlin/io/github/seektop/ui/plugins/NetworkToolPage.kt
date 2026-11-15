@@ -1,6 +1,7 @@
 package io.github.seektop.ui.plugins
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,14 +10,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
@@ -36,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +47,8 @@ import io.github.seektop.plugins.ToolField
 import io.github.seektop.plugins.ToolManifest
 import io.github.seektop.plugins.ToolPluginManager
 import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.action_back
+import io.github.seektop.ui.resources.connection_settings
 import io.github.seektop.ui.resources.plugin_start
 import io.github.seektop.ui.resources.plugin_stop
 import io.github.seektop.ui.resources.tool_chart
@@ -53,17 +58,19 @@ import io.github.seektop.ui.resources.tool_down
 import io.github.seektop.ui.resources.tool_ready
 import io.github.seektop.ui.resources.tool_settings
 import io.github.seektop.ui.resources.tool_up
-import io.github.seektop.ui.resources.tool_waiting
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.ln
 
 /** Native presentation of the three official tools, following Bettbox's information hierarchy.
  * Flutter widgets cannot be embedded in Compose; controls remain Material 3 components.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun NetworkToolPage(manifest: ToolManifest, enabled: Boolean, manager: ToolPluginManager, modifier: Modifier) {
+internal fun NetworkToolPage(manifest: ToolManifest, enabled: Boolean, manager: ToolPluginManager, modifier: Modifier, onBack: () -> Unit) {
+    if (manifest.id.endsWith(".speed")) {
+        ReferenceSpeedPage(manifest, enabled, manager, modifier, onBack)
+        return
+    }
     val state by manager.state.collectAsState()
     val scope = rememberCoroutineScope()
     var parameters by rememberSaveable(manifest.id, manifest.version) { mutableStateOf(manifest.fields.associate { it.id to it.default }) }
@@ -102,22 +109,25 @@ internal fun NetworkToolPage(manifest: ToolManifest, enabled: Boolean, manager: 
             }
         }
     }
-    LazyColumn(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    LazyColumn(modifier.fillMaxSize().then(if (connectivity) Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow).padding(16.dp) else Modifier), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.action_back)) }
                 Column(Modifier.weight(1f)) {
                     Text(manifest.name.localized(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text(result?.phase?.localized() ?: stringResource(Res.string.tool_ready), color = if (result?.error == true) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!connectivity || result != null) Text(result?.phase?.localized() ?: stringResource(Res.string.tool_ready), color = if (result?.error == true) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (speed) OutlinedButton(onClick = { settings = true }) { Text(stringResource(Res.string.tool_settings)) }
+                if (connectivity) IconButton(onClick = { settings = true }) { Icon(Icons.Default.Settings, stringResource(Res.string.connection_settings)) }
                 if (running) {
                     OutlinedButton(onClick = { scope.launch { manager.stop() } }) { Text(stringResource(Res.string.plugin_stop)) }
+                } else if (connectivity) {
+                    IconButton(onClick = { scope.launch { manager.run(manifest.id, parameters) } }, enabled = enabled && state.runningId == null && !state.busy) { Icon(Icons.Default.Refresh, stringResource(Res.string.plugin_start)) }
                 } else {
                     Button(onClick = { scope.launch { manager.run(manifest.id, parameters) } }, enabled = enabled && state.runningId == null && !state.busy) { Text(stringResource(Res.string.plugin_start)) }
                 }
             }
         }
-        if (!speed) {
+        if (!speed && !connectivity) {
             item {
                 OutlinedCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -136,14 +146,6 @@ internal fun NetworkToolPage(manifest: ToolManifest, enabled: Boolean, manager: 
                         }
                     }
                 }
-            }
-        }
-        if (speed) {
-            item {
-                val live = result?.metrics?.find { it.label.en == "Live rate" }
-                    ?: result?.metrics?.lastOrNull { it.value.endsWith("Mbps") }
-                val value = live?.value?.substringBefore(' ')?.toFloatOrNull() ?: 0f
-                SpeedInstrument(value, live?.label?.localized() ?: manifest.name.localized())
             }
         }
         if (!connectivity && !result?.metrics.isNullOrEmpty()) {
@@ -168,25 +170,7 @@ internal fun NetworkToolPage(manifest: ToolManifest, enabled: Boolean, manager: 
             item { ThroughputPlot(samples) }
         }
         if (connectivity) {
-            if (result?.rows.isNullOrEmpty()) item { Text(stringResource(Res.string.tool_waiting), modifier = Modifier.padding(vertical = 32.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            result?.rows?.chunked(2)?.let { pairs ->
-                items(pairs) { pair ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        pair.forEach { row ->
-                            val good = row.status.en == "Reachable"
-                            val color = if (good) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            OutlinedCard(Modifier.weight(1f), colors = CardDefaults.outlinedCardColors(containerColor = if (good) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface)) {
-                                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Text(row.target.removePrefix("https://").substringBefore('/'), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                    Text(row.status.localized(), color = color, style = MaterialTheme.typography.titleLarge)
-                                    Text(row.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
-                        if (pair.size == 1) Box(Modifier.weight(1f))
-                    }
-                }
-            }
+            item { ReferenceConnectivity(result, state.runningId != null, onRetry = { target -> scope.launch { manager.run(manifest.id, parameters + mapOf("targets" to "custom", "url" to target)) } }) }
         }
         item {
             TextButton(onClick = { details = !details }) { Text(stringResource(Res.string.tool_details)) }
@@ -194,35 +178,9 @@ internal fun NetworkToolPage(manifest: ToolManifest, enabled: Boolean, manager: 
         }
     }
     if (settings) {
-        AlertDialog(onDismissRequest = { settings = false }, title = { Text(stringResource(Res.string.tool_settings)) }, text = {
+        AlertDialog(onDismissRequest = { settings = false }, title = { Text(stringResource(if (connectivity) Res.string.connection_settings else Res.string.tool_settings)) }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { manifest.fields.forEach { field(it) } }
         }, confirmButton = { TextButton(onClick = { settings = false }) { Text(stringResource(Res.string.tool_done)) } })
-    }
-}
-
-@Composable
-private fun SpeedInstrument(value: Float, label: String) {
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    val accent = MaterialTheme.colorScheme.primary
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(360.dp, 220.dp), contentAlignment = Alignment.BottomCenter) {
-            // Material's circular indicator has no semicircle or logarithmic scale API.
-            // Keep custom drawing limited to the measured speed scale, not the controls.
-            Canvas(Modifier.fillMaxSize().padding(16.dp)) {
-                val arcSize = androidx.compose.ui.geometry.Size(size.width, size.width)
-                drawArc(track, 180f, 180f, false, size = arcSize, style = Stroke(12.dp.toPx(), cap = StrokeCap.Round))
-                drawArc(accent, 180f, (ln(1f + value.coerceIn(0f, 1000f)) / ln(1001f)) * 180f, false, size = arcSize, style = Stroke(12.dp.toPx(), cap = StrokeCap.Round))
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(bottom = 16.dp)) {
-                Text((kotlin.math.round(value * 100) / 100).toString(), style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
-                Text("Mbps", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Row(Modifier.size(340.dp, 24.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("0", style = MaterialTheme.typography.labelSmall)
-            Text("1,000 Mbps", style = MaterialTheme.typography.labelSmall)
-        }
-        Text(label, color = accent, style = MaterialTheme.typography.titleMedium)
     }
 }
 

@@ -70,18 +70,20 @@ fun ToolPluginCenter(manager: ToolPluginManager, initialPluginId: String? = null
     val selected = state.installed.find { it.manifest.id == selectedId }
     LaunchedEffect(market) { if (market && state.catalog.isEmpty()) manager.refresh() }
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(Res.string.plugin_center), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = {
-                market = false
-                selectedId = null
-            }) { Text(stringResource(Res.string.plugin_installed)) }
-            TextButton(onClick = {
-                market = true
-                selectedId = null
-            }) { Text(stringResource(Res.string.plugin_market)) }
-            OutlinedButton(onClick = { importing = true }, enabled = !state.busy && state.runningId == null) { Text(stringResource(Res.string.plugin_import)) }
-            OutlinedButton(onClick = { scope.launch { manager.refresh() } }, enabled = !state.busy) { Text(stringResource(Res.string.plugin_refresh)) }
+        if (selected == null || market) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(Res.string.plugin_center), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    market = false
+                    selectedId = null
+                }) { Text(stringResource(Res.string.plugin_installed)) }
+                TextButton(onClick = {
+                    market = true
+                    selectedId = null
+                }) { Text(stringResource(Res.string.plugin_market)) }
+                OutlinedButton(onClick = { importing = true }, enabled = !state.busy && state.runningId == null) { Text(stringResource(Res.string.plugin_import)) }
+                OutlinedButton(onClick = { scope.launch { manager.refresh() } }, enabled = !state.busy) { Text(stringResource(Res.string.plugin_refresh)) }
+            }
         }
         if (state.busy) {
             val progress = state.progress
@@ -99,7 +101,7 @@ fun ToolPluginCenter(manager: ToolPluginManager, initialPluginId: String? = null
         }
         when {
             selected != null && !market -> {
-                ToolPage(selected.manifest, selected.enabled, manager, Modifier.weight(1f))
+                ToolPage(selected.manifest, selected.enabled, manager, Modifier.weight(1f), onBack = { selectedId = null })
             }
 
             market -> {
@@ -183,6 +185,6 @@ fun ToolPluginCenter(manager: ToolPluginManager, initialPluginId: String? = null
 }
 
 @Composable
-private fun ToolPage(manifest: ToolManifest, enabled: Boolean, manager: ToolPluginManager, modifier: Modifier = Modifier) {
-    NetworkToolPage(manifest, enabled, manager, modifier)
+private fun ToolPage(manifest: ToolManifest, enabled: Boolean, manager: ToolPluginManager, modifier: Modifier = Modifier, onBack: () -> Unit) {
+    NetworkToolPage(manifest, enabled, manager, modifier, onBack)
 }

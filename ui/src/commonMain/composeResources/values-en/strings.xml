@@ -1707,4 +1707,19 @@
     <string name="tool_done">Done</string>
     <string name="tool_down">Download</string>
     <string name="tool_up">Upload</string>
+    <string name="speed_network">Outbound network</string>
+    <string name="speed_route">Routing</string>
+    <string name="speed_server">Test server</string>
+    <string name="speed_direct">Direct / system TUN</string>
+    <string name="speed_system_route">Operating system routing</string>
+    <string name="speed_latency">Latency</string>
+    <string name="speed_jitter">Jitter</string>
+    <string name="speed_engine_note">The installed engine supports Cloudflare HTTP tests. Apple, Speedtest, HTTP/3 and proxy-node selection are not connected. Unavailable measurements show —.</string>
+    <string name="connection_all">All</string>
+    <string name="connection_stream">Streaming</string>
+    <string name="connection_other">Pending</string>
+    <string name="connection_checked">Checked</string>
+    <string name="connection_restricted">Restricted</string>
+    <string name="connection_retry">Recheck platform</string>
+    <string name="connection_settings">Check settings</string>
 </resources>
