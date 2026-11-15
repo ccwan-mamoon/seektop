@@ -75,3 +75,9 @@ val compileWindowsLinkRouter by tasks.registering(Exec::class) {
     args("/nologo", "/target:winexe", "/codepage:65001", "/reference:System.Web.Extensions.dll", "/reference:System.Windows.Forms.dll", "/out:${output.asFile.absolutePath}", source.asFile.absolutePath)
 }
 tasks.matching { it.name == "prepareAppResources" || it.name == "jvmTest" }.configureEach { dependsOn(compileWindowsLinkRouter) }
+
+// Compose's app-image implementation can remain up-to-date after prepareAppResources changes.
+// Track provisioned files explicitly until that task includes appResourcesRootDir in its own inputs.
+tasks.matching { it.name == "createDistributableImpl" }.configureEach {
+    inputs.dir(layout.projectDirectory.dir("resources"))
+}
