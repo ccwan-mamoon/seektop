@@ -2,12 +2,26 @@ package io.github.seektop.desktop
 
 import io.github.seektop.vps.VpsFeePayer
 import io.github.seektop.vps.VpsInput
+import io.github.seektop.vps.vpsRateUnits
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class DesktopVpsCalculatorTest {
     private val input = VpsInput(renewal = "100", periodDays = "100", tradeDate = "2026-01-01", expiryDate = "2026-02-20", transaction = true, paymentCny = "80", pushFee = "10", middleman = true)
+
+    @Test fun `two decimal FX quotes preserve small currencies using hundred unit quotes`() {
+        val service = DesktopVpsCalculator(DesktopExchangeRates(java.io.File("unused-fx.json"), { error("no network") }))
+        assertEquals("6.66", service.displayRate("6.66445184938", 1))
+        assertEquals("1.00", service.displayRate("1", 1))
+        assertEquals("", service.displayRate("1e999999999", 1))
+        val units = vpsRateUnits("KRW")
+        assertEquals(100, units)
+        assertEquals("0.55", service.displayRate("0.00547", units))
+        val rate = service.rateFromDisplay("0.55", units)
+        assertEquals("0.0055", rate)
+        assertEquals("27.50", calculateVps(input.copy(renewal = "10000", currency = "KRW", toCny = rate, transaction = false)).remainingCny)
+    }
 
     @Test fun `buyer fees increase total while seller fees reduce net without double counting`() {
         val buyer = calculateVps(input)

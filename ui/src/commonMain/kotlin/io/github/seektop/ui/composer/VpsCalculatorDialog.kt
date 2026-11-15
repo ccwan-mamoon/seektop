@@ -12,14 +12,20 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -27,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -37,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -49,9 +57,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.seektop.foundation.designsys.component.SeekTopIcons
 import io.github.seektop.foundation.designsys.editor.insertText
 import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.action_cancel
 import io.github.seektop.ui.resources.action_close
 import io.github.seektop.ui.resources.vps_buyer
 import io.github.seektop.ui.resources.vps_buyer_premium
+import io.github.seektop.ui.resources.vps_choose_date
+import io.github.seektop.ui.resources.vps_confirm
 import io.github.seektop.ui.resources.vps_convention
 import io.github.seektop.ui.resources.vps_daily
 import io.github.seektop.ui.resources.vps_dates
@@ -61,17 +72,22 @@ import io.github.seektop.ui.resources.vps_error_date
 import io.github.seektop.ui.resources.vps_error_period
 import io.github.seektop.ui.resources.vps_error_rate
 import io.github.seektop.ui.resources.vps_expiry
+import io.github.seektop.ui.resources.vps_half_year
 import io.github.seektop.ui.resources.vps_hint
 import io.github.seektop.ui.resources.vps_insert
 import io.github.seektop.ui.resources.vps_item
 import io.github.seektop.ui.resources.vps_manual
 import io.github.seektop.ui.resources.vps_middleman
 import io.github.seektop.ui.resources.vps_middleman_percent
+import io.github.seektop.ui.resources.vps_model
+import io.github.seektop.ui.resources.vps_model_result
+import io.github.seektop.ui.resources.vps_monthly
 import io.github.seektop.ui.resources.vps_na
 import io.github.seektop.ui.resources.vps_payment
 import io.github.seektop.ui.resources.vps_period
 import io.github.seektop.ui.resources.vps_precise
 import io.github.seektop.ui.resources.vps_push
+import io.github.seektop.ui.resources.vps_quarterly
 import io.github.seektop.ui.resources.vps_remaining
 import io.github.seektop.ui.resources.vps_remaining_days
 import io.github.seektop.ui.resources.vps_renewal
@@ -80,15 +96,19 @@ import io.github.seektop.ui.resources.vps_result
 import io.github.seektop.ui.resources.vps_seller
 import io.github.seektop.ui.resources.vps_seller_premium
 import io.github.seektop.ui.resources.vps_split
+import io.github.seektop.ui.resources.vps_three_years
 import io.github.seektop.ui.resources.vps_title
 import io.github.seektop.ui.resources.vps_total
 import io.github.seektop.ui.resources.vps_trade_date
 import io.github.seektop.ui.resources.vps_trade_mode
+import io.github.seektop.ui.resources.vps_two_years
+import io.github.seektop.ui.resources.vps_yearly
 import io.github.seektop.vps.VPS_CURRENCIES
 import io.github.seektop.vps.VpsCalculatorService
 import io.github.seektop.vps.VpsFeePayer
 import io.github.seektop.vps.VpsInput
 import io.github.seektop.vps.VpsResult
+import io.github.seektop.vps.vpsRateUnits
 import org.jetbrains.compose.resources.stringResource
 
 val LocalVpsCalculator = staticCompositionLocalOf<VpsCalculatorService?> { null }
@@ -116,18 +136,31 @@ fun VpsCalculatorDialog(bodyState: TextFieldState, onDismiss: () -> Unit) {
     val input = state.input
     val result = state.result
     var precise by remember { mutableStateOf(false) }
+    var choosingExpiry by remember { mutableStateOf<Boolean?>(null) }
+    val periodName = stringResource(
+        when (input.periodDays) {
+            "30" -> Res.string.vps_monthly
+            "90" -> Res.string.vps_quarterly
+            "180" -> Res.string.vps_half_year
+            "365" -> Res.string.vps_yearly
+            "730" -> Res.string.vps_two_years
+            "1095" -> Res.string.vps_three_years
+            else -> Res.string.vps_period
+        },
+    )
     val notes = buildList {
         @Composable fun source(code: String, rate: String): String {
-            val cached = state.rates?.rates?.find { it.code == code && it.toCny == rate }
+            val cached = state.rates?.rates?.find { it.code == code && service.rateFromDisplay(service.displayRate(it.toCny, vpsRateUnits(code)), vpsRateUnits(code)) == rate }
             return if (cached == null) "${stringResource(Res.string.vps_manual)} · ${service.today()}" else "${if (cached.manual) stringResource(Res.string.vps_manual) else "Frankfurter"} · ${cached.date}"
         }
-        if (input.currency != "CNY") add("💱 1 ${input.currency} = ${input.toCny} CNY (${source(input.currency, input.toCny)})")
-        if (input.transaction && input.pushCurrency != "CNY" && input.pushFee.toDoubleOrNull() != 0.0) add("💱 Push: 1 ${input.pushCurrency} = ${input.pushToCny} CNY (${source(input.pushCurrency, input.pushToCny)})")
+        if (input.currency != "CNY") add("💱 ${vpsRateUnits(input.currency)} ${input.currency} = ${service.displayRate(input.toCny, vpsRateUnits(input.currency))} CNY (${source(input.currency, input.toCny)})")
+        if (input.transaction && input.pushCurrency != "CNY" && input.pushFee.toDoubleOrNull() != 0.0) add("💱 Push: ${vpsRateUnits(input.pushCurrency)} ${input.pushCurrency} = ${service.displayRate(input.pushToCny, vpsRateUnits(input.pushCurrency))} CNY (${source(input.pushCurrency, input.pushToCny)})")
         add(stringResource(Res.string.vps_convention))
     }
     val rows = buildList {
         if (result != null) {
-            add("🔄 " + stringResource(Res.string.vps_renewal) to "${input.renewal} ${input.currency} / ${input.periodDays} ${stringResource(Res.string.vps_days)}")
+            if (input.model.isNotBlank()) add("🖥 " + stringResource(Res.string.vps_model_result) to vpsModelMarkdown(input.model))
+            add("🔄 " + stringResource(Res.string.vps_renewal) to "${input.renewal} ${input.currency} / $periodName (${input.periodDays} ${stringResource(Res.string.vps_days)})")
             add("📅 " + stringResource(Res.string.vps_dates) to "${input.tradeDate} → ${input.expiryDate}")
             add("⏳ " + stringResource(Res.string.vps_remaining_days) to "${result.remainingDays} ${stringResource(Res.string.vps_days)}")
             add("💎 " + stringResource(Res.string.vps_remaining) to "**¥${result.remainingCny}** (${result.remainingOriginal} ${input.currency})")
@@ -154,6 +187,7 @@ fun VpsCalculatorDialog(bodyState: TextFieldState, onDismiss: () -> Unit) {
                     val wide = maxWidth >= 740.dp
                     Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         Column(Modifier.weight(if (wide) 1.35f else 1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            VpsField(input.model, { value -> vm.edit { it.copy(model = value) } }, stringResource(Res.string.vps_model), maxLength = 120)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(selected = !input.transaction, onClick = { vm.edit { it.copy(transaction = false) } }, label = { Text(stringResource(Res.string.vps_residual_mode)) })
                                 FilterChip(selected = input.transaction, onClick = { vm.edit { it.copy(transaction = true) } }, label = { Text(stringResource(Res.string.vps_trade_mode)) })
@@ -161,10 +195,10 @@ fun VpsCalculatorDialog(bodyState: TextFieldState, onDismiss: () -> Unit) {
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 VpsField(input.renewal, { value -> vm.edit { it.copy(renewal = value) } }, stringResource(Res.string.vps_renewal), Modifier.weight(1f))
                                 VpsSelect(input.currency, VPS_CURRENCIES, { vm.currency(it) })
-                                VpsField(input.toCny, { value -> vm.edit { it.copy(toCny = value) } }, "1 ${input.currency} = CNY", Modifier.weight(1f), input.currency != "CNY")
+                                VpsRateField(input.toCny, input.currency, service, { value -> vm.edit { it.copy(toCny = value) } }, Modifier.weight(1f))
                             }
                             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf(30, 90, 180, 365, 730).forEach { days -> FilterChip(selected = input.periodDays == "$days", onClick = { vm.edit { it.copy(periodDays = "$days") } }, label = { Text("$days ${stringResource(Res.string.vps_days)}") }) }
+                                listOf(30 to Res.string.vps_monthly, 90 to Res.string.vps_quarterly, 180 to Res.string.vps_half_year, 365 to Res.string.vps_yearly, 730 to Res.string.vps_two_years, 1095 to Res.string.vps_three_years).forEach { (days, label) -> FilterChip(selected = input.periodDays == "$days", onClick = { vm.edit { it.copy(periodDays = "$days") } }, label = { Text(stringResource(label)) }) }
                             }
                             VpsField(input.periodDays, { value -> vm.edit { it.copy(periodDays = value) } }, stringResource(Res.string.vps_period))
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -192,8 +226,8 @@ fun VpsCalculatorDialog(bodyState: TextFieldState, onDismiss: () -> Unit) {
                                 Text(stringResource(Res.string.vps_precise), Modifier.padding(start = 8.dp))
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                VpsField(input.tradeDate, { value -> vm.edit { it.copy(tradeDate = value) } }, stringResource(Res.string.vps_trade_date), Modifier.weight(1f))
-                                VpsField(input.expiryDate, { value -> vm.edit { it.copy(expiryDate = value) } }, stringResource(Res.string.vps_expiry), Modifier.weight(1f))
+                                VpsDateField(input.tradeDate, { value -> vm.edit { it.copy(tradeDate = value) } }, stringResource(Res.string.vps_trade_date), { choosingExpiry = false }, Modifier.weight(1f))
+                                VpsDateField(input.expiryDate, { value -> vm.edit { it.copy(expiryDate = value) } }, stringResource(Res.string.vps_expiry), { choosingExpiry = true }, Modifier.weight(1f))
                             }
                             Text(if (precise) "YYYY-MM-DD HH:mm" else "YYYY-MM-DD", style = MaterialTheme.typography.bodySmall)
                             if (input.transaction) {
@@ -202,7 +236,7 @@ fun VpsCalculatorDialog(bodyState: TextFieldState, onDismiss: () -> Unit) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     VpsField(input.pushFee, { value -> vm.edit { it.copy(pushFee = value) } }, stringResource(Res.string.vps_push), Modifier.weight(1f))
                                     VpsSelect(input.pushCurrency, VPS_CURRENCIES, { vm.currency(it, push = true) })
-                                    VpsField(input.pushToCny, { value -> vm.edit { it.copy(pushToCny = value) } }, "1 ${input.pushCurrency} = CNY", Modifier.weight(1f), input.pushCurrency != "CNY")
+                                    VpsRateField(input.pushToCny, input.pushCurrency, service, { value -> vm.edit { it.copy(pushToCny = value) } }, Modifier.weight(1f))
                                 }
                                 PayerChoice(input.pushPayer) { value -> vm.edit { it.copy(pushPayer = value) } }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -250,11 +284,23 @@ fun VpsCalculatorDialog(bodyState: TextFieldState, onDismiss: () -> Unit) {
             }
         }
     }
+    choosingExpiry?.let { expiry ->
+        VpsDatePicker(
+            value = if (expiry) input.expiryDate else input.tradeDate,
+            fallback = service.today(),
+            label = stringResource(if (expiry) Res.string.vps_expiry else Res.string.vps_trade_date),
+            onDismiss = { choosingExpiry = null },
+            onSelected = { millis ->
+                vm.edit { current -> if (expiry) current.copy(expiryDate = vpsCalendarDate(millis, current.expiryDate, precise)) else current.copy(tradeDate = vpsCalendarDate(millis, current.tradeDate, precise)) }
+                choosingExpiry = null
+            },
+        )
+    }
 }
 
 @Composable
-private fun VpsField(value: String, change: (String) -> Unit, label: String, modifier: Modifier = Modifier.fillMaxWidth(), enabled: Boolean = true) {
-    OutlinedTextField(value, { if (it.length <= 64) change(it) }, label = { Text(label) }, modifier = modifier, enabled = enabled, singleLine = true)
+private fun VpsField(value: String, change: (String) -> Unit, label: String, modifier: Modifier = Modifier.fillMaxWidth(), enabled: Boolean = true, maxLength: Int = 64) {
+    OutlinedTextField(value, { if (it.length <= maxLength) change(it) }, label = { Text(label) }, modifier = modifier, enabled = enabled, singleLine = true)
 }
 
 @Composable
@@ -297,8 +343,9 @@ private fun VpsSummary(input: VpsInput, result: VpsResult?, rows: List<Pair<Stri
     if (result != null) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (input.model.isNotBlank()) Text(input.model, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                 Text("💎 " + stringResource(Res.string.vps_remaining) + "  ¥${result.remainingCny}", style = MaterialTheme.typography.headlineSmall)
-                rows.drop(4).forEach { (label, value) ->
+                rows.drop(if (input.model.isBlank()) 4 else 5).forEach { (label, value) ->
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(label, style = MaterialTheme.typography.labelMedium)
                         Text(value.replace("**", ""), style = MaterialTheme.typography.bodyLarge)
@@ -311,4 +358,48 @@ private fun VpsSummary(input: VpsInput, result: VpsResult?, rows: List<Pair<Stri
     } else if (error == null) {
         Text(stringResource(Res.string.vps_hint), style = MaterialTheme.typography.bodySmall)
     }
+}
+
+@Composable
+private fun VpsDateField(value: String, change: (String) -> Unit, label: String, pick: () -> Unit, modifier: Modifier) {
+    OutlinedTextField(
+        value,
+        change,
+        label = { Text(label) },
+        singleLine = true,
+        modifier = modifier,
+        trailingIcon = { IconButton(onClick = pick) { Icon(Icons.Default.DateRange, stringResource(Res.string.vps_choose_date, label)) } },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VpsDatePicker(value: String, fallback: String, label: String, onDismiss: () -> Unit, onSelected: (Long) -> Unit) {
+    val picker = rememberDatePickerState(initialSelectedDateMillis = vpsCalendarMillis(value) ?: vpsCalendarMillis(fallback), yearRange = 2000..2200)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = { picker.selectedDateMillis?.let(onSelected) }, enabled = picker.selectedDateMillis != null) { Text(stringResource(Res.string.vps_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.action_cancel)) } },
+    ) { DatePicker(state = picker, title = { Text(label, Modifier.padding(16.dp)) }) }
+}
+
+@Composable
+private fun VpsRateField(value: String, currency: String, service: VpsCalculatorService, change: (String) -> Unit, modifier: Modifier) {
+    val units = vpsRateUnits(currency)
+    var text by remember(currency) { mutableStateOf(service.displayRate(value, units)) }
+    var focused by remember(currency) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(value, focused) { if (!focused) text = service.displayRate(value, units) }
+    OutlinedTextField(
+        text,
+        { next ->
+            if (next.length <= 40) {
+                text = next
+                change(service.rateFromDisplay(service.displayRate(service.rateFromDisplay(next, units), units), units))
+            }
+        },
+        label = { Text("$units $currency = CNY") },
+        singleLine = true,
+        enabled = currency != "CNY",
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
+    )
 }

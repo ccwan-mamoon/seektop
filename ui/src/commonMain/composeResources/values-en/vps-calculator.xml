@@ -34,4 +34,14 @@
     <string name="vps_insert">Insert into editor · Markdown</string>
     <string name="vps_item">Item</string>
     <string name="vps_result">Result</string>
+    <string name="vps_model">Model / product name (optional)</string>
+    <string name="vps_monthly">Monthly</string>
+    <string name="vps_quarterly">Quarterly</string>
+    <string name="vps_half_year">Half-year</string>
+    <string name="vps_yearly">Yearly</string>
+    <string name="vps_two_years">Two years</string>
+    <string name="vps_three_years">Three years</string>
+    <string name="vps_choose_date">Choose %1$s</string>
+    <string name="vps_confirm">Confirm</string>
+    <string name="vps_model_result">Model</string>
 </resources>

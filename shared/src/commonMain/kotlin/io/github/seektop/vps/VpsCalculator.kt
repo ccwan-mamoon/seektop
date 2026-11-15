@@ -21,6 +21,7 @@ data class VpsInput(
     val middleman: Boolean = false,
     val middlemanPercent: String = "5",
     val middlemanPayer: VpsFeePayer = VpsFeePayer.BUYER,
+    val model: String = "",
 )
 
 data class VpsResult(
@@ -44,4 +45,8 @@ interface VpsCalculatorService {
     fun today(): String
     suspend fun exchangeRates(): AiExchangeRates
     fun calculate(input: VpsInput): VpsResult
+    fun displayRate(value: String, units: Int): String = value
+    fun rateFromDisplay(value: String, units: Int): String = value
 }
+
+fun vpsRateUnits(currency: String): Int = if (currency == "JPY" || currency == "KRW") 100 else 1

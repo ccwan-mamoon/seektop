@@ -16,7 +16,11 @@ internal class DesktopVpsCalculator(private val rates: DesktopExchangeRates) : V
     override fun today() = LocalDate.now(ZoneId.of("Asia/Shanghai")).toString()
     override suspend fun exchangeRates() = rates.configuration()
     override fun calculate(input: VpsInput) = calculateVps(input)
+    override fun displayRate(value: String, units: Int): String = uiRate(value)?.multiply(units.toBigDecimal())?.setScale(2, RoundingMode.HALF_UP)?.toPlainString().orEmpty()
+    override fun rateFromDisplay(value: String, units: Int): String = uiRate(value)?.divide(units.toBigDecimal())?.stripTrailingZeros()?.toPlainString() ?: value
 }
+
+private fun uiRate(value: String): BigDecimal? = value.takeIf { it.length <= 64 && Regex("(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)").matches(it) }?.toBigDecimalOrNull()
 
 /** Decimal calculations stay in the Windows shell: Kotlin common has no BigDecimal API. */
 internal fun calculateVps(input: VpsInput): VpsResult {

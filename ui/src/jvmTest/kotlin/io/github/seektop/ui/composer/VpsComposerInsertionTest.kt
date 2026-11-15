@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
@@ -49,8 +50,13 @@ class VpsComposerInsertionTest {
             }
         }
         onNodeWithText("剩余价值计算器").performClick()
+        onNodeWithText("型号 / 产品名称（可选）").performTextReplacement("Test VPS Model")
         onNodeWithText("续费金额").performTextReplacement("100")
         onNodeWithText("到期日期").performTextReplacement("2027-05-16")
+        onNodeWithContentDescription("选择到期日期").performClick()
+        waitForIdle()
+        onNodeWithText("2027年5月17日星期一").performClick()
+        onNodeWithText("确定").performClick()
         onNodeWithText("交易溢价").performClick()
         onNodeWithText("实付卖家 (CNY)").performTextReplacement("80")
         onNodeWithText("插入正文 · Markdown").performClick()
@@ -59,6 +65,8 @@ class VpsComposerInsertionTest {
         assertTrue(text.startsWith("prefix "))
         assertTrue(text.endsWith(" suffix"))
         assertFalse("SELECT" in text)
+        assertTrue("Test VPS Model" in text)
+        assertTrue("2027-05-17" in text)
         assertTrue(parseMarkdown(text).any { it is RichNode.Table })
         assertFalse(open)
         assertEquals(text.length - " suffix".length, body.selection.end)

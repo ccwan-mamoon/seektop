@@ -34,4 +34,14 @@
     <string name="vps_insert">插入正文 · Markdown</string>
     <string name="vps_item">項目</string>
     <string name="vps_result">結果</string>
+    <string name="vps_model">型號 / 產品名稱（選填）</string>
+    <string name="vps_monthly">月付</string>
+    <string name="vps_quarterly">季付</string>
+    <string name="vps_half_year">半年</string>
+    <string name="vps_yearly">年付</string>
+    <string name="vps_two_years">兩年</string>
+    <string name="vps_three_years">三年</string>
+    <string name="vps_choose_date">選擇%1$s</string>
+    <string name="vps_confirm">確定</string>
+    <string name="vps_model_result">型號</string>
 </resources>
