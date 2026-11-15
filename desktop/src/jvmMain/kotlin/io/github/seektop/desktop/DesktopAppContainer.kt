@@ -107,6 +107,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.jsonPrimitive
 import okio.Path.Companion.toPath
 import java.io.File
 
@@ -121,11 +122,18 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
     })
     override val toolPlugins: io.github.seektop.plugins.ToolPluginManager = desktopToolPlugins
     override val externalLinkRouting: io.github.seektop.links.ExternalLinkRouting = DesktopExternalLinks(File(System.getProperty("compose.application.resources.dir") ?: "desktop/resources/windows", "SeekTopLinkRouter.exe"))
+    private val exchangeRates = DesktopExchangeRates(File(directory, "ai/exchange-rates.json"), fetch = {
+        browser.applyProxy(proxySettings.config.first())
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            kotlinx.coroutines.runInterruptible { browser.call("exchange-rates").getValue("body").jsonPrimitive.content }
+        }
+    })
     override val postAnalysis: io.github.seektop.ai.PostAnalysisService = DesktopPostAnalysis(
         browser,
         ensureProxy = { browser.applyProxy(proxySettings.config.first()) },
         loadPage = { id, page -> remotePosts.loadDetail(id, page) },
         sessionStamp = { sessionRepository.state.value.let { "${it.isSignedIn}:${it.fingerprint}" } },
+        exchangeContext = { exchangeRates.analysisContext() },
     )
     private val databaseDelegate = lazy { createNodeSeekDatabase(directory) }
     private val database by databaseDelegate
@@ -140,6 +148,12 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
     override val proxySettings: ProxySettings by lazy { DataStoreProxySettings(secretStore("proxy"), secretCipher) }
     init {
         appScope.launch { proxySettings.config.collect { browser.applyProxy(it) } }
+        appScope.launch {
+            while (true) {
+                exchangeRates.refresh()
+                kotlinx.coroutines.delay(3600000)
+            }
+        }
     }
     override val proxyConnectionTester = object : ProxyConnectionTester {
         override suspend fun test(): Result<Unit> = runCatchingExceptCancellation {

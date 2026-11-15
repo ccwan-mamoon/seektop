@@ -46,6 +46,8 @@ app.whenReady().then(() => {
     const updatesSession = session.fromPartition("updates");
     const pluginSession = session.fromPartition("plugin-market");
     const aiSession = session.fromPartition("ai-analysis");
+    const fxSession = session.fromPartition("exchange-rates");
+    const fetchExchangeRates = require("./exchange-rates.cjs").createExchangeRateFetcher(fxSession);
     const ai = require("./ai-analysis.cjs").createAiService({session:aiSession,safeStorage:require("electron").safeStorage,directory:require("node:path").join(process.env.SEEKTOP_BROWSER_DATA,"../ai"),defaultSettings:{providers:[{id:"deepseek",name:"DeepSeek",baseUrl:"https://api.deepseek.com",model:"deepseek-flash",vision:true}],selectedProvider:"deepseek",defaultPrompt:"",boardPrompts:{}}});
     app.on("before-quit",()=>ai.dispose());
     const pluginDownload = require("./plugin-download.cjs").createPluginDownloader(pluginSession);
@@ -95,6 +97,7 @@ app.whenReady().then(() => {
                 case "/ai-start": value = await ai.start(q); break;
                 case "/ai-status": value = ai.status(q.id); break;
                 case "/ai-cancel": value = await ai.cancel(q.id); break;
+                case "/exchange-rates": value = await fetchExchangeRates(); break;
                 case "/plugin-download": value = await pluginDownload(q); break;
                 case "/update-releases": value = await updates.releases(); break;
                 case "/update-start": value = await updates.start(q); break;
@@ -133,6 +136,8 @@ app.whenReady().then(() => {
                     await pluginSession.closeAllConnections();
                     await aiSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
                     await aiSession.closeAllConnections();
+                    await fxSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
+                    await fxSession.closeAllConnections();
                     await updatesSession.closeAllConnections();
                     await forum.closeAllConnections();
                     await third.closeAllConnections();
