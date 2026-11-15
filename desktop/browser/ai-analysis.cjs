@@ -23,7 +23,7 @@ function settingsShape(q, previous) {
         const old = previous?.providers?.find(x => x.id === p.id);
         const supplied = q.newKeys?.[p.id];
         if (supplied != null && (typeof supplied !== "string" || supplied.length > 4096 || /[\r\n]/.test(supplied))) throw Error("AI_INVALID_KEY");
-        return { id:p.id, name:p.name.trim(), baseUrl, model:p.model.trim(), vision:p.vision === true, key:supplied?.trim() || (old?.baseUrl === baseUrl ? old.key : "") || "" };
+        return { id:p.id, name:p.name.trim(), baseUrl, model:p.model.trim(), vision:p.vision === true, thinking:p.thinking === true, key:supplied?.trim() || (old?.baseUrl === baseUrl ? old.key : "") || "" };
     });
     if (!ids.has(q.selectedProvider) || typeof q.defaultPrompt !== "string" || q.defaultPrompt.length > 12000 || !q.boardPrompts || typeof q.boardPrompts !== "object" || Array.isArray(q.boardPrompts) || Object.keys(q.boardPrompts).length > 100) throw Error("AI_INVALID_SETTINGS");
     const boardPrompts = Object.fromEntries(Object.entries(q.boardPrompts).map(([key,value]) => {
@@ -34,29 +34,63 @@ function settingsShape(q, previous) {
 }
 const publicSettings = c => ({...c, providers:c.providers.map(({key,...p}) => ({...p,keySet:!!key}))});
 
-/** Parse the SSE protocol across arbitrary network chunks, including split UTF-8 characters. */
+function contentText(value) {
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) return value.filter(p=>p && ["text","output_text"].includes(p.type)).map(p=>typeof p.text==="string"?p.text:(typeof p.text?.value==="string"?p.text.value:"")).join("");
+    return "";
+}
+function requestBody(provider,messages) {
+    const official=new URL(provider.baseUrl).hostname === "api.deepseek.com";
+    const body={model:provider.model,messages,stream:true,max_tokens:official&&provider.thinking?32768:8192};
+    // DeepSeek enables thinking by default. Explicitly reserve it for the user's opt-in.
+    // Other OpenAI-compatible services must not receive DeepSeek-specific parameters.
+    if(official)body.thinking={type:provider.thinking?"enabled":"disabled"};
+    return body;
+}
+
+/** SSE framing, text content parts, reasoning progress and terminal reasons are distinct. */
 class ChatStream {
-    constructor(onText) { this.onText=onText; this.buffer=""; this.data=[]; this.done=false; this.finished=false; }
+    constructor(onText,onThinking=()=>{}) {
+        this.onText=onText; this.onThinking=onThinking; this.buffer=""; this.data=[];
+        this.done=false; this.finished=false; this.finishReason=""; this.reasoning=false;
+    }
     push(chunk) {
         this.buffer+=chunk;
-        if(this.buffer.length>256*1024) throw Error("AI_RESPONSE_LIMIT");
-        let index;
-        while((index=this.buffer.indexOf("\n"))>=0) {
-            const line=this.buffer.slice(0,index).replace(/\r$/,""); this.buffer=this.buffer.slice(index+1);
-            if(!line) this.event();
-            else if(line.startsWith("data:")) this.data.push(line.slice(5).replace(/^ /,""));
+        if(this.buffer.length>256*1024)throw Error("AI_RESPONSE_LIMIT");
+        for(;;) {
+            const i=this.buffer.search(/[\r\n]/);if(i<0)return;
+            if(this.buffer[i]==="\r"&&i===this.buffer.length-1)return;
+            const line=this.buffer.slice(0,i), n=this.buffer[i]==="\r"&&this.buffer[i+1]==="\n"?2:1;
+            this.buffer=this.buffer.slice(i+n);
+            if(!line)this.event();
+            else if(line.startsWith("data:"))this.data.push(line.slice(5).replace(/^ /,""));
         }
     }
     event() {
-        if(!this.data.length) return;
-        const data=this.data.join("\n"); this.data=[];
-        if(data==="[DONE]") { this.done=true; return; }
-        const q=JSON.parse(data); if(q.error) throw Error("AI_PROVIDER_ERROR");
-        if(q.choices?.[0]?.finish_reason) this.finished=true;
-        const text=q.choices?.[0]?.delta?.content;
-        if(typeof text==="string") this.onText(text);
+        if(!this.data.length)return;
+        const raw=this.data.join("\n");this.data=[];
+        if(raw.trim()==="[DONE]"){this.done=true;return;}
+        let q;try{q=JSON.parse(raw);}catch{throw Error("AI_INVALID_RESPONSE");}
+        this.accept(q);
     }
-    finish() { if(this.buffer.trim()) this.push("\n"); this.event(); }
+    accept(q,stream=true) {
+        if(!q||typeof q!=="object"||(q.choices&&!Array.isArray(q.choices)))throw Error("AI_INVALID_RESPONSE");
+        if(q.error)throw Error("AI_PROVIDER_ERROR");
+        const choice=q.choices?.find(x=>x.index===0)||q.choices?.[0];
+        if(!choice)return;
+        const delta=stream?(choice.delta||choice.message||{}):(choice.message||{});
+        if(choice.finish_reason){this.finished=true;this.finishReason=choice.finish_reason;}
+        if(contentText(delta.reasoning_content)||contentText(delta.reasoning)||q.usage?.completion_tokens_details?.reasoning_tokens>0){this.reasoning=true;this.onThinking();}
+        const text=contentText(delta.content)||contentText(delta.refusal)||contentText(choice.text);
+        if(text)this.onText(text);
+    }
+    finish() {if(this.buffer.length)this.push("\n\n");this.event();}
+    validate(text) {
+        if(this.finishReason==="length")throw Error("AI_OUTPUT_LIMIT");
+        if(this.finishReason==="content_filter")throw Error("AI_CONTENT_FILTER");
+        if(["tool_calls","function_call"].includes(this.finishReason))throw Error("AI_UNSUPPORTED_RESPONSE");
+        if(!text.trim())throw Error(this.reasoning?"AI_REASONING_ONLY":"AI_EMPTY_RESPONSE");
+    }
 }
 
 function createAiService({session,safeStorage,directory,defaultSettings}) {
@@ -102,17 +136,39 @@ function createAiService({session,safeStorage,directory,defaultSettings}) {
         let reader;
         const timeout=setTimeout(()=>{job.timeout=true;job.controller.abort();},180000);
         try {
-            const response=await fetchAt(url,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+provider.key},body:JSON.stringify({model:provider.model,messages,stream:true,max_tokens:4096}),signal:job.controller.signal});
+            const response=await fetchAt(url,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+provider.key},body:JSON.stringify(requestBody(provider,messages)),signal:job.controller.signal});
             if(response.status!==200) { await response.body?.cancel(); throw Error("AI_HTTP_"+response.status); }
-            const parser=new ChatStream(text=>{job.text+=text;if(job.text.length>200000)throw Error("AI_RESPONSE_LIMIT");});
-            reader=response.body?.getReader(); if(!reader) throw Error("AI_EMPTY_RESPONSE");
-            const decoder=new TextDecoder(); let bytes=0;
-            const streaming=(response.headers.get("content-type")||"").includes("text/event-stream");let json="";
-            for(;;) { const {done,value}=await reader.read();if(done)break;bytes+=value.length;if(bytes>4*1024*1024)throw Error("AI_RESPONSE_LIMIT");const text=decoder.decode(value,{stream:true});if(streaming)parser.push(text);else json+=text; }
-            if(streaming) {parser.push(decoder.decode());parser.finish();if(!parser.done&&!parser.finished)throw Error("AI_INCOMPLETE_RESPONSE");}
-            else {const q=JSON.parse(json+decoder.decode());job.text=q.choices?.[0]?.message?.content || "";}
-            if(job.text.length>200000)throw Error("AI_RESPONSE_LIMIT");
-            if(!job.text.trim()) throw Error("AI_EMPTY_RESPONSE");
+            const parser=new ChatStream(text=>{
+                job.text+=text;job.phase="answering";
+                if(job.text.length>200000)throw Error("AI_RESPONSE_LIMIT");
+            },()=>{if(!job.text)job.phase="thinking";});
+            reader=response.body?.getReader();if(!reader)throw Error("AI_EMPTY_RESPONSE");
+            const decoder=new TextDecoder();let bytes=0, probe="", json="";
+            let streaming=(response.headers.get("content-type")||"").toLowerCase().includes("text/event-stream")?true:null;
+            function consume(text) {
+                if(streaming===null){
+                    probe+=text;const trimmed=probe.trimStart();
+                    if(trimmed.startsWith("{"))streaming=false;
+                    else if(/^(data:|event:|:)/.test(trimmed))streaming=true;
+                    else if(probe.length>4096)throw Error("AI_INVALID_RESPONSE");
+                    else return;
+                    text=probe;probe="";
+                }
+                if(streaming)parser.push(text);else json+=text;
+            }
+            for(;;){
+                const {done,value}=await reader.read();if(done)break;
+                bytes+=value.length;if(bytes>16*1024*1024)throw Error("AI_RESPONSE_LIMIT");
+                consume(decoder.decode(value,{stream:true}));
+                if(streaming&&(parser.done||parser.finished))break;
+            }
+            consume(decoder.decode());
+            if(streaming){if(!parser.done&&!parser.finished)parser.finish();if(!parser.done&&!parser.finished)throw Error("AI_INCOMPLETE_RESPONSE");}
+            else {
+                let q;try{q=JSON.parse(json||probe);}catch{throw Error("AI_INVALID_RESPONSE");}
+                parser.accept(q,false);
+            }
+            parser.validate(job.text);
         } catch(e) {
             job.error=job.controller.signal.aborted?(job.timeout?"AI_TIMEOUT":"AI_CANCELLED"):(/^AI_[A-Z0-9_]+$/.test(e.message)?e.message:"AI_NETWORK_ERROR");
         } finally {clearTimeout(timeout);await reader?.cancel().catch(()=>{});destinations.delete(url);job.done=true;}
@@ -150,13 +206,13 @@ function createAiService({session,safeStorage,directory,defaultSettings}) {
             if(typeof id!=="string"||!/^[a-f0-9-]{36}$/.test(id))throw Error("AI_INVALID_REQUEST");
             if(cancelled.delete(id))throw Error("AI_CANCELLED");
             for(const [oldId,oldJob] of jobs)if(oldJob.done)jobs.delete(oldId);
-            const job={text:"",done:false,error:"",controller:new AbortController()};jobs.set(id,job);
+            const job={text:"",phase:"waiting",done:false,error:"",controller:new AbortController()};jobs.set(id,job);
             job.promise=run(job,p,messages);return {id};
             } finally {requesting=false;}
         },
-        status(id){const j=jobs.get(id);if(!j)throw Error("AI_JOB_MISSING");return {text:j.text,done:j.done,error:j.error};},
+        status(id){const j=jobs.get(id);if(!j)throw Error("AI_JOB_MISSING");return {text:j.text,phase:j.phase,done:j.done,error:j.error};},
         async cancel(id){const j=jobs.get(id);if(j){j.controller.abort();await j.promise;jobs.delete(id);}else{if(cancelled.size>100)cancelled.clear();cancelled.add(id);}return {};},
         dispose(){for(const j of jobs.values())j.controller.abort();current=null;},
     };
 }
-module.exports={createAiService,ChatStream,settingsShape,baseEndpoint,imageURL};
+module.exports={createAiService,ChatStream,settingsShape,baseEndpoint,imageURL,requestBody};

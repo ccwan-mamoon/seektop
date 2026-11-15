@@ -64,15 +64,20 @@ import io.github.seektop.ui.resources.ai_close
 import io.github.seektop.ui.resources.ai_common
 import io.github.seektop.ui.resources.ai_copied
 import io.github.seektop.ui.resources.ai_copy
+import io.github.seektop.ui.resources.ai_deep_thinking
 import io.github.seektop.ui.resources.ai_delete
 import io.github.seektop.ui.resources.ai_empty
 import io.github.seektop.ui.resources.ai_endpoint
 import io.github.seektop.ui.resources.ai_error_auth
 import io.github.seektop.ui.resources.ai_error_busy
 import io.github.seektop.ui.resources.ai_error_config
+import io.github.seektop.ui.resources.ai_error_filter
 import io.github.seektop.ui.resources.ai_error_key
 import io.github.seektop.ui.resources.ai_error_limit
 import io.github.seektop.ui.resources.ai_error_network
+import io.github.seektop.ui.resources.ai_error_output_limit
+import io.github.seektop.ui.resources.ai_error_reasoning_only
+import io.github.seektop.ui.resources.ai_error_response
 import io.github.seektop.ui.resources.ai_error_storage
 import io.github.seektop.ui.resources.ai_failed
 import io.github.seektop.ui.resources.ai_include_images
@@ -89,6 +94,7 @@ import io.github.seektop.ui.resources.ai_settings
 import io.github.seektop.ui.resources.ai_stop
 import io.github.seektop.ui.resources.ai_test
 import io.github.seektop.ui.resources.ai_test_ok
+import io.github.seektop.ui.resources.ai_thinking
 import io.github.seektop.ui.resources.ai_title
 import io.github.seektop.ui.resources.ai_truncated
 import io.github.seektop.ui.resources.ai_vision
@@ -163,8 +169,8 @@ private fun AnalysisDialog(service: PostAnalysisService, post: AiPost, vm: AiAna
             state.error?.let { AiError(it) }
             if (state.output.isNotBlank()) {
                 AnalysisOutput(state.output)
-            } else if (state.error == null) {
-                Text(stringResource(Res.string.ai_analyzing), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (state.error == null && (state.loading || state.busy)) {
+                Text(stringResource(if (state.phase == "thinking") Res.string.ai_thinking else Res.string.ai_analyzing), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -193,6 +199,10 @@ private fun AnalysisOutput(output: String) {
 @Composable
 private fun AiError(code: String) {
     val explanation = when {
+        code == "AI_OUTPUT_LIMIT" -> Res.string.ai_error_output_limit
+        code == "AI_REASONING_ONLY" -> Res.string.ai_error_reasoning_only
+        code in setOf("AI_EMPTY_RESPONSE", "AI_INVALID_RESPONSE", "AI_UNSUPPORTED_RESPONSE", "AI_PROVIDER_ERROR") -> Res.string.ai_error_response
+        code == "AI_CONTENT_FILTER" -> Res.string.ai_error_filter
         code == "AI_KEY_REQUIRED" -> Res.string.ai_error_key
         code in setOf("AI_HTTP_401", "AI_HTTP_403") -> Res.string.ai_error_auth
         code in setOf("AI_HTTP_402", "AI_HTTP_429") -> Res.string.ai_error_limit
@@ -277,6 +287,12 @@ fun AiSettingsScreen(service: PostAnalysisService, onBack: () -> Unit) {
                     Row {
                         Switch(provider.vision, { update(provider.copy(vision = it)) }, enabled = !state.busy)
                         Text(stringResource(Res.string.ai_vision), Modifier.padding(12.dp))
+                    }
+                    if (provider.baseUrl.startsWith("https://api.deepseek.com/") || provider.baseUrl == "https://api.deepseek.com") {
+                        Row {
+                            Switch(provider.thinking, { update(provider.copy(thinking = it)) }, enabled = !state.busy)
+                            Text(stringResource(Res.string.ai_deep_thinking), Modifier.padding(12.dp))
+                        }
                     }
                     HorizontalDivider()
                     Row {

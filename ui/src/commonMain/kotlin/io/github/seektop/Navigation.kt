@@ -374,7 +374,7 @@ fun MainNavigation(
                 }
                 when (route) {
                     is NodeSeekSite.InternalRoute.Post ->
-                        homeStack.add(PostDetailKey(route.postId, page = route.page))
+                        homeStack.bringToTop(PostDetailKey(route.postId, floor = request.url.substringAfter('#', "").takeIf { Regex("[0-9]{1,9}").matches(it) }?.let { "#$it" }, page = route.page))
 
                     is NodeSeekSite.InternalRoute.Space -> openSpaceOnHome(route.uid)
 

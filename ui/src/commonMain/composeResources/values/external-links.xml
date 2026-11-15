@@ -1,0 +1,14 @@
+<resources>
+    <string name="link_routing_title">外部链接接管</string>
+    <string name="link_routing_hint">从 Telegram 等外部应用打开 NodeSeek 帖子或用户页时，直接进入 SeekTop。其他网址自动沿用启用前的默认浏览器；无需安装浏览器扩展。浏览器内部点击的链接仍由浏览器处理。</string>
+    <string name="link_routing_off">接管已关闭</string>
+    <string name="link_routing_active">已启用，HTTP 和 HTTPS 关联正常</string>
+    <string name="link_routing_pending">已准备，请在 Windows 默认应用中将 HTTP 和 HTTPS 设为 SeekTop Links</string>
+    <string name="link_routing_browser">其他网址使用：%1$s</string>
+    <string name="link_routing_error">操作未完成，请检查原浏览器是否可用后重试：%1$s</string>
+    <string name="link_routing_enable">启用并打开系统设置</string>
+    <string name="link_routing_disable">关闭接管</string>
+    <string name="link_routing_system">Windows 默认应用</string>
+    <string name="link_routing_refresh">刷新状态</string>
+    <string name="link_routing_restore">关闭后所有网址继续转给原浏览器。要完全恢复系统关联，请在 Windows 默认应用中重新选择原浏览器。</string>
+</resources>

@@ -64,3 +64,5 @@ __pycache__/
 # Vendored only for corresponding-source plugin archives; reproducible via go.sum.
 /plugins/network-tools/vendor/
 /.seektop-keys/
+
+/desktop/resources/windows/SeekTopLinkRouter.exe

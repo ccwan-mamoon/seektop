@@ -227,6 +227,7 @@ internal fun SeekTopChrome(
             val reportCompareBasket = rememberReportCompareBasket(container.reportCompareStore)
             val aiBoards by container.categoryRepository.boards.collectAsStateWithLifecycle(initialValue = emptyList())
             CompositionLocalProvider(
+                io.github.seektop.ui.settings.LocalExternalLinkRouting provides container.externalLinkRouting,
                 io.github.seektop.ui.ai.LocalPostAnalysis provides container.postAnalysis,
                 io.github.seektop.ui.ai.LocalAiBoardKeys provides aiBoards.mapNotNull { board -> board.slug?.let { board.title to it } }.toMap(),
                 LocalUriHandler provides browserLinks.uriHandler,

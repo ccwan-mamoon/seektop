@@ -6,7 +6,7 @@
 
 [下载 Windows x64 便携版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.4/SeekTop-1.0.4-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
 
-开发版 1.0.7：帖子点击「AI 分析」即可查看 Markdown 结果，API 和各板块提示词统一在设置页配置，无需安装 AI 插件。当前公开稳定下载仍为 1.0.4。
+开发版 1.0.8：设置中可选启用原生外部链接接管，自动记住原浏览器；完成 Windows 默认关联后，Telegram 等外部应用的 NodeSeek 帖子直接打开 SeekTop。帖子点击「AI 分析」即可查看 Markdown 结果，API 和各板块提示词统一在设置页配置，无需安装 AI 插件。当前公开稳定下载仍为 1.0.4。
 
 ## 下载与启动
 

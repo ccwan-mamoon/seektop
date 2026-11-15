@@ -130,3 +130,19 @@ SeekTop.exe --check-tool-plugins E:/path/to/built/plugin-packages
 配置入口为「设置 → AI 分析设置」或弹窗的同名入口。支持多个 OpenAI 兼容服务商、通用和各板块提示词。图片是否发送在设置中统一选择，默认关闭；启用后仅向支持图片的模型发送前 8 张正文图片链接。点击分析会向服务商发送标题与主楼正文，不包含评论和论坛登录凭据。密钥沿用 Windows 加密存储，已有配置保留。模型结果可能有误，尤其价格、周期与日期需要自行核对。
 
 AI 回归检查：`node desktop/tests/test_ai_analysis.cjs`、`python desktop/tests/test_ai_browser.py`，覆盖流式 UTF-8、加密调用、服务商隔离、取消、截断错误和图片开关持久化。
+
+### 原生外部链接接管（1.0.8 开发版）
+
+设置页的「外部链接接管」默认关闭。启用时先使用 Windows AssocQueryString 读取并保存 HTTP、HTTPS 当前浏览器的 ProgID 和名称，再注册 SeekTop Links 为可选处理程序，打开 Windows 默认应用页面。用户需要亲自把 HTTP/HTTPS 选为 SeekTop Links；程序不修改 UserChoice 或其校验值。之后从 Telegram、邮件等通过系统默认处理程序打开的 NodeSeek 帖子和用户页直接进入客户端，其他网址、账号管理等未支持页面通过 ShellExecuteEx 指定原浏览器 ProgID 打开，避免再次调用默认处理程序形成循环。浏览器页面内部导航不在此范围。
+
+分流器为小型 .NET Framework 原生程序，不加载网页。每用户的命名管道仅允许当前 Windows 用户连接，向已运行或托盘中的客户端交付帖子地址；冷启动通过互斥锁串行化，避免连续点击产生多个实例。页码及数字楼层锚点保留。关闭后，所有网址继续转给原浏览器；在 Windows 重新选择浏览器可完全恢复系统关联。
+
+捕获到的浏览器与转发器保存在 `%LOCALAPPDATA%/SeekTop/links`，不与论坛登录共享信息。卸载时先关闭原生接管：若用户已恢复浏览器，清理处理程序注册；若仍以 SeekTop Links 为默认，保留小型转发器和浏览器记录，确保卸载后其他网址仍能打开。用户仍需在 Windows 默认应用恢复原浏览器。便携版迁移路径后需要重新启用，以更新客户端位置。
+
+回归检查：`python desktop/tests/test_link_router.py`。所有注册表测试使用随机身份，不修改真实默认关联；覆盖实际 Win32 原浏览器转交、URL 白名单、管道、冷启动互斥、关闭和卸载退化转发。
+
+### DeepSeek 流式回答兼容修复（1.0.8）
+
+旧版固定 `max_tokens=4096`，只读取 `delta.content`，因此 DeepSeek 默认思考阶段可能耗尽额度，随后被错误提示为空回答。新版针对官方 DeepSeek 接口显式默认关闭思考，普通回答上限为 8192；设置可开启深度思考，额度为 32768。思考阶段只显示生成状态，不把模型思考文本冒充最终回答；正文每批到达即显示 Markdown。不会自动重试产生额外分析请求。
+
+同时兼容文本分段数组、JSON 回退和缺失标准 Content-Type 的 SSE；区分输出额度耗尽、仅有思考、内容过滤、接口格式不兼容和真实网络错误。达到额度时保留已有正文并提示不完整。API Key、Cookie 和原始服务商错误正文不会加入错误提示。官方参数参考 https://api-docs.deepseek.com/guides/thinking_mode/ 。

@@ -1,0 +1,14 @@
+<resources>
+    <string name="link_routing_title">External link routing</string>
+    <string name="link_routing_hint">Open NodeSeek posts and profiles from external apps directly in SeekTop. Other URLs use your previous default browser. No extension is needed. Links clicked within a browser remain in that browser.</string>
+    <string name="link_routing_off">Routing is off</string>
+    <string name="link_routing_active">Enabled for HTTP and HTTPS</string>
+    <string name="link_routing_pending">Ready: select SeekTop Links for HTTP and HTTPS in Windows Default apps</string>
+    <string name="link_routing_browser">Other URLs use: %1$s</string>
+    <string name="link_routing_error">Unable to complete. Check that your previous browser is available: %1$s</string>
+    <string name="link_routing_enable">Enable and open Windows settings</string>
+    <string name="link_routing_disable">Turn off routing</string>
+    <string name="link_routing_system">Windows Default apps</string>
+    <string name="link_routing_refresh">Refresh status</string>
+    <string name="link_routing_restore">When off, all URLs are forwarded to your previous browser. To restore system associations, select that browser again in Windows Default apps.</string>
+</resources>

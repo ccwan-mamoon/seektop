@@ -95,13 +95,16 @@ internal class DesktopPostAnalysis(private val browser: DesktopBrowser, private 
                 },
             )
             var last: String? = null
+            var lastPhase: String? = null
             while (true) {
                 val status = call("ai-status", query)
                 val text = status.getValue("text").jsonPrimitive.content
                 val done = status.getValue("done").jsonPrimitive.boolean
-                if (text != last || done) {
-                    emit(AiAnalysisUpdate(text, done))
+                val phase = status["phase"]?.jsonPrimitive?.content ?: "answering"
+                if (text != last || phase != lastPhase || done) {
+                    emit(AiAnalysisUpdate(text, done, phase))
                     last = text
+                    lastPhase = phase
                 }
                 val error = status.getValue("error").jsonPrimitive.content
                 check(error.isBlank()) { error }

@@ -269,6 +269,7 @@ fun SettingsScreen(
                 .padding(SettingsPagePadding),
             verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
         ) {
+            ExternalLinkSettingsEntry()
             io.github.seektop.ui.ai.AiSettingsEntry()
             SectionLabel(stringResource(Res.string.settings_appearance))
             SettingsGroup {

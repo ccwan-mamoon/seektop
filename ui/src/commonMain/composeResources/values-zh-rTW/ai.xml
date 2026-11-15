@@ -56,4 +56,10 @@
     <string name="ai_analyzing">正在分析…</string>
     <string name="ai_retry">重新分析</string>
     <string name="ai_include_images">分析時包含正文圖片（最多 8 張）</string>
+    <string name="ai_thinking">模型正在思考，等待產生回答…</string>
+    <string name="ai_deep_thinking">深度思考（預設關閉，開啟後等待更久）</string>
+    <string name="ai_error_output_limit">模型已達到輸出上限，回答可能不完整。可關閉深度思考或縮短提示詞後重試。</string>
+    <string name="ai_error_reasoning_only">服務商只傳回了思考內容，沒有最終回答。可關閉深度思考後重新分析。</string>
+    <string name="ai_error_response">服務商沒有傳回可識別的回答文字，請檢查模型或 API 相容性。</string>
+    <string name="ai_error_filter">服務商過濾了本次回答，請調整提示詞或聯絡服務商。</string>
 </resources>

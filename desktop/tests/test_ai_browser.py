@@ -24,6 +24,8 @@ class Provider(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         requests.append((self.path, dict(self.headers), body))
         self.send_response(200); self.send_header("Content-Type", "text/event-stream"); self.end_headers()
+        reasoning = {"choices":[{"delta":{"reasoning_content":"fixture reasoning, never part of the answer"}}]}
+        self.wfile.write(("data: " + json.dumps(reasoning) + "\n\n").encode()); self.wfile.flush(); time.sleep(.04)
         for text in ["local ", "中文 ", "✅"]:
             self.wfile.write(("data: " + json.dumps({"choices":[{"delta":{"content":text}}]}, ensure_ascii=False) + "\n\n").encode()); self.wfile.flush(); time.sleep(.03)
         self.wfile.write(b'data: [DONE]\n\n'); self.wfile.flush()
@@ -55,7 +57,7 @@ try:
     start()
     cfg = call("ai-settings")
     assert cfg["providers"][0]["keySet"] is False
-    cfg = {"providers":[{"id":"fixture","name":"Local test","baseUrl":f"http://127.0.0.1:{server.server_port}/v1","model":"fixture","vision":True}],"selectedProvider":"fixture","includeImages":True,"defaultPrompt":"local prompt","boardPrompts":{"trade":"custom trading rule"},"newKeys":{"fixture":"fixture-not-a-real-api-key"}}
+    cfg = {"providers":[{"id":"fixture","name":"Local test","baseUrl":f"http://127.0.0.1:{server.server_port}/v1","model":"fixture","vision":True,"thinking":True}],"selectedProvider":"fixture","includeImages":True,"defaultPrompt":"local prompt","boardPrompts":{"trade":"custom trading rule"},"newKeys":{"fixture":"fixture-not-a-real-api-key"}}
     saved = call("ai-save", cfg)
     assert saved["providers"][0]["keySet"] is True
     assert "fixture-not-a-real-api-key" not in json.dumps(saved)
@@ -71,7 +73,7 @@ try:
         status = call("ai-status", {"id":job["id"]})
         if status["done"]: break
         time.sleep(.02)
-    assert status == {"text":"local 中文 ✅","done":True,"error":""}, status
+    assert status == {"text":"local 中文 ✅","phase":"answering","done":True,"error":""}, status
     assert requests[0][0] == "/v1/models" and requests[1][0] == "/v1/chat/completions"
     for _, headers, _ in requests:
         headers = {k.lower(): v for k, v in headers.items()}
@@ -82,6 +84,7 @@ try:
     restored = call("ai-settings")
     assert restored["providers"][0]["keySet"] is True
     assert restored["includeImages"] is True
+    assert restored["providers"][0]["thinking"] is True
     assert restored["boardPrompts"]["trade"] == "custom trading rule"
     stop()
     print("PASS: real Windows encrypted persistence/restart, Electron SSE, authorization and cookie isolation")

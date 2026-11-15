@@ -25,6 +25,7 @@ data class AiAnalysisState(
     val settings: AiSettings? = null,
     val prompt: String = "",
     val output: String = "",
+    val phase: String = "waiting",
     val busy: Boolean = false,
     val error: String? = null,
     val stopped: Boolean = false,
@@ -86,10 +87,10 @@ class AiAnalysisViewModel(private val service: PostAnalysisService, private val 
     private fun run(request: AiAnalysisRequest) {
         if (job?.isCompleted == false || !state.value.available) return
         val history = if (request.question.isBlank()) emptyList() else state.value.history
-        mutable.update { it.copy(busy = true, output = "", error = null, stopped = false, history = history) }
+        mutable.update { it.copy(busy = true, output = "", phase = "waiting", error = null, stopped = false, history = history) }
         job = viewModelScope.launch {
             try {
-                service.analyze(request).collect { update -> mutable.update { it.copy(output = update.text) } }
+                service.analyze(request).collect { update -> mutable.update { it.copy(output = update.text, phase = update.phase) } }
                 lastRequest = request.copy(history = emptyList(), question = "")
                 val turns = history + (if (request.question.isNotBlank()) listOf(AiTurn("user", request.question)) else emptyList()) + AiTurn("assistant", state.value.output)
                 mutable.update { it.copy(history = turns.takeLast(8)) }

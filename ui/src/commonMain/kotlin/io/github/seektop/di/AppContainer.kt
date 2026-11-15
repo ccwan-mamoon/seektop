@@ -64,6 +64,7 @@ import io.github.seektop.foundation.core.update.ApkInstaller
  * interface to bring it down here with the ViewModels that name it.
  */
 interface AppContainer {
+    val externalLinkRouting: io.github.seektop.links.ExternalLinkRouting? get() = null
     val postAnalysis: io.github.seektop.ai.PostAnalysisService? get() = null
     val toolPlugins: io.github.seektop.plugins.ToolPluginManager? get() = null
 

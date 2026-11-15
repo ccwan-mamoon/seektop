@@ -63,3 +63,15 @@ val compileWindowsUpdater by tasks.registering(Exec::class) {
     args("/nologo", "/target:winexe", "/codepage:65001", "/reference:System.Web.Extensions.dll", "/reference:System.Windows.Forms.dll", "/out:${output.asFile.absolutePath}", source.asFile.absolutePath)
 }
 tasks.matching { it.name == "prepareAppResources" || it.name == "jvmTest" }.configureEach { dependsOn(compileWindowsUpdater) }
+
+val compileWindowsLinkRouter by tasks.registering(Exec::class) {
+    val source = layout.projectDirectory.file("link-router/Program.cs")
+    val output = layout.projectDirectory.file("resources/windows/SeekTopLinkRouter.exe")
+    inputs.file(source)
+    outputs.file(output)
+    onlyIf { System.getProperty("os.name").startsWith("Windows") }
+    doFirst { output.asFile.parentFile.mkdirs() }
+    executable = File(System.getenv("WINDIR") ?: "C:/Windows", "Microsoft.NET/Framework64/v4.0.30319/csc.exe").path
+    args("/nologo", "/target:winexe", "/codepage:65001", "/reference:System.Web.Extensions.dll", "/reference:System.Windows.Forms.dll", "/out:${output.asFile.absolutePath}", source.asFile.absolutePath)
+}
+tasks.matching { it.name == "prepareAppResources" || it.name == "jvmTest" }.configureEach { dependsOn(compileWindowsLinkRouter) }

@@ -69,6 +69,9 @@ Name: "{autodesktop}\SeekTop"; Filename: "{app}\SeekTop.exe"; WorkingDir: "{app}
 [Run]
 Filename: "{app}\SeekTop.exe"; Description: "{cm:LaunchProgram,SeekTop}"; Flags: nowait postinstall skipifsilent
 
+[UninstallRun]
+Filename: "{app}\app\resources\SeekTopLinkRouter.exe"; Parameters: "--retire"; RunOnceId: "SeekTopLinksRetire"; Flags: runhidden waituntilterminated skipifdoesntexist
+
 [UninstallDelete]
 ; ZIP upgrades can introduce filenames absent from Inno's original uninstall log.
 ; Delete only the two managed runtime directories, never the separate user data.

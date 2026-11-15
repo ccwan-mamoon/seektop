@@ -56,6 +56,8 @@ jobs:
           go -C plugins/network-tools test ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python plugins/test_tools.py --build-with go --directory build/plugin-smoke
+      - name: Test native external link routing
+        run: python desktop/tests/test_link_router.py
       - name: Test native Windows updater
         run: python desktop/tests/test_updater.py
       - name: Test session bridge without account sign-in

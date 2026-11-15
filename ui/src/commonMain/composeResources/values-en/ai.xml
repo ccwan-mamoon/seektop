@@ -56,4 +56,10 @@
     <string name="ai_analyzing">Analyzing…</string>
     <string name="ai_retry">Analyze again</string>
     <string name="ai_include_images">Include post images in analysis (up to 8)</string>
+    <string name="ai_thinking">The model is thinking; waiting for the answer…</string>
+    <string name="ai_deep_thinking">Deep thinking (off by default; increases wait time)</string>
+    <string name="ai_error_output_limit">The model reached its output limit. The answer may be incomplete. Disable deep thinking or shorten the prompt and retry.</string>
+    <string name="ai_error_reasoning_only">The provider returned reasoning without a final answer. Disable deep thinking and analyze again.</string>
+    <string name="ai_error_response">The provider returned no recognizable answer. Check the model or API compatibility.</string>
+    <string name="ai_error_filter">The provider filtered this answer. Adjust the prompt or contact the provider.</string>
 </resources>

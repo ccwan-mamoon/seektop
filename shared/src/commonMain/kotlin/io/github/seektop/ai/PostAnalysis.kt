@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 const val POST_ANALYSIS_PLUGIN = "io.github.seektop.toolbox.ai-analysis"
 
 @Serializable
-data class AiProvider(val id: String, val name: String, val baseUrl: String, val model: String, val vision: Boolean = false, val keySet: Boolean = false)
+data class AiProvider(val id: String, val name: String, val baseUrl: String, val model: String, val vision: Boolean = false, val keySet: Boolean = false, val thinking: Boolean = false)
 
 @Serializable
 data class AiSettings(
@@ -32,7 +32,7 @@ data class AiTurn(val role: String, val content: String)
 @Serializable
 data class AiAnalysisRequest(val post: AiPost, val prompt: String, val images: List<String>, val history: List<AiTurn> = emptyList(), val question: String = "", val language: String = "zh-CN")
 
-data class AiAnalysisUpdate(val text: String, val done: Boolean = false)
+data class AiAnalysisUpdate(val text: String, val done: Boolean = false, val phase: String = "answering")
 
 interface PostAnalysisService {
     fun today(): String
