@@ -120,3 +120,5 @@ SeekTop.exe --check-tool-plugins E:/path/to/built/plugin-packages
 第二个检查使用临时插件目录，验证正式公钥、包安装、IPC、取消与端口释放；不会读写实际账号配置。插件引擎构建独立于主体，不要求所有客户端开发者都安装 Go。
 
 市场下载使用单独且不携带 Cookie 的 Chromium 会话，遵守应用代理范围；网络工具本身仍使用直连/系统 TUN，不继承应用代理。可使用 `SeekTop.exe --open-plugins` 或 `SeekTop.exe --plugin io.github.seektop.toolbox.iperf` 打开插件入口。
+
+插件工具界面参考 Bettbox 的信息层级，以 Compose 重写：测速半圆仪表、真实采样曲线和结果指标；iperf3 模式/协议/方向快捷切换，服务端隐藏不适用参数；连通性结果采用平台卡片。说明按需展开，不再占据主结果区。

@@ -1967,4 +1967,12 @@
     <string name="plugin_native_title">安装官方网络工具</string>
     <string name="plugin_native_consent">仅安装 SeekTop 官方签名的插件。工具将以独立的本地程序运行，具有与你相同的 Windows 用户权限，可访问网络；不是沙箱程序。客户端不会传递论坛 Cookie 或浏览器桥接凭据。测速可能消耗较多流量，服务端监听须手动开启。</string>
     <string name="plugin_uninstall_confirm">卸载 %1$s 并删除已下载的版本文件？论坛数据不受影响。</string>
+    <string name="tool_settings">测速设置</string>
+    <string name="tool_ready">准备就绪</string>
+    <string name="tool_chart">吞吐速率</string>
+    <string name="tool_details">测试说明与网络方式</string>
+    <string name="tool_waiting">开始检测后，平台状态将在这里逐项显示。</string>
+    <string name="tool_done">完成</string>
+    <string name="tool_down">下载</string>
+    <string name="tool_up">上传</string>
 </resources>

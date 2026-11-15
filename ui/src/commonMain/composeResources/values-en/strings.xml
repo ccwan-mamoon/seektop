@@ -1699,4 +1699,12 @@
     <string name="plugin_native_title">Install official network tool</string>
     <string name="plugin_native_consent">Only SeekTop publisher-signed packages are accepted. Tools run as separate native programs with your Windows user permissions and network access; they are not sandboxed. Forum cookies and browser bridge credentials are not passed to them. Speed tests can consume significant data. Server listening must be started manually.</string>
     <string name="plugin_uninstall_confirm">Uninstall %1$s and remove its downloaded versions? Forum data is unaffected.</string>
+    <string name="tool_settings">Test settings</string>
+    <string name="tool_ready">Ready</string>
+    <string name="tool_chart">Throughput</string>
+    <string name="tool_details">Test details and network mode</string>
+    <string name="tool_waiting">Start a check to see each platform status here.</string>
+    <string name="tool_done">Done</string>
+    <string name="tool_down">Download</string>
+    <string name="tool_up">Upload</string>
 </resources>
