@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
@@ -28,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +45,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.seektop.plugins.ToolEvent
 import io.github.seektop.plugins.ToolManifest
 import io.github.seektop.plugins.ToolPluginManager
 import io.github.seektop.ui.resources.Res
@@ -83,8 +87,17 @@ internal fun ReferenceSpeedPage(manifest: ToolManifest, enabled: Boolean, manage
     val jitter = stringResource(Res.string.speed_jitter)
     fun metric(name: String) = result?.metrics?.find { it.label.en == name }?.value
     val live = metric("Live rate")
-    val value = live?.substringBefore(' ')?.toFloatOrNull()
-    Column(modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    val value = speedGaugeValue(result)
+    var samples by remember(manifest.id) { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
+    LaunchedEffect(result) {
+        if (result == null) {
+            samples = emptyList()
+        } else if (running && live != null) {
+            val measured = live.substringBefore(' ').toFloatOrNull()
+            if (measured != null) samples = (samples + (if (result.phase.en.startsWith("Upload")) 0f to measured else measured to 0f)).takeLast(160)
+        }
+    }
+    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.surfaceContainerLow).padding(16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.action_back)) }
             Text(manifest.name.localized(), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
@@ -130,6 +143,7 @@ internal fun ReferenceSpeedPage(manifest: ToolManifest, enabled: Boolean, manage
                 }
             }
         }
+        if (samples.size > 1) ThroughputPlot(samples)
         Text(stringResource(Res.string.speed_engine_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
     }
     if (settings) {
@@ -207,3 +221,6 @@ private fun ReferenceGauge(value: Float?, phase: String) {
         }
     }
 }
+
+internal fun speedGaugeValue(event: ToolEvent?): Float? = listOf("Live rate", "Upload test", "Download test")
+    .firstNotNullOfOrNull { label -> event?.metrics?.find { it.label.en == label }?.value?.substringBefore(' ')?.toFloatOrNull() }

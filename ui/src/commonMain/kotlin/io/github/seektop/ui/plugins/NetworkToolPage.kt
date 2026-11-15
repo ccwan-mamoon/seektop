@@ -185,7 +185,7 @@ internal fun NetworkToolPage(manifest: ToolManifest, enabled: Boolean, manager: 
 }
 
 @Composable
-private fun ThroughputPlot(samples: List<Pair<Float, Float>>) {
+internal fun ThroughputPlot(samples: List<Pair<Float, Float>>) {
     val download = MaterialTheme.colorScheme.primary
     val upload = MaterialTheme.colorScheme.tertiary
     val grid = MaterialTheme.colorScheme.outlineVariant
