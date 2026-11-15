@@ -65,7 +65,7 @@
     <string name="ai_scope_original">只分析樓主</string>
     <string name="ai_scope_all">全樓層分析</string>
     <string name="ai_collecting_pages">正在讀取帖子：%1$d / %2$d 頁…</string>
-    <string name="ai_scope_details">全樓層快照：%1$d 頁、%2$d 條可見回覆；%3$d 條封鎖回覆未傳送。</string>
+    <string name="ai_scope_details">已讀取 %1$d 頁，納入 %2$d 則回覆；%3$d 則封鎖回覆未傳送。</string>
     <string name="ai_last_question">本次補充：%1$s</string>
     <string name="ai_followup_hint">追問或補充資訊，例如：到期時間是 2027-01-15，請重新計算</string>
     <string name="ai_error_thread">樓層未能完整讀取，或帖子分頁發生變化。本次未傳送新的分析請求，請重試。</string>

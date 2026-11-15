@@ -178,7 +178,7 @@ private fun AnalysisDialog(service: PostAnalysisService, post: AiPost, vm: AiAna
         }
         if (state.loading || state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (state.busy && state.phase == "collecting") Text(stringResource(Res.string.ai_collecting_pages, state.pagesLoaded, state.totalPages), style = MaterialTheme.typography.bodySmall)
-        if (state.scope == AiAnalysisScope.ALL_FLOORS) Text(stringResource(Res.string.ai_scope_details, state.sourcePages, state.replyCount, state.skippedReplies), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(if (state.scope == AiAnalysisScope.ALL_FLOORS) Res.string.ai_scope_all else Res.string.ai_scope_original) + " · " + stringResource(Res.string.ai_scope_details, state.sourcePages, state.replyCount, state.skippedReplies), style = MaterialTheme.typography.bodySmall)
         if (state.lastQuestion.isNotBlank()) Text(stringResource(Res.string.ai_last_question, state.lastQuestion), maxLines = 3, style = MaterialTheme.typography.bodySmall)
         if (state.sourceTruncated) Text(stringResource(Res.string.ai_truncated), style = MaterialTheme.typography.bodySmall)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
@@ -262,7 +262,7 @@ fun AiSettingsScreen(service: PostAnalysisService, onBack: () -> Unit) {
     val state by vm.state.collectAsState()
     var providerId by remember { mutableStateOf<String?>(null) }
     var key by remember(providerId, state.keyRevision) { mutableStateOf("") }
-    var board by remember { mutableStateOf("") }
+    var board by remember { mutableStateOf("trade") }
     var menu by remember { mutableStateOf(false) }
     var boardMenu by remember { mutableStateOf(false) }
     val boards = LocalAiBoardKeys.current
@@ -335,11 +335,11 @@ fun AiSettingsScreen(service: PostAnalysisService, onBack: () -> Unit) {
                     }
                     Text(stringResource(Res.string.ai_vision_note), style = MaterialTheme.typography.bodySmall)
                     Text(stringResource(Res.string.ai_prompt_hint), style = MaterialTheme.typography.bodySmall)
-                    AiField(config.defaultPrompt, { vm.edit(config.copy(defaultPrompt = it.take(12000))) }, Res.string.ai_common, !state.busy, singleLine = false)
+                    AiField(config.defaultPrompt.ifBlank { io.github.seektop.ai.DefaultAiTemplates.defaultPrompt }, { vm.edit(config.copy(defaultPrompt = it.take(12000))) }, Res.string.ai_common, !state.busy, singleLine = false)
                     Column {
                         OutlinedButton(onClick = { boardMenu = true }, enabled = !state.busy) { Text(boards.entries.find { it.value == board }?.key ?: board.ifBlank { stringResource(Res.string.ai_board) }) }
                         androidx.compose.material3.DropdownMenu(expanded = boardMenu, onDismissRequest = { boardMenu = false }) {
-                            (boards.values + config.boardPrompts.keys).distinct().forEach { slug ->
+                            (boards.values + config.boardPrompts.keys + io.github.seektop.ai.DefaultAiTemplates.boardPrompts.keys).distinct().forEach { slug ->
                                 androidx.compose.material3.DropdownMenuItem(text = { Text(boards.entries.find { it.value == slug }?.key ?: slug) }, onClick = {
                                     board = slug
                                     boardMenu = false
@@ -347,7 +347,7 @@ fun AiSettingsScreen(service: PostAnalysisService, onBack: () -> Unit) {
                             }
                         }
                     }
-                    if (board.isNotBlank()) AiField(config.boardPrompts[board].orEmpty(), { vm.edit(config.copy(boardPrompts = config.boardPrompts + (board to it.take(12000)))) }, Res.string.ai_board, !state.busy, singleLine = false)
+                    if (board.isNotBlank()) AiField(config.boardPrompts[board].orEmpty().ifBlank { io.github.seektop.ai.DefaultAiTemplates.boardPrompts[board].orEmpty() }, { vm.edit(config.copy(boardPrompts = config.boardPrompts + (board to it.take(12000)))) }, Res.string.ai_board, !state.busy, singleLine = false)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

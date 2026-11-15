@@ -65,7 +65,7 @@
     <string name="ai_scope_original">Analyze opening post</string>
     <string name="ai_scope_all">Analyze all replies</string>
     <string name="ai_collecting_pages">Loading thread: %1$d / %2$d pages…</string>
-    <string name="ai_scope_details">Thread snapshot: %1$d pages, %2$d visible replies; %3$d blocked replies excluded.</string>
+    <string name="ai_scope_details">Read %1$d pages; included %2$d replies; excluded %3$d blocked replies.</string>
     <string name="ai_last_question">Follow-up: %1$s</string>
     <string name="ai_followup_hint">Ask or add details, e.g. expiry is 2027-01-15; recalculate</string>
     <string name="ai_error_thread">Could not read the complete thread, or pagination changed. No new analysis was sent. Please retry.</string>

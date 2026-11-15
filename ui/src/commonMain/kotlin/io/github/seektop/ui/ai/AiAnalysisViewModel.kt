@@ -87,7 +87,7 @@ class AiAnalysisViewModel(private val service: PostAnalysisService, private val 
             val settings = checkNotNull(loaded.settings) { loaded.error ?: "AI_INVALID_SETTINGS" }
             val provider = settings.providers.find { it.id == settings.selectedProvider }
             check(provider?.keySet == true) { "AI_KEY_REQUIRED" }
-            if (scope == AiAnalysisScope.ALL_FLOORS || retry) mutable.update { it.copy(phase = "collecting", pagesLoaded = 0, totalPages = 0) }
+            mutable.update { it.copy(phase = "collecting", pagesLoaded = 0, totalPages = 0) }
             val snapshot = service.collectPost(post, scope, retry) { page, total ->
                 mutable.update { it.copy(phase = "collecting", pagesLoaded = page, totalPages = total) }
             }

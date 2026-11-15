@@ -61,16 +61,41 @@ class ThreadAnalysisCollectorTest {
         assertEquals("AI_THREAD_TOO_LARGE", long.message)
     }
 
-    @Test fun `opening post auto analysis avoids a new forum fetch and explicit refresh reads page one`() = runTest {
-        var calls = 0
-        val load: suspend (Long, Int) -> PostDetail = { _, _ ->
-            calls++
-            page(1)
+    @Test fun `author scope includes later author replies across all pages and excludes other users`() = runTest {
+        for (refresh in listOf(false, true)) {
+            val calls = mutableListOf<Int>()
+            val result = collectThreadAnalysis(seed, AiAnalysisScope.ORIGINAL_POST, refresh, { _, n ->
+                calls += n
+                page(
+                    n,
+                    comments = listOf(
+                        content(n.toLong(), "author-update-$n").copy(isOriginalPoster = true),
+                        content((n + 10).toLong(), "other-user-$n"),
+                        content((n + 20).toLong(), "blocked-author-$n", true).copy(isOriginalPoster = true),
+                    ),
+                )
+            }, { "a" }, { _, _ -> }, {})
+            assertEquals(listOf(1, 2, 3), calls)
+            assertEquals(3, result.replyCount)
+            assertEquals(3, result.skippedReplies)
+            assertEquals(3, result.sourcePages)
+            assertEquals(AiAnalysisScope.ORIGINAL_POST, result.scope)
+            assertTrue("fresh main post" in result.text)
+            for (n in 1..3) assertTrue("author-update-$n" in result.text)
+            assertFalse("other-user-" in result.text)
+            assertFalse("blocked-author-" in result.text)
+            assertFalse("private-signature" in result.text)
         }
-        assertEquals("cached main post", collectThreadAnalysis(seed, AiAnalysisScope.ORIGINAL_POST, false, load, { "a" }, { _, _ -> }, {}).text)
-        assertEquals(0, calls)
-        assertEquals("fresh main post", collectThreadAnalysis(seed, AiAnalysisScope.ORIGINAL_POST, true, load, { "a" }, { _, _ -> }, {}).text)
-        assertEquals(1, calls)
+    }
+
+    @Test fun `author scope must not silently omit updates when later page fails`() = runTest {
+        val failure = assertFailsWith<IllegalStateException> {
+            collectThreadAnalysis(seed, AiAnalysisScope.ORIGINAL_POST, false, { _, n ->
+                if (n == 2) error("offline")
+                page(n)
+            }, { "a" }, { _, _ -> }, {})
+        }
+        assertEquals("AI_THREAD_LOAD_FAILED", failure.message)
     }
 
     @Test fun `cancellation is propagated rather than disguised as an incomplete thread`() = runTest {

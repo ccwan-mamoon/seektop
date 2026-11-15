@@ -24,7 +24,11 @@ data class AiSettings(
 data class AiTemplatePack(val api: Int, val systemPrompt: String, val defaultPrompt: String, val boardPrompts: Map<String, String>)
 
 @Serializable
-enum class AiAnalysisScope { ORIGINAL_POST, ALL_FLOORS }
+// ORIGINAL_POST is retained as a wire identifier; it includes the opening author’s later replies.
+enum class AiAnalysisScope {
+    ORIGINAL_POST,
+    ALL_FLOORS,
+}
 
 @Serializable
 data class AiPost(val id: Long, val title: String, val boardKey: String, val boardTitle: String, val text: String, val images: List<String>, val truncated: Boolean = false, val scope: AiAnalysisScope = AiAnalysisScope.ORIGINAL_POST, val sourcePages: Int = 1, val replyCount: Int = 0, val skippedReplies: Int = 0, @kotlinx.serialization.Transient val originSession: String? = null)
@@ -116,7 +120,7 @@ fun analysisPost(id: Long, title: String, boardKey: String?, body: PostContent, 
 /** Built-in defaults keep one-click analysis independent of optional plugin installation. */
 val DefaultAiTemplates = AiTemplatePack(
     api = 1,
-    systemPrompt = "Respond with readable Markdown only. Distinguish stated facts, calculations, assumptions and missing information. Never invent prices or claim to browse. For valuation, show the formula and units, identify the original/renewal price basis, billing period and date convention. Do not mix currencies. Ask for missing inputs rather than guessing. Do not output machine JSON or refer to a client calculator.",
-    defaultPrompt = "概括帖子主题、关键信息、风险和待核实问题。仅根据标题、正文和提供的图片分析。",
-    boardPrompts = mapOf("trade" to "分析交易帖的产品、配置、价格、续费、到期日和过户费用。若信息充分，列出剩余价值与溢价的计算过程；明确计价基准、剩余天数、周期和币种。缺失数据明确指出，不编造市场价。用 Markdown 给出结论和风险。"),
+    systemPrompt = "Respond with readable Markdown only. Distinguish stated facts, calculations, assumptions and missing information. Never invent prices or claim to browse. For valuation, show the formula and units, identify the original/renewal price basis, billing period and date convention. Do not mix currencies. Ask for missing inputs rather than guessing. Keep answers concise: lead with the conclusion, avoid repeating source text or prior answers, and show only essential evidence. Follow-up answers should focus on what changed. Do not output machine JSON or refer to a client calculator.",
+    defaultPrompt = "仅依据提供的标题、正文、回复及图片，用简短 Markdown 分析。先用一句话给结论，再列最多 3 条关键信息或风险；确有缺项时只问最关键的 1–2 项。通常控制在 150 字以内，不复述原文，不写背景科普、客套话或重复总结。楼主后续说明与主帖冲突时指出变更；其他用户的说法须标为未核实。追问只回答新增问题和修正后的结论。",
+    boardPrompts = mapOf("trade" to "简短分析交易帖，通常 200 字以内，用 Markdown 最多 4 条：结论、估值、风险、待补充（无则省略）。优先采用楼主最新明确说明及用户补充，冲突处简要指出。提取售价、原价或续费价、计费周期、到期日及过户费；信息齐全时只列一行公式和结果：剩余价值 = 周期价格 × 剩余天数 ÷ 周期天数；溢价 = 售价 + 买方另付过户费 − 剩余价值，并给出溢价率（分母为剩余价值，大于 0 才计算）。注明计价基准、日期、币种，不混用币种，不重复计费。期限或基准不明时不猜算，只问缺失的 1–2 项；不编造行情。只指出影响交易的关键风险。追问只更新受补充信息影响的计算与结论，不重复整份报告。"),
 )

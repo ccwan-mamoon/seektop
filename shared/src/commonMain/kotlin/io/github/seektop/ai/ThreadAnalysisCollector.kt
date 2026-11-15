@@ -22,13 +22,11 @@ suspend fun collectThreadAnalysis(
     } catch (e: Exception) {
         throw IllegalStateException("AI_THREAD_LOAD_FAILED", e)
     }
-    if (scope == AiAnalysisScope.ORIGINAL_POST && !refresh) return seed.copy(originSession = session)
     val first = fetch(1)
     check(sessionStamp() == session) { "AI_SESSION_CHANGED" }
     val body = checkNotNull(first.body) { "AI_THREAD_INCOMPLETE" }
     check(first.postId == seed.id && first.page == 1 && !body.isBlocked) { "AI_THREAD_INCOMPLETE" }
-    val base = analysisPost(seed.id, first.title, seed.boardKey.takeIf { body.categoryTitle == seed.boardTitle }, body, maxChars = if (scope == AiAnalysisScope.ALL_FLOORS) 120000 else 60000).copy(originSession = session)
-    if (scope == AiAnalysisScope.ORIGINAL_POST) return base
+    val base = analysisPost(seed.id, first.title, seed.boardKey.takeIf { body.categoryTitle == seed.boardTitle }, body, maxChars = 120000).copy(originSession = session)
     check(first.totalPages >= 1) { "AI_THREAD_INCOMPLETE" }
     check(first.totalPages <= 100) { "AI_THREAD_TOO_LARGE" }
     check(!base.truncated) { "AI_THREAD_TOO_LARGE" }
@@ -44,6 +42,7 @@ suspend fun collectThreadAnalysis(
         page.comments.forEachIndexed { index, comment ->
             val key = comment.commentId?.let { "id:$it" } ?: comment.floor?.let { "floor:$it" } ?: "page:${page.page}:$index"
             check(keys.add(key)) { "AI_THREAD_CHANGED" }
+            if (scope == AiAnalysisScope.ORIGINAL_POST && !comment.isOriginalPoster) return@forEachIndexed
             if (comment.isBlocked) {
                 skipped++
                 return@forEachIndexed
