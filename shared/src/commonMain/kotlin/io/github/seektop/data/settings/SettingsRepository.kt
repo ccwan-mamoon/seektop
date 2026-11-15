@@ -130,6 +130,7 @@ class SettingsRepository(
                 updateCheckOnLaunch = preferences[KEY_UPDATE_CHECK_ON_LAUNCH] ?: true,
                 updateDevChannel = preferences[KEY_UPDATE_DEV_CHANNEL] ?: devChannelDefault,
                 onboardingSeen = preferences[KEY_ONBOARDING_SEEN] ?: false,
+                desktopLinkPromptSeen = preferences[KEY_DESKTOP_LINK_PROMPT_SEEN] ?: false,
                 oneHandTipDismissed = preferences[KEY_ONE_HAND_TIP_DISMISSED] ?: false,
             )
         }
@@ -288,6 +289,8 @@ class SettingsRepository(
      * for, and someone who skipped it on install has no other way back to that sentence.
      */
     suspend fun setOnboardingSeen(seen: Boolean) = edit { it[KEY_ONBOARDING_SEEN] = seen }
+
+    suspend fun setDesktopLinkPromptSeen() = edit { it[KEY_DESKTOP_LINK_PROMPT_SEEN] = true }
 
     /** The note in 通知's blank saying it is 单手模式 — closed once, closed for good. */
     suspend fun dismissOneHandTip() = edit { it[KEY_ONE_HAND_TIP_DISMISSED] = true }
@@ -694,6 +697,7 @@ class SettingsRepository(
         private val KEY_CLIPBOARD_POST_PROMPT = booleanPreferencesKey("clipboard_post_prompt")
         private val KEY_LAST_CLIPBOARD_POST_LINK = stringPreferencesKey("last_clipboard_post_link")
         private val KEY_ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
+        private val KEY_DESKTOP_LINK_PROMPT_SEEN = booleanPreferencesKey("desktop_link_prompt_seen")
         private val KEY_ONE_HAND_TIP_DISMISSED = booleanPreferencesKey("one_hand_tip_dismissed")
         private val KEY_HOLIDAY_THEME = booleanPreferencesKey("holiday_theme")
         private val KEY_DESKTOP_ATTENDANCE_MODE = stringPreferencesKey("desktop_attendance_mode")
@@ -968,6 +972,7 @@ data class UserSettings(
      * once.
      */
     val onboardingSeen: Boolean = false,
+    val desktopLinkPromptSeen: Boolean = false,
     /**
      * Whether the note in 通知's one-hand blank has been closed. A record like [onboardingSeen]:
      * 通知 is where the blank is most often taken for a layout bug, so it is where the note sits.

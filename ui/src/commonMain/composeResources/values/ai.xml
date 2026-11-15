@@ -62,4 +62,14 @@
     <string name="ai_error_reasoning_only">服务商只返回了思考内容，没有最终回答。可关闭深度思考后重新分析。</string>
     <string name="ai_error_response">服务商没有返回可识别的回答文本，请检查模型或 API 兼容性。</string>
     <string name="ai_error_filter">服务商过滤了本次回答，请调整提示词或联系服务商。</string>
+    <string name="ai_scope_original">只分析楼主</string>
+    <string name="ai_scope_all">全楼层分析</string>
+    <string name="ai_collecting_pages">正在读取帖子：%1$d / %2$d 页…</string>
+    <string name="ai_scope_details">全楼层快照：%1$d 页、%2$d 条可见回复；%3$d 条屏蔽回复未发送。</string>
+    <string name="ai_last_question">本次补充：%1$s</string>
+    <string name="ai_followup_hint">追问或补充信息，例如：到期时间是 2027-01-15，请重新计算</string>
+    <string name="ai_error_thread">楼层未能完整读取，或帖子分页发生变化。本次未发送新的分析请求，请重试。</string>
+    <string name="ai_error_thread_large">帖子超过全楼层分析上限（100 页或约 12 万字符）。未提交不完整的全楼层内容，请改用只分析楼主。</string>
+    <string name="ai_error_session">账号状态发生变化，已停止读取和提交。请重新打开帖子后分析。</string>
+    <string name="ai_error_supplements">补充信息超过上限，请关闭窗口后重新分析并精简补充。</string>
 </resources>

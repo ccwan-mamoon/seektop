@@ -11,4 +11,8 @@
     <string name="link_routing_system">Windows 預設應用</string>
     <string name="link_routing_refresh">重新整理狀態</string>
     <string name="link_routing_restore">關閉後所有網址繼續轉給原瀏覽器。要完全恢復系統關聯，請在 Windows 預設應用中重新選擇原瀏覽器。</string>
+    <string name="link_intro_title">是否啟用外部連結接管？</string>
+    <string name="link_intro_body">啟用後，Telegram 等外部應用的 NodeSeek 帖子可直接進入 SeekTop，其他網址自動沿用原瀏覽器。接下來需要在 Windows 中將 HTTP 和 HTTPS 選為 SeekTop Links。暫不啟用也可以，之後可在設定中開啟；本提示僅詢問一次。</string>
+    <string name="link_intro_enable">啟用並設定</string>
+    <string name="link_intro_skip">暫不接管</string>
 </resources>

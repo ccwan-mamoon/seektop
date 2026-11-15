@@ -24,13 +24,16 @@ data class AiSettings(
 data class AiTemplatePack(val api: Int, val systemPrompt: String, val defaultPrompt: String, val boardPrompts: Map<String, String>)
 
 @Serializable
-data class AiPost(val id: Long, val title: String, val boardKey: String, val boardTitle: String, val text: String, val images: List<String>, val truncated: Boolean = false)
+enum class AiAnalysisScope { ORIGINAL_POST, ALL_FLOORS }
+
+@Serializable
+data class AiPost(val id: Long, val title: String, val boardKey: String, val boardTitle: String, val text: String, val images: List<String>, val truncated: Boolean = false, val scope: AiAnalysisScope = AiAnalysisScope.ORIGINAL_POST, val sourcePages: Int = 1, val replyCount: Int = 0, val skippedReplies: Int = 0, @kotlinx.serialization.Transient val originSession: String? = null)
 
 @Serializable
 data class AiTurn(val role: String, val content: String)
 
 @Serializable
-data class AiAnalysisRequest(val post: AiPost, val prompt: String, val images: List<String>, val history: List<AiTurn> = emptyList(), val question: String = "", val language: String = "zh-CN")
+data class AiAnalysisRequest(val post: AiPost, val prompt: String, val images: List<String>, val history: List<AiTurn> = emptyList(), val question: String = "", val language: String = "zh-CN", val supplements: List<String> = emptyList())
 
 data class AiAnalysisUpdate(val text: String, val done: Boolean = false, val phase: String = "answering")
 
@@ -43,6 +46,10 @@ interface PostAnalysisService {
     suspend fun save(settings: AiSettings, newKeys: Map<String, String>)
     suspend fun test(providerId: String)
     suspend fun templates(): AiTemplatePack
+    suspend fun collectPost(post: AiPost, scope: AiAnalysisScope, refresh: Boolean, onProgress: (Int, Int) -> Unit): AiPost {
+        check(scope == AiAnalysisScope.ORIGINAL_POST) { "AI_ALL_FLOORS_UNAVAILABLE" }
+        return post
+    }
     fun analyze(request: AiAnalysisRequest): Flow<AiAnalysisUpdate>
 }
 
@@ -55,7 +62,8 @@ fun AiSettings.promptFor(post: AiPost, templates: AiTemplatePack): String =
         ?: templates.defaultPrompt
 
 /** Opening post only. Never include replies, signatures, avatar URLs or sticker images. */
-fun analysisPost(id: Long, title: String, boardKey: String?, body: PostContent): AiPost {
+fun analysisPost(id: Long, title: String, boardKey: String?, body: PostContent, maxChars: Int = 60000): AiPost {
+    require(maxChars in 1..120000)
     val images = linkedSetOf<String>()
     fun inline(nodes: List<InlineNode>): String = nodes.joinToString("") {
         when (it) {
@@ -102,7 +110,7 @@ fun analysisPost(id: Long, title: String, boardKey: String?, body: PostContent):
         }
     }
     val text = blocks(body.nodes)
-    return AiPost(id, title.take(512), boardKey.orEmpty().ifBlank { body.categoryTitle.orEmpty() }, body.categoryTitle.orEmpty(), text.take(60_000), images.toList(), text.length > 60_000)
+    return AiPost(id, title.take(512), boardKey.orEmpty().ifBlank { body.categoryTitle.orEmpty() }, body.categoryTitle.orEmpty(), text.take(maxChars), images.toList(), text.length > maxChars)
 }
 
 /** Built-in defaults keep one-click analysis independent of optional plugin installation. */

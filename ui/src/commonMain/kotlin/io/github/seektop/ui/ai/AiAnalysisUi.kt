@@ -50,6 +50,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import io.github.seektop.ai.AiAnalysisScope
 import io.github.seektop.ai.AiPost
 import io.github.seektop.ai.AiProvider
 import io.github.seektop.ai.PostAnalysisService
@@ -61,6 +62,7 @@ import io.github.seektop.ui.resources.ai_add
 import io.github.seektop.ui.resources.ai_analyzing
 import io.github.seektop.ui.resources.ai_board
 import io.github.seektop.ui.resources.ai_close
+import io.github.seektop.ui.resources.ai_collecting_pages
 import io.github.seektop.ui.resources.ai_common
 import io.github.seektop.ui.resources.ai_copied
 import io.github.seektop.ui.resources.ai_copy
@@ -78,18 +80,27 @@ import io.github.seektop.ui.resources.ai_error_network
 import io.github.seektop.ui.resources.ai_error_output_limit
 import io.github.seektop.ui.resources.ai_error_reasoning_only
 import io.github.seektop.ui.resources.ai_error_response
+import io.github.seektop.ui.resources.ai_error_session
 import io.github.seektop.ui.resources.ai_error_storage
+import io.github.seektop.ui.resources.ai_error_supplements
+import io.github.seektop.ui.resources.ai_error_thread
+import io.github.seektop.ui.resources.ai_error_thread_large
 import io.github.seektop.ui.resources.ai_failed
+import io.github.seektop.ui.resources.ai_followup_hint
 import io.github.seektop.ui.resources.ai_include_images
 import io.github.seektop.ui.resources.ai_key
 import io.github.seektop.ui.resources.ai_key_saved
+import io.github.seektop.ui.resources.ai_last_question
 import io.github.seektop.ui.resources.ai_model
 import io.github.seektop.ui.resources.ai_name
 import io.github.seektop.ui.resources.ai_prompt_hint
-import io.github.seektop.ui.resources.ai_retry
 import io.github.seektop.ui.resources.ai_save
 import io.github.seektop.ui.resources.ai_saved
+import io.github.seektop.ui.resources.ai_scope_all
+import io.github.seektop.ui.resources.ai_scope_details
+import io.github.seektop.ui.resources.ai_scope_original
 import io.github.seektop.ui.resources.ai_security
+import io.github.seektop.ui.resources.ai_send
 import io.github.seektop.ui.resources.ai_settings
 import io.github.seektop.ui.resources.ai_stop
 import io.github.seektop.ui.resources.ai_test
@@ -153,6 +164,8 @@ private fun AnalysisDialog(service: PostAnalysisService, post: AiPost, vm: AiAna
     val copied = stringResource(Res.string.ai_copied)
     val language = Locale.current.toLanguageTag()
     val openSettings = LocalOpenAiSettings.current
+    var question by remember { mutableStateOf("") }
+    var scopeMenu by remember { mutableStateOf(false) }
     LaunchedEffect(vm) { vm.analyzeOnce(language) }
     AiWindow(stringResource(Res.string.ai_title), onClose) {
         Row(Modifier.fillMaxWidth()) {
@@ -164,7 +177,10 @@ private fun AnalysisDialog(service: PostAnalysisService, post: AiPost, vm: AiAna
             }) { Text(stringResource(Res.string.ai_settings)) }
         }
         if (state.loading || state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (post.truncated) Text(stringResource(Res.string.ai_truncated), style = MaterialTheme.typography.bodySmall)
+        if (state.busy && state.phase == "collecting") Text(stringResource(Res.string.ai_collecting_pages, state.pagesLoaded, state.totalPages), style = MaterialTheme.typography.bodySmall)
+        if (state.scope == AiAnalysisScope.ALL_FLOORS) Text(stringResource(Res.string.ai_scope_details, state.sourcePages, state.replyCount, state.skippedReplies), style = MaterialTheme.typography.bodySmall)
+        if (state.lastQuestion.isNotBlank()) Text(stringResource(Res.string.ai_last_question, state.lastQuestion), maxLines = 3, style = MaterialTheme.typography.bodySmall)
+        if (state.sourceTruncated) Text(stringResource(Res.string.ai_truncated), style = MaterialTheme.typography.bodySmall)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
             state.error?.let { AiError(it) }
             if (state.output.isNotBlank()) {
@@ -178,8 +194,22 @@ private fun AnalysisDialog(service: PostAnalysisService, post: AiPost, vm: AiAna
             if (state.busy) {
                 TextButton(onClick = vm::stop) { Text(stringResource(Res.string.ai_stop)) }
             } else {
-                TextButton(onClick = { vm.analyzeOnce(language, retry = true) }, enabled = !state.loading) { Text(stringResource(Res.string.ai_retry)) }
+                Column {
+                    TextButton(onClick = { scopeMenu = true }, enabled = !state.loading) { Text(stringResource(Res.string.ai_scope_all) + " ▾") }
+                    androidx.compose.material3.DropdownMenu(expanded = scopeMenu, onDismissRequest = { scopeMenu = false }) {
+                        AiAnalysisScope.entries.forEach { scope ->
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(stringResource(if (scope == AiAnalysisScope.ORIGINAL_POST) Res.string.ai_scope_original else Res.string.ai_scope_all)) }, onClick = {
+                                scopeMenu = false
+                                if (vm.analyzeOnce(language, retry = true, scope = scope, supplement = question)) question = ""
+                            })
+                        }
+                    }
+                }
             }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(value = question, onValueChange = { if (it.length <= 8000) question = it }, label = { Text(stringResource(Res.string.ai_followup_hint)) }, modifier = Modifier.weight(1f), enabled = !state.busy, maxLines = 3)
+            Button(onClick = { if (vm.ask(question)) question = "" }, enabled = state.canAsk && !state.busy && question.isNotBlank()) { Text(stringResource(Res.string.ai_send)) }
         }
     }
 }
@@ -199,6 +229,10 @@ private fun AnalysisOutput(output: String) {
 @Composable
 private fun AiError(code: String) {
     val explanation = when {
+        code in setOf("AI_THREAD_INCOMPLETE", "AI_THREAD_CHANGED", "AI_THREAD_LOAD_FAILED", "AI_ALL_FLOORS_UNAVAILABLE") -> Res.string.ai_error_thread
+        code == "AI_THREAD_TOO_LARGE" -> Res.string.ai_error_thread_large
+        code == "AI_SESSION_CHANGED" -> Res.string.ai_error_session
+        code == "AI_SUPPLEMENTS_LIMIT" -> Res.string.ai_error_supplements
         code == "AI_OUTPUT_LIMIT" -> Res.string.ai_error_output_limit
         code == "AI_REASONING_ONLY" -> Res.string.ai_error_reasoning_only
         code in setOf("AI_EMPTY_RESPONSE", "AI_INVALID_RESPONSE", "AI_UNSUPPORTED_RESPONSE", "AI_PROVIDER_ERROR") -> Res.string.ai_error_response

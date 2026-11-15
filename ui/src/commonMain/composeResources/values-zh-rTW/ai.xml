@@ -62,4 +62,14 @@
     <string name="ai_error_reasoning_only">服務商只傳回了思考內容，沒有最終回答。可關閉深度思考後重新分析。</string>
     <string name="ai_error_response">服務商沒有傳回可識別的回答文字，請檢查模型或 API 相容性。</string>
     <string name="ai_error_filter">服務商過濾了本次回答，請調整提示詞或聯絡服務商。</string>
+    <string name="ai_scope_original">只分析樓主</string>
+    <string name="ai_scope_all">全樓層分析</string>
+    <string name="ai_collecting_pages">正在讀取帖子：%1$d / %2$d 頁…</string>
+    <string name="ai_scope_details">全樓層快照：%1$d 頁、%2$d 條可見回覆；%3$d 條封鎖回覆未傳送。</string>
+    <string name="ai_last_question">本次補充：%1$s</string>
+    <string name="ai_followup_hint">追問或補充資訊，例如：到期時間是 2027-01-15，請重新計算</string>
+    <string name="ai_error_thread">樓層未能完整讀取，或帖子分頁發生變化。本次未傳送新的分析請求，請重試。</string>
+    <string name="ai_error_thread_large">帖子超過全樓層分析上限（100 頁或約 12 萬字元）。未提交不完整的全樓層內容，請改用只分析樓主。</string>
+    <string name="ai_error_session">帳號狀態發生變化，已停止讀取和提交。請重新開啟帖子後分析。</string>
+    <string name="ai_error_supplements">補充資訊超過上限，請關閉視窗後重新分析並精簡補充。</string>
 </resources>

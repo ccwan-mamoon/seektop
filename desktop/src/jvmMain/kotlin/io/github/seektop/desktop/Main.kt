@@ -41,6 +41,11 @@ import io.github.seektop.ui.resources.desktop_close_hint
 import io.github.seektop.ui.resources.desktop_close_title
 import io.github.seektop.ui.resources.desktop_close_tray
 import io.github.seektop.ui.resources.desktop_tray_open
+import io.github.seektop.ui.resources.link_intro_body
+import io.github.seektop.ui.resources.link_intro_enable
+import io.github.seektop.ui.resources.link_intro_skip
+import io.github.seektop.ui.resources.link_intro_title
+import io.github.seektop.ui.resources.link_routing_error
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -230,6 +235,27 @@ private fun launchDesktop(initialNotification: LaunchRequest?, initialPlugin: St
                             }
                         },
                         onDismiss = { attendanceDialogDismissed = true },
+                    )
+                }
+                val linkPrompt = remember(container) { DesktopLinkPrompt(container.externalLinkRouting) { container.settingsRepository.setDesktopLinkPromptSeen() } }
+                val linkPromptState by linkPrompt.state.collectAsState()
+                LaunchedEffect(attendancePreferences.desktopLinkPromptSeen, attendanceState, visible) {
+                    if (visible && attendanceState !in setOf(DesktopAttendanceState.CHECKING, DesktopAttendanceState.CHOOSE_MODE)) {
+                        linkPrompt.inspect(attendancePreferences.desktopLinkPromptSeen)
+                    }
+                }
+                if (linkPromptState.visible && visible && !closeRequested && attendanceState !in setOf(DesktopAttendanceState.CHECKING, DesktopAttendanceState.CHOOSE_MODE)) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { if (!linkPromptState.busy) attendanceScope.launch { linkPrompt.choose(false) } },
+                        title = { androidx.compose.material3.Text(org.jetbrains.compose.resources.stringResource(io.github.seektop.ui.resources.Res.string.link_intro_title)) },
+                        text = {
+                            androidx.compose.foundation.layout.Column {
+                                androidx.compose.material3.Text(org.jetbrains.compose.resources.stringResource(io.github.seektop.ui.resources.Res.string.link_intro_body))
+                                linkPromptState.error?.let { androidx.compose.material3.Text(org.jetbrains.compose.resources.stringResource(io.github.seektop.ui.resources.Res.string.link_routing_error, it.take(80)), color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+                            }
+                        },
+                        confirmButton = { androidx.compose.material3.TextButton(enabled = !linkPromptState.busy, onClick = { attendanceScope.launch { linkPrompt.choose(true) } }) { androidx.compose.material3.Text(org.jetbrains.compose.resources.stringResource(io.github.seektop.ui.resources.Res.string.link_intro_enable)) } },
+                        dismissButton = { androidx.compose.material3.TextButton(enabled = !linkPromptState.busy, onClick = { attendanceScope.launch { linkPrompt.choose(false) } }) { androidx.compose.material3.Text(org.jetbrains.compose.resources.stringResource(io.github.seektop.ui.resources.Res.string.link_intro_skip)) } },
                     )
                 }
                 val notifier = remember {

@@ -11,4 +11,8 @@
     <string name="link_routing_system">Windows Default apps</string>
     <string name="link_routing_refresh">Refresh status</string>
     <string name="link_routing_restore">When off, all URLs are forwarded to your previous browser. To restore system associations, select that browser again in Windows Default apps.</string>
+    <string name="link_intro_title">Open external NodeSeek links in SeekTop?</string>
+    <string name="link_intro_body">Open NodeSeek posts from external apps in SeekTop; other URLs keep using your previous browser. You must select SeekTop Links for HTTP and HTTPS in Windows. You can skip and enable it later in Settings. This prompt appears only once.</string>
+    <string name="link_intro_enable">Enable and configure</string>
+    <string name="link_intro_skip">Not now</string>
 </resources>

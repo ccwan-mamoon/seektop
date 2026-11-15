@@ -62,4 +62,14 @@
     <string name="ai_error_reasoning_only">The provider returned reasoning without a final answer. Disable deep thinking and analyze again.</string>
     <string name="ai_error_response">The provider returned no recognizable answer. Check the model or API compatibility.</string>
     <string name="ai_error_filter">The provider filtered this answer. Adjust the prompt or contact the provider.</string>
+    <string name="ai_scope_original">Analyze opening post</string>
+    <string name="ai_scope_all">Analyze all replies</string>
+    <string name="ai_collecting_pages">Loading thread: %1$d / %2$d pages…</string>
+    <string name="ai_scope_details">Thread snapshot: %1$d pages, %2$d visible replies; %3$d blocked replies excluded.</string>
+    <string name="ai_last_question">Follow-up: %1$s</string>
+    <string name="ai_followup_hint">Ask or add details, e.g. expiry is 2027-01-15; recalculate</string>
+    <string name="ai_error_thread">Could not read the complete thread, or pagination changed. No new analysis was sent. Please retry.</string>
+    <string name="ai_error_thread_large">Thread exceeds the full-thread limit (100 pages or about 120,000 characters). No partial thread was submitted. Analyze the opening post instead.</string>
+    <string name="ai_error_session">Account changed. Collection and submission stopped. Reopen the post and try again.</string>
+    <string name="ai_error_supplements">Supplemental details are too long. Reopen analysis and shorten the additions.</string>
 </resources>

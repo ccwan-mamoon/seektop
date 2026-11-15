@@ -121,7 +121,12 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
     })
     override val toolPlugins: io.github.seektop.plugins.ToolPluginManager = desktopToolPlugins
     override val externalLinkRouting: io.github.seektop.links.ExternalLinkRouting = DesktopExternalLinks(File(System.getProperty("compose.application.resources.dir") ?: "desktop/resources/windows", "SeekTopLinkRouter.exe"))
-    override val postAnalysis: io.github.seektop.ai.PostAnalysisService = DesktopPostAnalysis(browser) { browser.applyProxy(proxySettings.config.first()) }
+    override val postAnalysis: io.github.seektop.ai.PostAnalysisService = DesktopPostAnalysis(
+        browser,
+        ensureProxy = { browser.applyProxy(proxySettings.config.first()) },
+        loadPage = { id, page -> remotePosts.loadDetail(id, page) },
+        sessionStamp = { sessionRepository.state.value.let { "${it.isSignedIn}:${it.fingerprint}" } },
+    )
     private val databaseDelegate = lazy { createNodeSeekDatabase(directory) }
     private val database by databaseDelegate
     private val sessionCookies by lazy { SessionCookies(NodeSeekSite.CONFIG, browser) }
