@@ -44,7 +44,11 @@ go build -mod=vendor -trimpath -buildvcs=false -ldflags '-s -w -H=windowsgui -X 
 
 本机发布者私钥保存在项目 `.seektop-keys/plugin-signing-key.pem`，已从 Git 排除并仅赋予当前 Windows 用户访问。请另外做安全备份；清理 build 不会删除它。无需把私钥提供给普通客户端或插件使用者。
 
-## 帖子 AI 分析（post-analysis-v1）
+## AI 入口简化（1.0.7）
+
+1.0.7 的帖子 AI 分析为内置入口，不再依赖模板插件安装或启用状态。点击即分析，提示词与 API 在独立设置页管理，图片发送由设置开关控制。旧版 `post-analysis-v1` 签名包仍可被识别、导入和卸载，其设置入口会转到新的设置页面；旧模板不再覆盖内置分析规则。下文保留 1.0.6 模板包的构建协议供历史版本使用。
+
+## 帖子 AI 分析（post-analysis-v1，1.0.6 历史协议）
 
 AI 模板插件位于 `plugins/ai-analysis/analysis.json`，独立签名打包，无可执行程序，不访问服务商密钥。宿主负责正文提取、可选图片、OpenAI 兼容请求、流式输出及停止、Windows 加密存储、按板块提示词设置和本地定点金额计算。需要包含 AI 宿主能力的客户端；旧版市场继续隐藏三个网络工具，新宿主使用 `plugin-market-v2` 索引，避免旧客户端解析不支持的运行时。
 

@@ -716,6 +716,7 @@ fun MainNavigation(
                     LocalOpenReportCompare provides { openReportCompare() },
                     // 表情管理, 添加表情 and 图床 from an editor's emoji panel, onto whichever tab the editor is in.
                     LocalStickerNavigation provides stickerNavigation,
+                    io.github.seektop.ui.ai.LocalOpenAiSettings provides { if (backStack.lastOrNull() != AiSettingsKey) backStack.add(AiSettingsKey) },
                 ) {
                     CompositionLocalProvider(LocalDesktopSelectedPost provides (backStack.lastOrNull() as? PostDetailKey)?.postId, LocalDesktopCloseDetail provides { backStack.closeDesktopDetails() }) {
                         DesktopWorkspace(desktop, currentTab, if (backStack.lastOrNull() is PostDetailKey) backStack.dropLast(1).lastOrNull() else backStack.lastOrNull(), isSignedIn = desktopSession.isSignedIn, onSignIn = { backStack.add(SignInKey) }, onSelect = { key -> backStack.bringToTop(key) }) {

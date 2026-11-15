@@ -55,7 +55,7 @@ try:
     start()
     cfg = call("ai-settings")
     assert cfg["providers"][0]["keySet"] is False
-    cfg = {"providers":[{"id":"fixture","name":"Local test","baseUrl":f"http://127.0.0.1:{server.server_port}/v1","model":"fixture","vision":True}],"selectedProvider":"fixture","defaultPrompt":"local prompt","boardPrompts":{"trade":"custom trading rule"},"newKeys":{"fixture":"fixture-not-a-real-api-key"}}
+    cfg = {"providers":[{"id":"fixture","name":"Local test","baseUrl":f"http://127.0.0.1:{server.server_port}/v1","model":"fixture","vision":True}],"selectedProvider":"fixture","includeImages":True,"defaultPrompt":"local prompt","boardPrompts":{"trade":"custom trading rule"},"newKeys":{"fixture":"fixture-not-a-real-api-key"}}
     saved = call("ai-save", cfg)
     assert saved["providers"][0]["keySet"] is True
     assert "fixture-not-a-real-api-key" not in json.dumps(saved)
@@ -81,6 +81,7 @@ try:
     stop(); start()
     restored = call("ai-settings")
     assert restored["providers"][0]["keySet"] is True
+    assert restored["includeImages"] is True
     assert restored["boardPrompts"]["trade"] == "custom trading rule"
     stop()
     print("PASS: real Windows encrypted persistence/restart, Electron SSE, authorization and cookie isolation")

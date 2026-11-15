@@ -131,6 +131,7 @@ private val EVERY_KEY: List<NavKey> =
         NotificationsKey,
         ProfileKey,
         SettingsKey,
+        AiSettingsKey,
         ThemeSettingsKey,
         DynamicColorKey,
         NotificationSettingsKey,

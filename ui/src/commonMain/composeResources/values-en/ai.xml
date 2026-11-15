@@ -24,12 +24,12 @@
     <string name="ai_delete">Remove provider</string>
     <string name="ai_common">Default prompt</string>
     <string name="ai_board">Board prompt (overrides default)</string>
-    <string name="ai_prompt_hint">Leave blank to use plugin templates.</string>
+    <string name="ai_prompt_hint">Leave blank to use built-in prompts. Board prompts override the default.</string>
     <string name="ai_save">Save</string>
     <string name="ai_test">Save and test connection</string>
     <string name="ai_saved">Saved</string>
     <string name="ai_test_ok">Connected (models endpoint; no analysis request)</string>
-    <string name="ai_security">Windows encrypts credentials locally; plugins cannot access them. Requires an OpenAI-compatible endpoint. Image support depends on the model.</string>
+    <string name="ai_security">Windows encrypts credentials locally. Clicking AI analysis sends the title and opening post to your provider, excluding replies and credentials. Images are sent only when enabled below.</string>
     <string name="ai_copy">Copy result</string>
     <string name="ai_copied">Copied</string>
     <string name="ai_close">Close</string>
@@ -53,4 +53,7 @@
     <string name="ai_error_busy">Another analysis or settings operation is still running.</string>
     <string name="ai_error_config">Check the API endpoint, model, key and image support.</string>
     <string name="ai_error_storage">Cannot read or encrypt local AI settings. Retry under the original Windows account.</string>
+    <string name="ai_analyzing">Analyzing…</string>
+    <string name="ai_retry">Analyze again</string>
+    <string name="ai_include_images">Include post images in analysis (up to 8)</string>
 </resources>

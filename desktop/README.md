@@ -123,8 +123,10 @@ SeekTop.exe --check-tool-plugins E:/path/to/built/plugin-packages
 
 插件工具界面参考 Bettbox 的信息层级，以 Compose 重写：测速半圆仪表、真实采样曲线和结果指标；iperf3 模式/协议/方向快捷切换，服务端隐藏不适用参数；连通性结果采用平台卡片。说明按需展开，不再占据主结果区。
 
-### 帖子 AI 分析（开发版）
+### 帖子 AI 分析（1.0.7 开发版）
 
-通过独立官方签名的 `post-analysis-v1` 模板插件提供分析规则；宿主提供安全请求和原生 Compose 分析窗口，不增加 WebView2。支持 OpenAI 兼容服务商、按板块提示词、自选图片、流式分析、停止与追问，以及用户核对后运行的本地交易估值计算器。配置入口为「设置 → AI 分析设置」。未安装插件时会提示安装。详细构建与隐私边界见 [plugins/README.md](../plugins/README.md#帖子-ai-分析post-analysis-v1)。
+打开主楼后，点击「AI 分析」直接弹出 Markdown 结果，自动采用当前板块提示词。弹窗只保留设置入口、复制、停止和重新分析。设置会进入独立设置页面，返回后仍可继续阅读原帖；不再要求安装 AI 模板插件，也不显示提示词编辑、追问或估值表单。
 
-AI 回归检查：`node desktop/tests/test_ai_analysis.cjs`，覆盖流式 UTF-8、加密调用、服务商隔离、取消、截断错误和请求限制。
+配置入口为「设置 → AI 分析设置」或弹窗的同名入口。支持多个 OpenAI 兼容服务商、通用和各板块提示词。图片是否发送在设置中统一选择，默认关闭；启用后仅向支持图片的模型发送前 8 张正文图片链接。点击分析会向服务商发送标题与主楼正文，不包含评论和论坛登录凭据。密钥沿用 Windows 加密存储，已有配置保留。模型结果可能有误，尤其价格、周期与日期需要自行核对。
+
+AI 回归检查：`node desktop/tests/test_ai_analysis.cjs`、`python desktop/tests/test_ai_browser.py`，覆盖流式 UTF-8、加密调用、服务商隔离、取消、截断错误和图片开关持久化。

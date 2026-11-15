@@ -45,6 +45,11 @@ import kotlinx.coroutines.launch
  * for the capture rules they all share.
  */
 internal fun EntryProviderScope<NavKey>.settingsEntries(nav: StackEntryScope) = with(nav) {
+    entry<AiSettingsKey> {
+        container.postAnalysis?.let { service ->
+            io.github.seektop.ui.ai.AiSettingsScreen(service, onBack = { backStack.removeLastOrNull() })
+        }
+    }
     entry<SettingsKey> {
         val viewModel: SettingsViewModel =
             viewModel(factory = SettingsViewModel.factory(container))

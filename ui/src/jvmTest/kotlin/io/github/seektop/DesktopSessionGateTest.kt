@@ -64,10 +64,10 @@ class DesktopSessionGateTest {
         }
         waitForIdle()
         assertEquals(1, screenStarts)
-        for (page in listOf(SettingsKey, ThemeSettingsKey, UserSpaceKey(42), SignInKey, NotificationsKey)) {
+        for (page in listOf(SettingsKey, AiSettingsKey, ThemeSettingsKey, UserSpaceKey(42), SignInKey, NotificationsKey)) {
             runOnIdle { destination = page }
             waitForIdle()
         }
-        assertEquals(6, screenStarts)
+        assertEquals(7, screenStarts)
     }
 }

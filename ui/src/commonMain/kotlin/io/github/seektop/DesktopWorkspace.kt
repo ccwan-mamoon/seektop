@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import io.github.seektop.ui.navigation.TopLevelDestination
 import io.github.seektop.ui.resources.Res
+import io.github.seektop.ui.resources.ai_settings
 import io.github.seektop.ui.resources.desktop_account_overview
 import io.github.seektop.ui.resources.profile_section_content
 import io.github.seektop.ui.resources.profile_section_settings
@@ -44,7 +45,7 @@ private data class WorkspaceDestination(val key: NavKey, val label: StringResour
 @Composable
 internal fun DesktopWorkspace(desktop: Boolean, tab: TopLevelDestination, current: NavKey?, isSignedIn: Boolean, onSignIn: () -> Unit, onSelect: (NavKey) -> Unit, content: @Composable () -> Unit) {
     val personal = tab == TopLevelDestination.PROFILE && current != SignInKey && current !is WebKey
-    val settings = current == SettingsKey || current == ThemeSettingsKey || current == AccountSettingsKey || current == NotificationSettingsKey || current == AboutAppKey
+    val settings = current == SettingsKey || current == AiSettingsKey || current == ThemeSettingsKey || current == AccountSettingsKey || current == NotificationSettingsKey || current == AboutAppKey
     if (!desktop) {
         content()
         return
@@ -67,6 +68,7 @@ internal fun DesktopWorkspace(desktop: Boolean, tab: TopLevelDestination, curren
     )
     val preferences = listOf(
         WorkspaceDestination(SettingsKey, Res.string.settings_title),
+        WorkspaceDestination(AiSettingsKey, Res.string.ai_settings),
         WorkspaceDestination(AccountSettingsKey, Res.string.profile_tile_account),
         WorkspaceDestination(NotificationSettingsKey, Res.string.profile_tile_notifications),
         WorkspaceDestination(ThemeSettingsKey, Res.string.profile_tile_theme),

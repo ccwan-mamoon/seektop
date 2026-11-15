@@ -26,6 +26,9 @@ data object ProfileKey : NavKey
 @Serializable
 data object SettingsKey : NavKey
 
+@Serializable
+data object AiSettingsKey : NavKey
+
 /**
  * 主题 — 明暗, 配色来源, the preset grid, 我的主题 and 色彩风格, with a live preview under them.
  *

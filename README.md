@@ -6,6 +6,8 @@
 
 [下载 Windows x64 便携版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.4/SeekTop-1.0.4-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
 
+开发版 1.0.7：帖子点击「AI 分析」即可查看 Markdown 结果，API 和各板块提示词统一在设置页配置，无需安装 AI 插件。当前公开稳定下载仍为 1.0.4。
+
 ## 下载与启动
 
 当前版本为 **1.0.4**。首次使用可下载 [EXE 安装包](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.4/SeekTop-1.0.4-windows-x64-setup.exe)，也可选择 ZIP 便携包，完整解压后打开 **SeekTop.exe** 并保留整个目录。两者均无需另外安装 Java、Node.js 或 Python。

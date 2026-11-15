@@ -15,6 +15,7 @@ data class AiProvider(val id: String, val name: String, val baseUrl: String, val
 data class AiSettings(
     val providers: List<AiProvider> = listOf(AiProvider("deepseek", "DeepSeek", "https://api.deepseek.com", "deepseek-flash", true)),
     val selectedProvider: String = "deepseek",
+    val includeImages: Boolean = false,
     val defaultPrompt: String = "",
     val boardPrompts: Map<String, String> = emptyMap(),
 )
@@ -103,3 +104,11 @@ fun analysisPost(id: Long, title: String, boardKey: String?, body: PostContent):
     val text = blocks(body.nodes)
     return AiPost(id, title.take(512), boardKey.orEmpty().ifBlank { body.categoryTitle.orEmpty() }, body.categoryTitle.orEmpty(), text.take(60_000), images.toList(), text.length > 60_000)
 }
+
+/** Built-in defaults keep one-click analysis independent of optional plugin installation. */
+val DefaultAiTemplates = AiTemplatePack(
+    api = 1,
+    systemPrompt = "Respond with readable Markdown only. Distinguish stated facts, calculations, assumptions and missing information. Never invent prices or claim to browse. For valuation, show the formula and units, identify the original/renewal price basis, billing period and date convention. Do not mix currencies. Ask for missing inputs rather than guessing. Do not output machine JSON or refer to a client calculator.",
+    defaultPrompt = "概括帖子主题、关键信息、风险和待核实问题。仅根据标题、正文和提供的图片分析。",
+    boardPrompts = mapOf("trade" to "分析交易帖的产品、配置、价格、续费、到期日和过户费用。若信息充分，列出剩余价值与溢价的计算过程；明确计价基准、剩余天数、周期和币种。缺失数据明确指出，不编造市场价。用 Markdown 给出结论和风险。"),
+)

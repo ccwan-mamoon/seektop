@@ -23,11 +23,11 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
-internal class DesktopPostAnalysis(private val browser: DesktopBrowser, private val plugins: DesktopToolPlugins, private val ensureProxy: suspend () -> Unit = {}) : PostAnalysisService {
+internal class DesktopPostAnalysis(private val browser: DesktopBrowser, private val ensureProxy: suspend () -> Unit = {}) : PostAnalysisService {
     override fun today(): String = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString()
     private suspend fun call(op: String, q: JsonObject = buildJsonObject {}): JsonObject = withContext(Dispatchers.IO) { runInterruptible { browser.call(op, q) } }
-    override suspend fun available(): Boolean = withContext(Dispatchers.IO) { plugins.analysisTemplates() != null }
-    override suspend fun templates() = withContext(Dispatchers.IO) { checkNotNull(plugins.analysisTemplates()) { "AI_PLUGIN_REQUIRED" } }
+    override suspend fun available(): Boolean = true
+    override suspend fun templates() = io.github.seektop.ai.DefaultAiTemplates
     override suspend fun settings(): AiSettings = Json.decodeFromString(call("ai-settings").toString())
     override suspend fun save(settings: AiSettings, newKeys: Map<String, String>) {
         call("ai-save", aiSettingsQuery(settings, newKeys))
@@ -96,7 +96,6 @@ internal class DesktopPostAnalysis(private val browser: DesktopBrowser, private 
             )
             var last: String? = null
             while (true) {
-                check(plugins.state.value.installed.any { it.manifest.id == io.github.seektop.ai.POST_ANALYSIS_PLUGIN && it.enabled }) { "AI_PLUGIN_DISABLED" }
                 val status = call("ai-status", query)
                 val text = status.getValue("text").jsonPrimitive.content
                 val done = status.getValue("done").jsonPrimitive.boolean

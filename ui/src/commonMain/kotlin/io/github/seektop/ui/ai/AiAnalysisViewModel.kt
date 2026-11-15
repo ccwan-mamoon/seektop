@@ -15,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -34,12 +35,14 @@ class AiAnalysisViewModel(private val service: PostAnalysisService, private val 
     private val mutable = MutableStateFlow(AiAnalysisState())
     val state = mutable.asStateFlow()
     private var job: Job? = null
+    private var automaticRequested = false
     private var lastRequest: AiAnalysisRequest? = null
     init {
         reload()
     }
 
     fun reload() {
+        mutable.update { it.copy(loading = true) }
         viewModelScope.launch {
             try {
                 val settings = service.settings()
@@ -51,6 +54,25 @@ class AiAnalysisViewModel(private val service: PostAnalysisService, private val 
             } catch (e: Exception) {
                 mutable.update { it.copy(loading = false, error = e.message) }
             }
+        }
+    }
+    fun analyzeOnce(language: String, retry: Boolean = false) {
+        if (automaticRequested && !retry) return
+        automaticRequested = true
+        if (retry) reload()
+        viewModelScope.launch {
+            val loaded = state.first { !it.loading }
+            val settings = loaded.settings ?: return@launch
+            val provider = settings.providers.find { it.id == settings.selectedProvider }
+            if (provider?.keySet != true) {
+                mutable.update { it.copy(error = "AI_KEY_REQUIRED") }
+                return@launch
+            }
+            if (settings.includeImages && post.images.isNotEmpty() && !provider.vision) {
+                mutable.update { it.copy(error = "AI_VISION_UNAVAILABLE") }
+                return@launch
+            }
+            start(if (settings.includeImages) post.images.take(8) else emptyList(), language)
         }
     }
     fun prompt(value: String) {

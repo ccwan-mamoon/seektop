@@ -34,7 +34,8 @@ async function completed(service,id){for(let n=0;n<300;n++){const status=service
  for(const char of wire)parser.push(char);parser.finish();assert.equal(text,"正文✅");assert.equal(parser.done,true);
  await fixture(async({service,directory,requests,setHandler,blocked})=>{
   assert.equal((await service.settings()).providers[0].keySet,false);
-  await service.save({...defaults,newKeys:{test:"local-fixture-key"}});
+  await service.save({...defaults,includeImages:true,newKeys:{test:"local-fixture-key"}});
+  assert.equal((await service.settings()).includeImages,true);
   const raw=await readFile(path.join(directory,"provider-settings.enc"));assert.equal(raw.includes(Buffer.from("local-fixture-key")),false);
   assert.equal(JSON.stringify(await service.settings()).includes("local-fixture-key"),false);
   setHandler(async()=>new Response(new ReadableStream({start(c){const bytes=new TextEncoder().encode(wire);for(const byte of bytes)c.enqueue(Uint8Array.of(byte));c.close();}}),{headers:{"content-type":"text/event-stream"}}));

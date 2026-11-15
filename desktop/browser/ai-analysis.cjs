@@ -30,7 +30,7 @@ function settingsShape(q, previous) {
         if (!key || key.length > 80 || typeof value !== "string" || value.length > 12000) throw Error("AI_INVALID_SETTINGS");
         return [key,value];
     }));
-    return { providers, selectedProvider:q.selectedProvider, defaultPrompt:q.defaultPrompt, boardPrompts };
+    return { providers, selectedProvider:q.selectedProvider, includeImages:q.includeImages === true, defaultPrompt:q.defaultPrompt, boardPrompts };
 }
 const publicSettings = c => ({...c, providers:c.providers.map(({key,...p}) => ({...p,keySet:!!key}))});
 

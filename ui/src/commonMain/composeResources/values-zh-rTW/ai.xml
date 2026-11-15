@@ -24,12 +24,12 @@
     <string name="ai_delete">刪除服務商</string>
     <string name="ai_common">通用提示詞</string>
     <string name="ai_board">板塊提示詞（優先於通用）</string>
-    <string name="ai_prompt_hint">留空使用外掛範本。</string>
+    <string name="ai_prompt_hint">留空使用內建提示詞，板塊提示詞優先於通用。</string>
     <string name="ai_save">儲存</string>
     <string name="ai_test">儲存並測試連線</string>
     <string name="ai_saved">已儲存</string>
     <string name="ai_test_ok">連線成功（模型列表介面，不產生分析請求）</string>
-    <string name="ai_security">金鑰由 Windows 加密儲存在本機，不向外掛提供。相容 OpenAI 格式介面；圖片能力取決於模型。</string>
+    <string name="ai_security">金鑰由 Windows 加密儲存在本機。點擊 AI 分析會向所選服務商傳送標題和主樓正文，不包含評論或登入憑證；圖片僅在下方啟用後傳送。</string>
     <string name="ai_copy">複製結果</string>
     <string name="ai_copied">已複製</string>
     <string name="ai_close">關閉</string>
@@ -53,4 +53,7 @@
     <string name="ai_error_busy">另一個分析或設定操作尚未結束，請稍後重試。</string>
     <string name="ai_error_config">請檢查 API 位址、模型、金鑰和圖片能力設定。</string>
     <string name="ai_error_storage">無法讀取或加密本機 AI 設定，請在原 Windows 帳戶下重試。</string>
+    <string name="ai_analyzing">正在分析…</string>
+    <string name="ai_retry">重新分析</string>
+    <string name="ai_include_images">分析時包含正文圖片（最多 8 張）</string>
 </resources>

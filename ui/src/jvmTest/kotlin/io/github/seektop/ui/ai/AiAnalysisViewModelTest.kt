@@ -26,7 +26,8 @@ class AiAnalysisViewModelTest {
         var cancelled = false
         override fun today() = "2026-11-15"
         override suspend fun available() = true
-        override suspend fun settings() = AiSettings(defaultPrompt = "saved prompt")
+        var config = AiSettings(defaultPrompt = "saved prompt")
+        override suspend fun settings() = config
         override suspend fun save(settings: AiSettings, newKeys: Map<String, String>) = Unit
         override suspend fun test(providerId: String) = Unit
         override suspend fun templates() = AiTemplatePack(1, "system", "default", emptyMap())
@@ -40,7 +41,46 @@ class AiAnalysisViewModelTest {
         }
     }
 
-    @Test fun `followup uses analyzed post and prompt snapshot instead of unsent edits`() = runBlocking {
+    @Test fun `one click waits for settings and submits matched board prompt once without images by default`(): Unit = runBlocking {
+        withTimeout(10000) {
+            val service = Service().apply { config = config.copy(providers = config.providers.map { it.copy(keySet = true) }, boardPrompts = mapOf("trade" to "board valuation")) }
+            val vm = withContext(Dispatchers.Main) {
+                AiAnalysisViewModel(service, AiPost(1, "title", "trade", "Trading", "body", listOf("https://public/image"))).also {
+                    it.analyzeOnce("en")
+                    it.analyzeOnce("en")
+                }
+            }
+            val request = service.requests.receive()
+            assertEquals("board valuation", request.prompt)
+            assertEquals(emptyList(), request.images)
+            withContext(Dispatchers.Main) { vm.stop() }
+            vm.state.first { !it.busy }
+            assertTrue(service.requests.tryReceive().isFailure)
+        }
+    }
+
+    @Test fun `missing credential offers configuration without a paid request`(): Unit = runBlocking {
+        withTimeout(10000) {
+            val service = Service()
+            val vm = withContext(Dispatchers.Main) { AiAnalysisViewModel(service, AiPost(1, "title", "", "", "body", emptyList())).also { it.analyzeOnce("en") } }
+            vm.state.first { it.error == "AI_KEY_REQUIRED" }
+            assertTrue(service.requests.tryReceive().isFailure)
+            assertFalse(vm.state.value.busy)
+        }
+    }
+
+    @Test fun `image setting controls one click image submission and caps it at eight`(): Unit = runBlocking {
+        withTimeout(10000) {
+            val service = Service().apply { config = config.copy(includeImages = true, providers = config.providers.map { it.copy(keySet = true, vision = true) }) }
+            val images = (1..10).map { "https://public/image-$it" }
+            val vm = withContext(Dispatchers.Main) { AiAnalysisViewModel(service, AiPost(1, "title", "", "", "body", images)).also { it.analyzeOnce("en") } }
+            assertEquals(images.take(8), service.requests.receive().images)
+            withContext(Dispatchers.Main) { vm.stop() }
+            vm.state.first { !it.busy }
+        }
+    }
+
+    @Test fun `followup uses analyzed post and prompt snapshot instead of unsent edits`(): Unit = runBlocking {
         withTimeout(10000) {
             val service = Service()
             val post = AiPost(17, "title", "trade", "Trading", "original body", emptyList())
@@ -67,7 +107,7 @@ class AiAnalysisViewModelTest {
         }
     }
 
-    @Test fun `stop before launched coroutine runs releases busy state without sending`() = runBlocking {
+    @Test fun `stop before launched coroutine runs releases busy state without sending`(): Unit = runBlocking {
         val service = Service()
         val vm = withContext(Dispatchers.Main) { AiAnalysisViewModel(service, AiPost(1, "title", "", "", "body", emptyList())) }
         withTimeout(10000) { vm.state.first { !it.loading } }

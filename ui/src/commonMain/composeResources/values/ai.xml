@@ -24,12 +24,12 @@
     <string name="ai_delete">删除服务商</string>
     <string name="ai_common">通用提示词</string>
     <string name="ai_board">板块提示词（优先于通用）</string>
-    <string name="ai_prompt_hint">留空使用插件模板。</string>
+    <string name="ai_prompt_hint">留空使用内置提示词，板块提示词优先于通用。</string>
     <string name="ai_save">保存</string>
     <string name="ai_test">保存并测试连接</string>
     <string name="ai_saved">已保存</string>
     <string name="ai_test_ok">连接成功（模型列表接口，不产生分析请求）</string>
-    <string name="ai_security">密钥由 Windows 加密保存在本机，不向插件提供。兼容 OpenAI 格式接口；图片能力取决于模型。</string>
+    <string name="ai_security">密钥由 Windows 加密保存在本机。点击 AI 分析会向所选服务商发送标题和主楼正文，不包含评论或登录凭据；图片仅在下方启用后发送。</string>
     <string name="ai_copy">复制结果</string>
     <string name="ai_copied">已复制</string>
     <string name="ai_close">关闭</string>
@@ -53,4 +53,7 @@
     <string name="ai_error_busy">另一个分析或配置操作尚未结束，请稍后重试。</string>
     <string name="ai_error_config">请检查 API 地址、模型、密钥和图片能力设置。</string>
     <string name="ai_error_storage">无法读取或加密本机 AI 配置，请在原 Windows 账户下重试。</string>
+    <string name="ai_analyzing">正在分析…</string>
+    <string name="ai_retry">重新分析</string>
+    <string name="ai_include_images">分析时包含正文图片（最多 8 张）</string>
 </resources>
