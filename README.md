@@ -4,13 +4,13 @@
 
 **NodeSeek 非官方 Windows 桌面客户端**，基于 [Nodyssey](https://github.com/5151561/nodyssey) 二次开发与桌面移植，采用 GPL-3.0，保留上游版权与贡献归属。
 
-[下载 Windows x64 便携版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.4/SeekTop-1.0.4-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
+[下载 Windows x64 便携版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.5/SeekTop-1.0.5-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
 
-开发版 1.0.5：计算器新增型号、日期选择器、月付至三年的付款周期与两位小数汇率。回复、发帖下方新增本地剩余价值计算器，结果一键插入带图标的 Markdown 表格。AI 设置中可查看、手动修改保存汇率，手动值优先且不被自动更新覆盖。启动后台缓存 15 种常用币种参考汇率，分析时自动提供汇率、日期与来源。只分析楼主包含后续楼主回复，默认通用及交易提示词精简并可在设置中直接编辑。首次提示是否接管外部链接，AI 支持追问补充及楼主／全楼层范围选择。设置中可选启用原生外部链接接管，自动记住原浏览器；完成 Windows 默认关联后，Telegram 等外部应用的 NodeSeek 帖子直接打开 SeekTop。帖子点击「AI 分析」即可查看 Markdown 结果，API 和各板块提示词统一在设置页配置，无需安装 AI 插件。当前公开稳定下载仍为 1.0.4。
+1.0.5：计算器新增型号、日期选择器、月付至三年的付款周期与两位小数汇率。回复、发帖下方新增本地剩余价值计算器，结果一键插入带图标的 Markdown 表格。AI 设置中可查看、手动修改保存汇率，手动值优先且不被自动更新覆盖。启动后台缓存 15 种常用币种参考汇率，分析时自动提供汇率、日期与来源。只分析楼主包含后续楼主回复，默认通用及交易提示词精简并可在设置中直接编辑。首次提示是否接管外部链接，AI 支持追问补充及楼主／全楼层范围选择。设置中可选启用原生外部链接接管，自动记住原浏览器；完成 Windows 默认关联后，Telegram 等外部应用的 NodeSeek 帖子直接打开 SeekTop。帖子点击「AI 分析」即可查看 Markdown 结果，API 和各板块提示词统一在设置页配置，无需安装 AI 插件。
 
 ## 下载与启动
 
-当前版本为 **1.0.4**。首次使用可下载 [EXE 安装包](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.4/SeekTop-1.0.4-windows-x64-setup.exe)，也可选择 ZIP 便携包，完整解压后打开 **SeekTop.exe** 并保留整个目录。两者均无需另外安装 Java、Node.js 或 Python。
+当前版本为 **1.0.5**。首次使用可下载 [EXE 安装包](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.5/SeekTop-1.0.5-windows-x64-setup.exe)，也可选择 ZIP 便携包，完整解压后打开 **SeekTop.exe** 并保留整个目录。两者均无需另外安装 Java、Node.js 或 Python。
 
 本版已支持一键升级：有更高版本时，在应用内下载、校验后点击重启，自动退出替换并重新打开。登录资料和设置保留，旧版目录留作备份。不含更新代码的旧版本需要先切换到 0.4.0。
 
@@ -50,7 +50,7 @@ JVM 回归覆盖导航与刷新、分页、搜索状态、通知独立计时、�
 
 ## 开发中的插件中心
 
-1.0.5 开发版已接入官方网络工具插件中心：网速测试、连通性测试与 iperf3 独立下载安装，支持启停、卸载和独立更新。每个插件约 4.6 MB，引擎不捆绑进主体。当前正式版 1.0.4 尚不支持插件。
+1.0.5 已预留官方插件中心，支持签名校验、独立安装与更新。网速测试、连通性测试和 iperf3 三个插件暂从市场隐藏，界面完善后再上架；工具引擎不捆绑进主体。
 
 工具页面使用客户端原生 Compose 界面；首批仅接受 SeekTop 官方签名的原生工具，安装时说明其 Windows 用户权限。第三方 JS、邮箱和图床插件仍在预留阶段。详见[插件说明](docs/plugin-extension-points.md)。
 
