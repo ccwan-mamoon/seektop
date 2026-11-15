@@ -72,4 +72,17 @@
     <string name="ai_error_thread_large">Thread exceeds the full-thread limit (100 pages or about 120,000 characters). No partial thread was submitted. Analyze the opening post instead.</string>
     <string name="ai_error_session">Account changed. Collection and submission stopped. Reopen the post and try again.</string>
     <string name="ai_error_supplements">Supplemental details are too long. Reopen analysis and shorten the additions.</string>
+    <string name="ai_fx_title">Reference exchange rates</string>
+    <string name="ai_fx_hint">CNY per unit of foreign currency. Source: Frankfurter. Saved manual rates take priority and survive automatic updates. Clear a field and save to restore its automatic rate.</string>
+    <string name="ai_fx_checked">Automatic rates fetched: %1$s</string>
+    <string name="ai_fx_label">1 %1$s = CNY</string>
+    <string name="ai_fx_manual">Manual · %1$s</string>
+    <string name="ai_fx_auto">Frankfurter · %1$s</string>
+    <string name="ai_fx_missing">No automatic rate; enter manually</string>
+    <string name="ai_fx_save">Save rates</string>
+    <string name="ai_fx_refresh">Update automatic rates</string>
+    <string name="ai_fx_reset">Restore all automatic rates</string>
+    <string name="ai_fx_saved">Rates saved; applied to the next analysis or follow-up.</string>
+    <string name="ai_fx_error">Save failed. Enter positive valid rates and check write access to the configuration directory.</string>
+    <string name="ai_fx_refresh_failed">Update failed. Existing automatic and manual rates were preserved.</string>
 </resources>

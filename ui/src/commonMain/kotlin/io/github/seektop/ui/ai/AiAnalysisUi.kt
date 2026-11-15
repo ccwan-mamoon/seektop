@@ -87,6 +87,19 @@ import io.github.seektop.ui.resources.ai_error_thread
 import io.github.seektop.ui.resources.ai_error_thread_large
 import io.github.seektop.ui.resources.ai_failed
 import io.github.seektop.ui.resources.ai_followup_hint
+import io.github.seektop.ui.resources.ai_fx_auto
+import io.github.seektop.ui.resources.ai_fx_checked
+import io.github.seektop.ui.resources.ai_fx_error
+import io.github.seektop.ui.resources.ai_fx_hint
+import io.github.seektop.ui.resources.ai_fx_label
+import io.github.seektop.ui.resources.ai_fx_manual
+import io.github.seektop.ui.resources.ai_fx_missing
+import io.github.seektop.ui.resources.ai_fx_refresh
+import io.github.seektop.ui.resources.ai_fx_refresh_failed
+import io.github.seektop.ui.resources.ai_fx_reset
+import io.github.seektop.ui.resources.ai_fx_save
+import io.github.seektop.ui.resources.ai_fx_saved
+import io.github.seektop.ui.resources.ai_fx_title
 import io.github.seektop.ui.resources.ai_include_images
 import io.github.seektop.ui.resources.ai_key
 import io.github.seektop.ui.resources.ai_key_saved
@@ -334,6 +347,46 @@ fun AiSettingsScreen(service: PostAnalysisService, onBack: () -> Unit) {
                         Text(stringResource(Res.string.ai_include_images), Modifier.padding(12.dp))
                     }
                     Text(stringResource(Res.string.ai_vision_note), style = MaterialTheme.typography.bodySmall)
+                    state.rates?.let { rates ->
+                        HorizontalDivider()
+                        Text(stringResource(Res.string.ai_fx_title), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(Res.string.ai_fx_hint), style = MaterialTheme.typography.bodySmall)
+                        if (rates.checkedAt.isNotBlank()) Text(stringResource(Res.string.ai_fx_checked, rates.checkedAt), style = MaterialTheme.typography.bodySmall)
+                        if (state.ratesBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        state.ratesError?.let { code -> Text(stringResource(if (code == "FX_REFRESH_FAILED") Res.string.ai_fx_refresh_failed else Res.string.ai_fx_error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                        if (state.ratesSaved) Text(stringResource(Res.string.ai_fx_saved), style = MaterialTheme.typography.bodySmall)
+                        rates.rates.chunked(3).forEach { group ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                group.forEach { row ->
+                                    OutlinedTextField(
+                                        value = state.rateDrafts[row.code] ?: row.toCny,
+                                        onValueChange = { vm.rate(row.code, it) },
+                                        label = { Text(stringResource(Res.string.ai_fx_label, row.code)) },
+                                        supportingText = {
+                                            Text(
+                                                if (row.code == "CNY") {
+                                                    "CNY = 1"
+                                                } else if (row.date.isBlank()) {
+                                                    stringResource(Res.string.ai_fx_missing)
+                                                } else {
+                                                    stringResource(if (row.manual) Res.string.ai_fx_manual else Res.string.ai_fx_auto, row.date)
+                                                },
+                                            )
+                                        },
+                                        singleLine = true,
+                                        enabled = !state.ratesBusy && row.code != "CNY",
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { vm.saveRates() }, enabled = !state.ratesBusy && state.rateDrafts.isNotEmpty()) { Text(stringResource(Res.string.ai_fx_save)) }
+                            OutlinedButton(onClick = vm::refreshRates, enabled = !state.ratesBusy && state.rateDrafts.isEmpty()) { Text(stringResource(Res.string.ai_fx_refresh)) }
+                            TextButton(onClick = { vm.saveRates(reset = true) }, enabled = !state.ratesBusy) { Text(stringResource(Res.string.ai_fx_reset)) }
+                        }
+                        HorizontalDivider()
+                    }
                     Text(stringResource(Res.string.ai_prompt_hint), style = MaterialTheme.typography.bodySmall)
                     AiField(config.defaultPrompt.ifBlank { io.github.seektop.ai.DefaultAiTemplates.defaultPrompt }, { vm.edit(config.copy(defaultPrompt = it.take(12000))) }, Res.string.ai_common, !state.busy, singleLine = false)
                     Column {

@@ -72,4 +72,17 @@
     <string name="ai_error_thread_large">帖子超過全樓層分析上限（100 頁或約 12 萬字元）。未提交不完整的全樓層內容，請改用只分析樓主。</string>
     <string name="ai_error_session">帳號狀態發生變化，已停止讀取和提交。請重新開啟帖子後分析。</string>
     <string name="ai_error_supplements">補充資訊超過上限，請關閉視窗後重新分析並精簡補充。</string>
+    <string name="ai_fx_title">參考匯率</string>
+    <string name="ai_fx_hint">1 單位外幣兌人民幣。來源為 Frankfurter；手動儲存後優先使用，不被自動更新覆蓋。清空某項並儲存可恢復該幣種自動匯率。</string>
+    <string name="ai_fx_checked">自動匯率取得時間：%1$s</string>
+    <string name="ai_fx_label">1 %1$s = CNY</string>
+    <string name="ai_fx_manual">手動 · %1$s</string>
+    <string name="ai_fx_auto">Frankfurter · %1$s</string>
+    <string name="ai_fx_missing">暫無自動匯率，可手動填寫</string>
+    <string name="ai_fx_save">儲存匯率</string>
+    <string name="ai_fx_refresh">更新自動匯率</string>
+    <string name="ai_fx_reset">全部恢復自動</string>
+    <string name="ai_fx_saved">匯率已儲存，下次分析和追問生效。</string>
+    <string name="ai_fx_error">儲存失敗，請填寫大於 0 的有效匯率並檢查設定目錄是否可寫入。</string>
+    <string name="ai_fx_refresh_failed">更新失敗，既有自動匯率及手動設定保留。</string>
 </resources>

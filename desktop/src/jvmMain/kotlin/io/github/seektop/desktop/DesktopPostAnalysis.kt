@@ -23,7 +23,13 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
-internal class DesktopPostAnalysis(private val browser: DesktopBrowser, private val ensureProxy: suspend () -> Unit = {}, private val loadPage: suspend (Long, Int) -> io.github.seektop.model.PostDetail, private val sessionStamp: () -> String, private val exchangeContext: suspend () -> String = { "" }) : PostAnalysisService {
+internal class DesktopPostAnalysis(private val browser: DesktopBrowser, private val ensureProxy: suspend () -> Unit = {}, private val loadPage: suspend (Long, Int) -> io.github.seektop.model.PostDetail, private val sessionStamp: () -> String, private val exchangeContext: suspend () -> String = { "" }, private val rates: DesktopExchangeRates? = null) : PostAnalysisService {
+    override suspend fun exchangeRates() = rates?.configuration()
+    override suspend fun saveExchangeRates(overrides: Map<String, String>) = checkNotNull(rates).saveOverrides(overrides)
+    override suspend fun refreshExchangeRates(): io.github.seektop.ai.AiExchangeRates {
+        checkNotNull(rates).refresh(force = true)
+        return rates.configuration()
+    }
     override fun today(): String = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString()
     private suspend fun call(op: String, q: JsonObject = buildJsonObject {}): JsonObject = withContext(Dispatchers.IO) { runInterruptible { browser.call(op, q) } }
     override suspend fun collectPost(post: io.github.seektop.ai.AiPost, scope: io.github.seektop.ai.AiAnalysisScope, refresh: Boolean, onProgress: (Int, Int) -> Unit): io.github.seektop.ai.AiPost =

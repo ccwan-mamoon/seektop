@@ -19,6 +19,60 @@ class DesktopExchangeRatesTest {
         """{"date":"$date","base":"CNY","quote":"$it","rate":${if (it == "USD") usd else "2"}}"""
     }
 
+    @Test fun `manual rates survive restart and automatic updates and reset restores latest automatic rates`() = runBlocking<Unit> {
+        val directory = Files.createTempDirectory("fx-manual-test").toFile()
+        try {
+            val file = directory.resolve("rates.json")
+            var now = initial
+            var body = payload()
+            val rates = DesktopExchangeRates(file, { body }, { now })
+            rates.refresh()
+            rates.saveOverrides(mapOf("USD" to "7.25", "EUR" to "8.5"))
+            assertTrue("USD: toCny=7.25" in rates.analysisContext())
+            assertTrue(rates.configuration().rates.first { it.code == "USD" }.manual)
+            now += 86400001
+            body = payload(usd = "0.2")
+            rates.refresh()
+            assertEquals("5", rates.configuration().rates.first { it.code == "USD" }.automatic)
+            assertTrue("USD: toCny=7.25" in rates.analysisContext())
+            val restored = DesktopExchangeRates(file, { error("offline") }, { now })
+            restored.refresh()
+            assertTrue("USD: toCny=7.25" in restored.analysisContext())
+            restored.saveOverrides(mapOf("EUR" to "8.5"))
+            assertFalse(restored.configuration().rates.first { it.code == "USD" }.manual)
+            assertTrue("USD: toCny=5" in restored.analysisContext())
+            assertTrue("EUR: toCny=8.5" in restored.analysisContext())
+            restored.saveOverrides(emptyMap())
+            assertTrue(restored.configuration().rates.none { it.manual })
+            val before = file.readText()
+            for (invalid in listOf(mapOf("USD" to "0"), mapOf("USD" to "NaN"), mapOf("CNY" to "2"), mapOf("BAD" to "1"))) {
+                assertFailsWith<IllegalArgumentException> { restored.saveOverrides(invalid) }
+                assertEquals(before, file.readText())
+            }
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test fun `manual configuration works without any automatic rates and records its own date`() = runBlocking<Unit> {
+        val directory = Files.createTempDirectory("fx-offline-manual-test").toFile()
+        try {
+            val file = directory.resolve("rates.json")
+            val rates = DesktopExchangeRates(file, { error("offline") }, { initial })
+            val config = rates.saveOverrides(mapOf("USD" to "7.100"))
+            assertEquals("7.1", config.rates.first { it.code == "USD" }.toCny)
+            assertEquals("2026-11-15", config.rates.first { it.code == "USD" }.date)
+            val restarted = DesktopExchangeRates(file, { error("offline") }, { initial })
+            restarted.refresh()
+            assertTrue("USD: toCny=7.1" in restarted.analysisContext())
+            assertTrue("source=manually saved in client settings" in restarted.analysisContext())
+            assertTrue("EUR: unavailable" in restarted.analysisContext())
+            assertEquals("1", restarted.configuration().rates.first { it.code == "CNY" }.toCny)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     @Test fun `CNY base rates are inverted once and actual quote dates survive`() {
         val parsed = parseExchangeRates(payload(), initial)
         assertEquals(exchangeCurrencies.toSet(), parsed.rates.keys)

@@ -134,6 +134,7 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
         loadPage = { id, page -> remotePosts.loadDetail(id, page) },
         sessionStamp = { sessionRepository.state.value.let { "${it.isSignedIn}:${it.fingerprint}" } },
         exchangeContext = { exchangeRates.analysisContext() },
+        rates = exchangeRates,
     )
     private val databaseDelegate = lazy { createNodeSeekDatabase(directory) }
     private val database by databaseDelegate

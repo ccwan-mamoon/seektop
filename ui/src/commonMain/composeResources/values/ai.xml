@@ -72,4 +72,17 @@
     <string name="ai_error_thread_large">帖子超过全楼层分析上限（100 页或约 12 万字符）。未提交不完整的全楼层内容，请改用只分析楼主。</string>
     <string name="ai_error_session">账号状态发生变化，已停止读取和提交。请重新打开帖子后分析。</string>
     <string name="ai_error_supplements">补充信息超过上限，请关闭窗口后重新分析并精简补充。</string>
+    <string name="ai_fx_title">参考汇率</string>
+    <string name="ai_fx_hint">1 单位外币兑人民币。来源为 Frankfurter；手动保存后优先使用，不被自动更新覆盖。清空某项并保存可恢复该币种自动汇率。</string>
+    <string name="ai_fx_checked">自动汇率获取时间：%1$s</string>
+    <string name="ai_fx_label">1 %1$s = CNY</string>
+    <string name="ai_fx_manual">手动 · %1$s</string>
+    <string name="ai_fx_auto">Frankfurter · %1$s</string>
+    <string name="ai_fx_missing">暂无自动汇率，可手动填写</string>
+    <string name="ai_fx_save">保存汇率</string>
+    <string name="ai_fx_refresh">更新自动汇率</string>
+    <string name="ai_fx_reset">全部恢复自动</string>
+    <string name="ai_fx_saved">汇率已保存，下次分析和追问生效。</string>
+    <string name="ai_fx_error">保存失败，请填写大于 0 的有效汇率并检查配置目录是否可写。</string>
+    <string name="ai_fx_refresh_failed">更新失败，已有自动汇率及手动设置保留。</string>
 </resources>

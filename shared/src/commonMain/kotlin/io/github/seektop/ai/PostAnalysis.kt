@@ -41,6 +41,9 @@ data class AiAnalysisRequest(val post: AiPost, val prompt: String, val images: L
 
 data class AiAnalysisUpdate(val text: String, val done: Boolean = false, val phase: String = "answering")
 
+data class AiExchangeRate(val code: String, val toCny: String, val date: String, val manual: Boolean, val automatic: String = "")
+data class AiExchangeRates(val rates: List<AiExchangeRate>, val checkedAt: String = "", val refreshFailed: Boolean = false)
+
 interface PostAnalysisService {
     fun today(): String
     suspend fun available(): Boolean
@@ -50,6 +53,9 @@ interface PostAnalysisService {
     suspend fun save(settings: AiSettings, newKeys: Map<String, String>)
     suspend fun test(providerId: String)
     suspend fun templates(): AiTemplatePack
+    suspend fun exchangeRates(): AiExchangeRates? = null
+    suspend fun saveExchangeRates(overrides: Map<String, String>): AiExchangeRates = error("FX_UNAVAILABLE")
+    suspend fun refreshExchangeRates(): AiExchangeRates = error("FX_UNAVAILABLE")
     suspend fun collectPost(post: AiPost, scope: AiAnalysisScope, refresh: Boolean, onProgress: (Int, Int) -> Unit): AiPost {
         check(scope == AiAnalysisScope.ORIGINAL_POST) { "AI_ALL_FLOORS_UNAVAILABLE" }
         return post
