@@ -1,0 +1,24 @@
+{
+  "id": "io.github.seektop.toolbox.ai-analysis",
+  "version": "1.0.0",
+  "api": 1,
+  "runtime": "post-analysis-v1",
+  "timeoutSeconds": 120,
+  "fields": [],
+  "files": {},
+  "name": {
+    "zh": "帖子 AI 分析",
+    "en": "Post AI Analysis",
+    "tw": "帖子 AI 分析"
+  },
+  "description": {
+    "zh": "分析标题、正文和自选图片，按板块应用提示词，支持交易估值计算。",
+    "en": "Analyze opening posts and selected images with board prompts and a local valuation calculator.",
+    "tw": "分析標題、正文和自選圖片，按板塊套用提示詞，支援交易估值計算。"
+  },
+  "notice": {
+    "zh": "需要新版客户端及自备 AI API。此包只提供提示词模板，不执行程序、不访问密钥。点击分析后才向服务商发送内容。",
+    "en": "Requires the updated client and your own AI API. Templates only: no executable code or key access. Content is sent only when you click Analyze.",
+    "tw": "需要新版客戶端及自備 AI API。此包只提供提示詞範本，不執行程式、不存取金鑰。點擊分析後才向服務商傳送內容。"
+  }
+}

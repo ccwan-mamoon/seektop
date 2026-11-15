@@ -1688,8 +1688,8 @@
     <string name="plugin_update">更新</string>
     <string name="plugin_start">開始測試</string>
     <string name="plugin_stop">停止</string>
-    <string name="plugin_native_title">安裝官方網路工具</string>
-    <string name="plugin_native_consent">僅安裝 SeekTop 官方簽章的插件。工具將以獨立本機程式執行，具有與你相同的 Windows 使用者權限，可存取網路；不是沙箱程式。客戶端不會傳遞論壇 Cookie 或瀏覽器橋接憑證。測速可能消耗較多流量，伺服器監聽須手動開啟。</string>
+    <string name="plugin_native_title">安裝官方外掛</string>
+    <string name="plugin_native_consent">僅接受 SeekTop 官方簽章。AI 範本外掛不執行程式，不讀取金鑰；點擊分析才向所選服務商傳送正文和自選圖片。原生工具以獨立程式執行，具有你的 Windows 使用者權限和網路權限，不屬於沙箱。不會傳遞論壇 Cookie。</string>
     <string name="plugin_uninstall_confirm">解除安裝 %1$s 並刪除已下載的版本檔案？論壇資料不受影響。</string>
     <string name="tool_settings">測速設定</string>
     <string name="tool_ready">準備就緒</string>

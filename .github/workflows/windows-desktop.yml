@@ -60,10 +60,14 @@ jobs:
         run: python desktop/tests/test_updater.py
       - name: Test session bridge without account sign-in
         run: python desktop/tests/test_browser.py
+      - name: Test Windows AI credential storage and streaming
+        run: python desktop/tests/test_ai_browser.py
       - name: Test resumable update transfers
         run: node desktop/tests/test_update_transfer.cjs
       - name: Test isolated plugin downloads
         run: node desktop/tests/test_plugin_download.cjs
+      - name: Test AI request isolation and streaming
+        run: node desktop/tests/test_ai_analysis.cjs
       - name: Test Windows Toast lifecycle
         run: node desktop/tests/test_notifications.cjs
       - name: Test release artifacts and installer lifecycle

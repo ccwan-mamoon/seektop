@@ -269,6 +269,7 @@ fun SettingsScreen(
                 .padding(SettingsPagePadding),
             verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
         ) {
+            io.github.seektop.ui.ai.AiSettingsEntry()
             SectionLabel(stringResource(Res.string.settings_appearance))
             SettingsGroup {
                 // 明暗 stays here, one tap from 设置, while everything else about colour moved onto

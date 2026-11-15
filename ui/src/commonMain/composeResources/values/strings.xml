@@ -1964,8 +1964,8 @@
     <string name="plugin_update">更新</string>
     <string name="plugin_start">开始测试</string>
     <string name="plugin_stop">停止</string>
-    <string name="plugin_native_title">安装官方网络工具</string>
-    <string name="plugin_native_consent">仅安装 SeekTop 官方签名的插件。工具将以独立的本地程序运行，具有与你相同的 Windows 用户权限，可访问网络；不是沙箱程序。客户端不会传递论坛 Cookie 或浏览器桥接凭据。测速可能消耗较多流量，服务端监听须手动开启。</string>
+    <string name="plugin_native_title">安装官方插件</string>
+    <string name="plugin_native_consent">仅接受 SeekTop 官方签名。AI 模板插件不执行程序，不读取密钥；点击分析才向所选服务商发送正文和自选图片。原生工具以独立程序运行，具有你的 Windows 用户权限和网络权限，不属于沙箱。不会传递论坛 Cookie。</string>
     <string name="plugin_uninstall_confirm">卸载 %1$s 并删除已下载的版本文件？论坛数据不受影响。</string>
     <string name="tool_settings">测速设置</string>
     <string name="tool_ready">准备就绪</string>

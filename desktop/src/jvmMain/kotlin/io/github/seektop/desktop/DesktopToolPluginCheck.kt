@@ -28,6 +28,18 @@ internal fun checkToolPlugins(packages: File, fromMarket: Boolean = false) = run
             manager.refresh()
             check(manager.state.value.error == null) { manager.state.value.error.orEmpty() }
         }
+        val aiPackage = File(packages, "SeekTop-ai-analysis-1.0.0.stplugin")
+        if (fromMarket || aiPackage.isFile) {
+            if (fromMarket) manager.install(manager.state.value.catalog.single { it.manifest.id == io.github.seektop.ai.POST_ANALYSIS_PLUGIN }) else manager.importVerifiedPackage(aiPackage)
+            check(manager.state.value.error == null) { manager.state.value.error.orEmpty() }
+            check(manager.analysisTemplates()?.api == 1)
+            manager.setEnabled(io.github.seektop.ai.POST_ANALYSIS_PLUGIN, false)
+            check(manager.analysisTemplates() == null)
+            manager.setEnabled(io.github.seektop.ai.POST_ANALYSIS_PLUGIN, true)
+            check(manager.analysisTemplates()?.defaultPrompt?.isNotBlank() == true)
+            File(packages, if (fromMarket) "market-smoke.ok" else "host-smoke.ok").writeText("PASS: signed declarative AI pack, installed templates, enable/disable, no executable worker\n")
+            return@runBlocking
+        }
         for (kind in listOf("speed", "connectivity", "iperf")) {
             if (fromMarket) {
                 manager.install(manager.state.value.catalog.single { it.manifest.id.endsWith(".$kind") })

@@ -186,5 +186,13 @@ fun ToolPluginCenter(manager: ToolPluginManager, initialPluginId: String? = null
 
 @Composable
 private fun ToolPage(manifest: ToolManifest, enabled: Boolean, manager: ToolPluginManager, modifier: Modifier = Modifier, onBack: () -> Unit) {
-    NetworkToolPage(manifest, enabled, manager, modifier, onBack)
+    if (manifest.runtime == "post-analysis-v1") {
+        Column(modifier) {
+            TextButton(onClick = onBack) { Text(stringResource(Res.string.plugin_center)) }
+            io.github.seektop.ui.ai.AiSettingsEntry()
+            Text(manifest.description.localized())
+        }
+    } else {
+        NetworkToolPage(manifest, enabled, manager, modifier, onBack)
+    }
 }

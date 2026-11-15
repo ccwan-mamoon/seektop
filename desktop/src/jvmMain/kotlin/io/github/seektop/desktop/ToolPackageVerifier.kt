@@ -92,14 +92,20 @@ internal class ToolPackageVerifier(publicKey: ByteArray) {
     private fun validate(manifest: ToolManifest) {
         require(Regex("io\\.github\\.seektop\\.toolbox\\.[a-z][a-z0-9-]{0,40}").matches(manifest.id))
         require(Regex("(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})").matches(manifest.version))
-        require(manifest.api == 1 && manifest.runtime == "native-tool-v1" && manifest.timeoutSeconds in 5..120)
+        require(manifest.api == 1 && manifest.runtime in setOf("native-tool-v1", "post-analysis-v1") && manifest.timeoutSeconds in 5..120)
         require(manifest.fields.size <= 12 && manifest.fields.map { it.id }.distinct().size == manifest.fields.size)
         manifest.fields.forEach { field ->
             require(Regex("[a-z][a-z0-9-]{0,40}").matches(field.id) && field.default.length <= 2048)
             require(field.options.size <= 30 && field.options.map { it.value }.distinct().size == field.options.size)
             require(field.options.isEmpty() || field.options.any { it.value == field.default })
         }
-        require(manifest.files.size in 2..12 && manifest.files.containsKey("worker.exe"))
+        require(manifest.files.size in 2..12)
+        if (manifest.runtime == "post-analysis-v1") {
+            require(manifest.id == io.github.seektop.ai.POST_ANALYSIS_PLUGIN && manifest.files.containsKey("analysis.json"))
+            require(manifest.files.keys.none { it.endsWith(".exe", true) || it.endsWith(".dll", true) || it.endsWith(".js", true) })
+        } else {
+            require(manifest.files.containsKey("worker.exe"))
+        }
         require(manifest.files.keys.map { it.lowercase() }.distinct().size == manifest.files.size)
         require(manifest.files.keys.none { !fileName.matches(it) || it in setOf("manifest.json", "manifest.sig") })
         require(manifest.files.values.all { hash.matches(it) })

@@ -59,6 +59,37 @@ class ToolPackageTest {
         }
     }
 
+    @Test fun `declarative AI pack is accepted without a worker and rejects executable payloads`() {
+        val root = Files.createTempDirectory("analysis-package").toFile()
+        try {
+            fun aiPackage(executable: Boolean): File {
+                val files = mutableMapOf("analysis.json" to "{}".toByteArray(), "LICENSE.txt" to "license".toByteArray())
+                if (executable) files["worker.exe"] = worker
+                val m = manifest().copy(id = io.github.seektop.ai.POST_ANALYSIS_PLUGIN, runtime = "post-analysis-v1", fields = emptyList(), files = files.mapValues { ToolPackageVerifier.sha256(it.value) })
+                val bytes = Json.encodeToString(m).toByteArray()
+                val signature = Signature.getInstance("Ed25519").run {
+                    initSign(keys.private)
+                    update(bytes)
+                    sign()
+                }
+                val file = File(root, if (executable) "bad.stplugin" else "ai.stplugin")
+                ZipOutputStream(file.outputStream()).use { zip ->
+                    (files + mapOf("manifest.json" to bytes, "manifest.sig" to signature)).forEach { (name, content) ->
+                        zip.putNextEntry(ZipEntry(name))
+                        zip.write(content)
+                        zip.closeEntry()
+                    }
+                }
+                return file
+            }
+            assertEquals("post-analysis-v1", verifier.unpack(aiPackage(false), File(root, "valid-ai")).runtime)
+            assertEquals(false, File(root, "valid-ai/worker.exe").exists())
+            assertFailsWith<IllegalArgumentException> { verifier.unpack(aiPackage(true), File(root, "rejected-ai")) }
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun `altered engine publisher signature and archive traversal are rejected before activation`() {
         val root = Files.createTempDirectory("tool-security").toFile()
         try {

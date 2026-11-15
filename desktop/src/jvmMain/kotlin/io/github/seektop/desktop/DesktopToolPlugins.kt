@@ -177,6 +177,7 @@ internal class DesktopToolPlugins(
     override suspend fun run(id: String, parameters: Map<String, String>) = operation {
         require(runJob?.isActive != true) { "Another tool is running" }
         val tool = requireNotNull(state.value.installed.find { it.manifest.id == id && it.enabled })
+        require(tool.manifest.runtime == "native-tool-v1") { "This plugin uses the post analysis interface" }
         require(parameters.keys == tool.manifest.fields.map { it.id }.toSet())
         require(parameters.values.all { it.length <= 2048 })
         tool.manifest.fields.forEach { field ->
@@ -259,6 +260,18 @@ internal class DesktopToolPlugins(
         runJob?.cancelAndJoin()
     }
 
+    internal fun analysisTemplates(): io.github.seektop.ai.AiTemplatePack? {
+        val plugin = state.value.installed.find { it.manifest.id == io.github.seektop.ai.POST_ANALYSIS_PLUGIN && it.enabled } ?: return null
+        val folder = location(plugin.manifest.id, plugin.manifest.version)
+        require(verifier.installed(folder).runtime == "post-analysis-v1")
+        val file = File(folder, "analysis.json")
+        require(file.length() in 1..65536)
+        return Json.decodeFromString<io.github.seektop.ai.AiTemplatePack>(file.readText()).also {
+            require(it.api == 1 && it.systemPrompt.length <= 8000 && it.defaultPrompt.length <= 12000 && it.boardPrompts.size <= 100)
+            require(it.boardPrompts.all { (key, value) -> key.length <= 80 && value.length <= 12000 })
+        }
+    }
+
     private suspend fun operation(block: suspend () -> Unit) = withContext(Dispatchers.IO) {
         mutex.withLock {
             mutableState.update { it.copy(busy = true, progress = null, error = null) }
@@ -334,7 +347,7 @@ internal class DesktopToolPlugins(
     private data class StoredTools(val revision: Long = 0, val entries: List<StoredTool> = emptyList())
 
     companion object {
-        private const val CATALOG = "https://github.com/ccwan-mamoon/seektop/releases/download/plugin-market/catalog.json"
+        private const val CATALOG = "https://github.com/ccwan-mamoon/seektop/releases/download/plugin-market-v2/catalog.json"
         internal fun compareVersions(left: String, right: String): Int {
             val a = left.split('.').map(String::toInt)
             val b = right.split('.').map(String::toInt)

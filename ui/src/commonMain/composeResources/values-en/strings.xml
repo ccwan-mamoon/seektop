@@ -1696,8 +1696,8 @@
     <string name="plugin_update">Update</string>
     <string name="plugin_start">Start test</string>
     <string name="plugin_stop">Stop</string>
-    <string name="plugin_native_title">Install official network tool</string>
-    <string name="plugin_native_consent">Only SeekTop publisher-signed packages are accepted. Tools run as separate native programs with your Windows user permissions and network access; they are not sandboxed. Forum cookies and browser bridge credentials are not passed to them. Speed tests can consume significant data. Server listening must be started manually.</string>
+    <string name="plugin_native_title">Install official plugin</string>
+    <string name="plugin_native_consent">Only SeekTop-signed packages are accepted. AI templates execute no code and cannot read credentials; content is sent to your provider only when you click Analyze. Native tools run with your Windows user and network permissions, outside a sandbox. Forum cookies are never passed to plugins.</string>
     <string name="plugin_uninstall_confirm">Uninstall %1$s and remove its downloaded versions? Forum data is unaffected.</string>
     <string name="tool_settings">Test settings</string>
     <string name="tool_ready">Ready</string>

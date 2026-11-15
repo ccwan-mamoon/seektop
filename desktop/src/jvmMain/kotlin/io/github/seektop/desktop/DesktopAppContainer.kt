@@ -120,6 +120,7 @@ class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : Ap
         browser.downloadPlugin(url, limit)
     })
     override val toolPlugins: io.github.seektop.plugins.ToolPluginManager = desktopToolPlugins
+    override val postAnalysis: io.github.seektop.ai.PostAnalysisService = DesktopPostAnalysis(browser, desktopToolPlugins) { browser.applyProxy(proxySettings.config.first()) }
     private val databaseDelegate = lazy { createNodeSeekDatabase(directory) }
     private val database by databaseDelegate
     private val sessionCookies by lazy { SessionCookies(NodeSeekSite.CONFIG, browser) }

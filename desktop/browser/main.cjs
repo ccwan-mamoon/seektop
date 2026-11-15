@@ -45,6 +45,9 @@ app.whenReady().then(() => {
     const third = session.fromPartition("persist:third-party");
     const updatesSession = session.fromPartition("updates");
     const pluginSession = session.fromPartition("plugin-market");
+    const aiSession = session.fromPartition("ai-analysis");
+    const ai = require("./ai-analysis.cjs").createAiService({session:aiSession,safeStorage:require("electron").safeStorage,directory:require("node:path").join(process.env.SEEKTOP_BROWSER_DATA,"../ai"),defaultSettings:{providers:[{id:"deepseek",name:"DeepSeek",baseUrl:"https://api.deepseek.com",model:"deepseek-flash",vision:true}],selectedProvider:"deepseek",defaultPrompt:"",boardPrompts:{}}});
+    app.on("before-quit",()=>ai.dispose());
     const pluginDownload = require("./plugin-download.cjs").createPluginDownloader(pluginSession);
     const updates = require("./updater.cjs").createUpdateService(updatesSession, require("node:path").join(process.env.SEEKTOP_BROWSER_DATA, "../updates/downloads"));
     app.on("before-quit", () => updates.dispose());
@@ -86,6 +89,12 @@ app.whenReady().then(() => {
             const q = body ? JSON.parse(body) : {};
             let value;
             switch (req.url) {
+                case "/ai-settings": value = await ai.settings(); break;
+                case "/ai-save": value = await ai.save(q); break;
+                case "/ai-test": value = await ai.test(q.id); break;
+                case "/ai-start": value = await ai.start(q); break;
+                case "/ai-status": value = ai.status(q.id); break;
+                case "/ai-cancel": value = await ai.cancel(q.id); break;
                 case "/plugin-download": value = await pluginDownload(q); break;
                 case "/update-releases": value = await updates.releases(); break;
                 case "/update-start": value = await updates.start(q); break;
@@ -122,6 +131,8 @@ app.whenReady().then(() => {
                     await updatesSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
                     await pluginSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
                     await pluginSession.closeAllConnections();
+                    await aiSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
+                    await aiSession.closeAllConnections();
                     await updatesSession.closeAllConnections();
                     await forum.closeAllConnections();
                     await third.closeAllConnections();

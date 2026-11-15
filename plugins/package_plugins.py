@@ -51,7 +51,8 @@ def package(args):
         source.write(ROOT / "plugins/README.md", "BUILD.md")
         source.write(Path(__file__), "package_plugins.py")
         for path in sorted((ROOT / "plugins/manifests").glob("*.json")):
-            source.write(path, "manifests/" + path.name)
+            if json.loads(path.read_text(encoding="utf-8"))["runtime"] == "native-tool-v1":
+                source.write(path, "manifests/" + path.name)
     common = {
         "SOURCE.zip": source_buffer.getvalue(),
         "LICENSE.txt": (ROOT / "LICENSE").read_bytes(),
@@ -62,6 +63,8 @@ def package(args):
     }
     listings = []
     for path in sorted((ROOT / "plugins/manifests").glob("*.json")):
+        if json.loads(path.read_text(encoding="utf-8"))["runtime"] != "native-tool-v1":
+            continue
         kind = path.stem
         worker = output / f"{kind}-worker.exe"
         env = dict(os.environ, GOOS="windows", GOARCH="amd64", CGO_ENABLED="0")

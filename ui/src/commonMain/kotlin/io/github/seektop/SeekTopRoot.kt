@@ -225,7 +225,10 @@ internal fun SeekTopChrome(
             // 测评对比's basket rides here for the reason 测评报告 does: a report turns up wherever a
             // post body does, and the card is what adds to it.
             val reportCompareBasket = rememberReportCompareBasket(container.reportCompareStore)
+            val aiBoards by container.categoryRepository.boards.collectAsStateWithLifecycle(initialValue = emptyList())
             CompositionLocalProvider(
+                io.github.seektop.ui.ai.LocalPostAnalysis provides container.postAnalysis,
+                io.github.seektop.ui.ai.LocalAiBoardKeys provides aiBoards.mapNotNull { board -> board.slug?.let { board.title to it } }.toMap(),
                 LocalUriHandler provides browserLinks.uriHandler,
                 LocalLinkPrefetcher provides browserLinks.prefetcher,
                 LocalReportFormat provides settings.reportFormat,

@@ -703,6 +703,9 @@ fun PostDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             DetailTopBar(
+                aiPost = state.body?.takeIf { !it.isBlocked || state.showBlockedContent }?.let {
+                    io.github.seektop.ai.analysisPost(state.postId, state.title, io.github.seektop.ui.ai.LocalAiBoardKeys.current[it.categoryTitle], it)
+                },
                 title = state.title,
                 showTitle = io.github.seektop.LocalDesktopExperience.current || showCollapsedTitle,
                 onTitleClick = openOriginalPost,
@@ -1072,6 +1075,7 @@ private fun DetailBottomActions(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DetailTopBar(
+    aiPost: io.github.seektop.ai.AiPost?,
     title: String,
     showTitle: Boolean,
     /** Jumps to the opening post, for the reads that start on a page without one. Null when there is nothing to jump to. */
@@ -1125,6 +1129,7 @@ private fun DetailTopBar(
             }
         },
         actions = {
+            io.github.seektop.ui.ai.PostAnalysisAction(aiPost)
             IconButton(onClick = onOpenInBrowser) {
                 Icon(
                     SeekTopIcons.OpenInNew,
