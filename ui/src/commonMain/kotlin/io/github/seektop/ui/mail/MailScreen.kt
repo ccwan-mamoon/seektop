@@ -453,7 +453,7 @@ private fun MailScreenContent(account: SeekLiAccount) {
                         429 -> Res.string.mail_rate_error
                         else -> if (state.sendError) Res.string.mail_network_error else Res.string.mail_load_error
                     },
-                ) + " ($code)",
+                ) + " ($code)" + state.errorDescription.takeIf { it.isNotBlank() }?.let { "\n\n$it" }.orEmpty(),
             )
         })
     }

@@ -68,4 +68,16 @@ class SeekLiManagementTest {
         assertEquals(null, error.apiMessage)
         assertEquals(null, error.apiCode)
     }
+
+    @Test
+    fun `send serializes copies as address strings matching official compose rather than arrays`() = runTest {
+        val http = RecordingTransport(HttpResponse(200, "https://seek.li", emptyMap(), "{}"))
+        val repository = DefaultSeekLiRepository(http) { "sk_live_test" }
+        repository.sendWithCopies(12, listOf("a@example.com", "b@example.com"), listOf(" c@example.com ", "d@example.com"), listOf("hidden@example.com"), "subject", "body")
+        val body = kotlinx.serialization.json.Json.parseToJsonElement((http.last.body as HttpBody.Text).content).let { it as kotlinx.serialization.json.JsonObject }
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("a@example.com,b@example.com"), body["to"])
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("c@example.com,d@example.com"), body["cc"])
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("hidden@example.com"), body["bcc"])
+        assertEquals(1, http.requests.size)
+    }
 }

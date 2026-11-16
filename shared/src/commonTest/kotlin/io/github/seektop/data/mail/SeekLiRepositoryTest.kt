@@ -83,6 +83,7 @@ class SeekLiRepositoryTest {
         assertEquals("https://seek.li/openapi/v1/send", http.last.url)
         assertEquals("POST", http.last.method)
         val body = Json.parseToJsonElement((http.last.body as HttpBody.Text).content).jsonObject
+        assertEquals("a@example.com,b@example.com", body.getValue("to").jsonPrimitive.content)
         assertEquals("line 1\nline 2", body.getValue("bodyText").jsonPrimitive.content)
         assertEquals(1, http.requests.size)
     }

@@ -7,6 +7,7 @@ import io.github.seektop.data.mail.SeekLiException
 import io.github.seektop.data.mail.SeekLiMail
 import io.github.seektop.data.mail.SeekLiMailbox
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +20,7 @@ data class MailUiState(
     val connected: Boolean = false,
     val busy: Boolean = false,
     val error: Int? = null,
+    val errorDescription: String = "",
     val sendError: Boolean = false,
     val mailboxes: List<SeekLiMailbox> = emptyList(),
     val mailbox: Long? = null,
@@ -39,14 +41,15 @@ data class MailUiState(
 
 )
 
-class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
+class MailViewModel(private val account: SeekLiAccount, private val taskScope: CoroutineScope? = null) : ViewModel() {
+    private val tasks: CoroutineScope get() = taskScope ?: viewModelScope
     private val mutable = MutableStateFlow(MailUiState())
     val state = mutable.asStateFlow()
     private var loading: Job? = null
     private var reading: Job? = null
     private val polling by lazy {
         MailPolling(
-            viewModelScope,
+            tasks,
             allowed = { state.value.connected && !state.value.busy && !state.value.sending && reading?.isActive != true },
             fetch = {
                 refresh(silent = true)
@@ -56,7 +59,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     }
     init {
         refresh()
-        viewModelScope.launch {
+        tasks.launch {
             val seconds = try {
                 account.pollSeconds()
             } catch (e: CancellationException) {
@@ -69,7 +72,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
         }
     }
     fun setPollSeconds(seconds: Int) {
-        viewModelScope.launch {
+        tasks.launch {
             try {
                 account.setPollSeconds(seconds)
                 mutable.update { it.copy(pollSeconds = seconds) }
@@ -85,11 +88,11 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
         polling.start(seconds)
     }
     fun clearError() {
-        mutable.update { it.copy(error = null) }
+        mutable.update { it.copy(error = null, errorDescription = "") }
     }
     fun connect(key: String) {
         loading?.cancel()
-        loading = viewModelScope.launch {
+        loading = tasks.launch {
             mutable.update { it.copy(busy = true, error = null) }
             try {
                 account.connect(key)
@@ -104,7 +107,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     fun disconnect() {
         loading?.cancel()
         reading?.cancel()
-        loading = viewModelScope.launch {
+        loading = tasks.launch {
             try {
                 account.disconnect()
                 mutable.value = MailUiState(pollSeconds = state.value.pollSeconds)
@@ -122,7 +125,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     }
     fun refresh(silent: Boolean = false) {
         loading?.cancel()
-        loading = viewModelScope.launch {
+        loading = tasks.launch {
             mutable.update { it.copy(busy = true, error = if (silent) it.error else null) }
             try {
                 if (!account.connected()) {
@@ -174,7 +177,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     }
     fun open(mail: SeekLiMail) {
         reading?.cancel()
-        reading = viewModelScope.launch {
+        reading = tasks.launch {
             try {
                 val detail = account.mail(mail.id)
                 mutable.update { it.copy(detail = detail) }
@@ -187,7 +190,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     }
     fun markRead() {
         val mail = state.value.detail ?: return
-        viewModelScope.launch {
+        tasks.launch {
             try {
                 account.markRead(mail.id, !mail.isRead)
                 mutable.update { it.copy(unread = it.unread + (mail.mailboxId to ((it.unread[mail.mailboxId] ?: 0) + if (mail.isRead) 1 else -1).coerceAtLeast(0)), detail = mail.copy(isRead = !mail.isRead), mails = it.mails.map { row -> if (row.id == mail.id) row.copy(isRead = !mail.isRead) else row }) }
@@ -200,8 +203,8 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     }
     fun send(mailbox: Long, to: String, subject: String, body: String, cc: String = "", bcc: String = "") {
         if (state.value.sending) return
-        mutable.update { it.copy(sending = true, sent = false, error = null) }
-        viewModelScope.launch {
+        mutable.update { it.copy(sending = true, sent = false, error = null, errorDescription = "") }
+        tasks.launch {
             try {
                 account.sendWithCopies(mailbox, to.split(';', ',').map { it.trim() }.filter { it.isNotEmpty() }, cc.split(';', ',').map { it.trim() }.filter { it.isNotEmpty() }, bcc.split(';', ',').map { it.trim() }.filter { it.isNotEmpty() }, subject, body)
                 mutable.update { it.copy(sending = false, sent = true) }
@@ -222,7 +225,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     }
     fun choices(kind: String) {
         val mail = state.value.detail ?: return
-        viewModelScope.launch {
+        tasks.launch {
             try {
                 val path = when (kind) {
                     "folder" -> "/folders"
@@ -247,7 +250,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     }
     fun operate(method: String, suffix: String, body: kotlinx.serialization.json.JsonObject? = null) {
         val mail = state.value.detail ?: return
-        viewModelScope.launch {
+        tasks.launch {
             try {
                 account.manage("/mails/${mail.id}$suffix", method, body)
                 closeMenu()
@@ -262,7 +265,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
     }
     fun download(index: Int? = null, fileName: String? = null) {
         val mail = state.value.detail ?: return
-        viewModelScope.launch {
+        tasks.launch {
             try {
                 account.download("/mails/${mail.id}/" + if (index == null) "raw" else "attachments/$index", fileName ?: "message-${mail.id}.eml")
             } catch (e: CancellationException) {
@@ -285,6 +288,7 @@ class MailViewModel(private val account: SeekLiAccount) : ViewModel() {
                     else -> 0
                 },
                 sendError = sending,
+                errorDescription = (e as? SeekLiException)?.let { failure -> listOfNotNull(failure.apiCode, failure.apiMessage).joinToString("\n") }.orEmpty(),
             )
         }
     }

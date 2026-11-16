@@ -7,13 +7,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 
 @Serializable
 data class SeekLiMailbox(val id: Long, val address: String, val sendDisabled: Boolean = false)
@@ -138,9 +136,11 @@ class DefaultSeekLiRepository(
             "POST",
             buildJsonObject {
                 put("mailboxId", mailboxId)
-                putJsonArray("to") { to.forEach { add(it.trim()) } }
-                if (cc.isNotEmpty()) putJsonArray("cc") { cc.forEach { add(it.trim()) } }
-                if (bcc.isNotEmpty()) putJsonArray("bcc") { bcc.forEach { add(it.trim()) } }
+                // The published OpenAPI lists arrays, but the official compose + request wrapper
+                // sends comma-separated strings unchanged. Arrays are rejected with BAD_REQUEST.
+                put("to", to.joinToString(",") { it.trim() })
+                if (cc.isNotEmpty()) put("cc", cc.joinToString(",") { it.trim() })
+                if (bcc.isNotEmpty()) put("bcc", bcc.joinToString(",") { it.trim() })
                 put("subject", subject)
                 put("bodyText", body)
                 put("bodyHtml", mailMarkdownHtml(body))
