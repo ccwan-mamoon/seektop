@@ -4,7 +4,9 @@
 
 **NodeSeek 非官方 Windows 桌面客户端**，基于 [Nodyssey](https://github.com/5151561/nodyssey) 二次开发与桌面移植，采用 GPL-3.0，保留上游版权与贡献归属。
 
-[下载 Windows x64 便携版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.5/SeekTop-1.0.5-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
+[下载 Windows x64 便携版](https://github.com/ccwan-mamoon/seektop/releases/download/desktop-v1.0.6/SeekTop-1.0.6-windows-x64.zip) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/ccwan-mamoon/seektop/issues)· [交流群组](https://t.me/SeekTopHub)
+
+1.0.6：新增 Seek.li 原生邮箱、可配置定时收信、邮箱与邮件管理、清晰未读徽标，以及发帖回复粘贴图片上传与图床优先级。
 
 1.0.5：计算器新增型号、日期选择器、月付至三年的付款周期与两位小数汇率。回复、发帖下方新增本地剩余价值计算器，结果一键插入带图标的 Markdown 表格。AI 设置中可查看、手动修改保存汇率，手动值优先且不被自动更新覆盖。启动后台缓存 15 种常用币种参考汇率，分析时自动提供汇率、日期与来源。只分析楼主包含后续楼主回复，默认通用及交易提示词精简并可在设置中直接编辑。首次提示是否接管外部链接，AI 支持追问补充及楼主／全楼层范围选择。设置中可选启用原生外部链接接管，自动记住原浏览器；完成 Windows 默认关联后，Telegram 等外部应用的 NodeSeek 帖子直接打开 SeekTop。帖子点击「AI 分析」即可查看 Markdown 结果，API 和各板块提示词统一在设置页配置，无需安装 AI 插件。
 
@@ -78,3 +80,5 @@ python desktop/tests/test_updater.py
 项目使用 [GNU GPL v3.0](LICENSE)。源码包名、入口类与构建工程统一为 SeekTop；Android、iOS 平台代码保留，版权及上游历史文档原文保留。分发修改版时须保留许可与归属，并提供对应源码和构建脚本。
 
 来源与第三方组件详见 [NOTICE.md](NOTICE.md)，原始介绍和历史记录存档于 [docs/upstream](docs/upstream/)。感谢 Nodyssey 作者、贡献者及所依赖的开源项目。
+
+原生 Seek.li 邮箱开发版：已接入读写信、邮箱与邮件管理等公开接口；接口覆盖和限制见[接入说明](docs/seekli-native-mail.md)。

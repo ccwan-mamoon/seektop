@@ -49,6 +49,12 @@ class DefaultImageHostRepository(
         onProgress: (Float) -> Unit,
     ): HostedImage = onSelectedHost { client, config -> client.upload(config, upload, onProgress) }
 
+    override suspend fun uploadTo(provider: ImageHostProvider, upload: ImageHostUpload): HostedImage {
+        val config = settings.config(provider).first()
+        if (!config.isConfigured) throw ImageHostException(ImageHostError.NotConfigured)
+        return withContext(dispatchers.io) { clients.getValue(provider).upload(config, upload) {} }
+    }
+
     override suspend fun images(): List<HostedImage> =
         onSelectedHost { client, config ->
             if (!config.provider.browsable) throw ImageHostException(ImageHostError.Unsupported)

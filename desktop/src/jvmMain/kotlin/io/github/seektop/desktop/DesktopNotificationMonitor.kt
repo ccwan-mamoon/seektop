@@ -186,11 +186,45 @@ internal class DesktopNotifier(image: java.awt.Image, onOpen: () -> Unit) : Auto
 
     val isAvailable: Boolean get() = tray != null
 
+    private var menu: javax.swing.JPopupMenu? = null
+    private val menuOwner by lazy {
+        javax.swing.JWindow().apply {
+            isAlwaysOnTop = true
+            setSize(1, 1)
+        }
+    }
+    private val menuListener = object : java.awt.event.MouseAdapter() {
+        override fun mouseReleased(event: java.awt.event.MouseEvent) {
+            if (!event.isPopupTrigger && event.button != java.awt.event.MouseEvent.BUTTON3) return
+            javax.swing.SwingUtilities.invokeLater {
+                menuOwner.setLocation(event.x, event.y)
+                menuOwner.isVisible = true
+                menu?.show(menuOwner, 0, 0)
+            }
+        }
+    }
+
     fun configureMenu(openLabel: String, exitLabel: String, onShow: () -> Unit, onExit: () -> Unit) {
-        tray?.popupMenu = java.awt.PopupMenu().apply {
-            add(java.awt.MenuItem(openLabel).apply { addActionListener { onShow() } })
-            addSeparator()
-            add(java.awt.MenuItem(exitLabel).apply { addActionListener { onExit() } })
+        // AWT PopupMenu renders missing Chinese glyphs on the packaged Windows runtime.
+        // Swing's standard popup uses Java font fallback; remove this if AWT fixes glyph fallback.
+        javax.swing.SwingUtilities.invokeLater {
+            tray?.removeMouseListener(menuListener)
+            tray?.popupMenu = null
+            menu = javax.swing.JPopupMenu().apply {
+                add(javax.swing.JMenuItem(openLabel).apply { addActionListener { onShow() } })
+                addSeparator()
+                add(javax.swing.JMenuItem(exitLabel).apply { addActionListener { onExit() } })
+                addPopupMenuListener(object : javax.swing.event.PopupMenuListener {
+                    override fun popupMenuWillBecomeVisible(e: javax.swing.event.PopupMenuEvent) = Unit
+                    override fun popupMenuWillBecomeInvisible(e: javax.swing.event.PopupMenuEvent) {
+                        menuOwner.isVisible = false
+                    }
+                    override fun popupMenuCanceled(e: javax.swing.event.PopupMenuEvent) {
+                        menuOwner.isVisible = false
+                    }
+                })
+            }
+            tray?.addMouseListener(menuListener)
         }
     }
 
@@ -200,5 +234,9 @@ internal class DesktopNotifier(image: java.awt.Image, onOpen: () -> Unit) : Auto
 
     override fun close() {
         tray?.let { java.awt.SystemTray.getSystemTray().remove(it) }
+        javax.swing.SwingUtilities.invokeLater {
+            menu?.isVisible = false
+            menuOwner.dispose()
+        }
     }
 }

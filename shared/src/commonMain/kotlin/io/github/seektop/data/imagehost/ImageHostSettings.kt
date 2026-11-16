@@ -114,6 +114,10 @@ private fun String.isPlaintextSecret() = isNotEmpty() && !SecretCipher.isEncrypt
 
 /** The stored side of 图床设置. Split from [ImageHostRepository] so the HTTP half can be faked alone. */
 interface ImageHostSettings {
+    val uploadPriority: Flow<List<ImageHostProvider>> get() = kotlinx.coroutines.flow.flowOf(emptyList())
+
+    suspend fun setUploadPriority(providers: List<ImageHostProvider>) {}
+
     val selected: Flow<ImageHostProvider>
 
     /** The stored configuration for one host, whether or not it is the selected one. */
@@ -155,6 +159,15 @@ class DataStoreImageHostSettings(
 ) : ImageHostSettings {
     private val preferences: Flow<Preferences> = dataStore.data
         .catch { throwable -> if (throwable is IOException) emit(emptyPreferences()) else throw throwable }
+
+    override val uploadPriority: Flow<List<ImageHostProvider>> = preferences.map { prefs ->
+        prefs[stringPreferencesKey("upload_priority")].orEmpty().split(",")
+            .mapNotNull { id -> ImageHostProvider.entries.firstOrNull { it.id == id } }.distinct()
+    }
+
+    override suspend fun setUploadPriority(providers: List<ImageHostProvider>) {
+        dataStore.edit { it[stringPreferencesKey("upload_priority")] = providers.distinct().joinToString(",") { host -> host.id } }
+    }
 
     override val selected: Flow<ImageHostProvider> =
         preferences.map { ImageHostProvider.fromId(it[ImageHostKeys.SELECTED]) }

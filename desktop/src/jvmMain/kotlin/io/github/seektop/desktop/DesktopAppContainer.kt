@@ -112,6 +112,7 @@ import okio.Path.Companion.toPath
 import java.io.File
 
 class DesktopAppContainer(val browser: DesktopBrowser, val directory: File) : AppContainer {
+    override val seekLi by lazy { DesktopSeekLiAccount(browser) }
     override val dispatchers = AppDispatchers()
     override val clock: AppClock = AppClock.System
     override val userAgent = UserAgent(browser.userAgent, true)

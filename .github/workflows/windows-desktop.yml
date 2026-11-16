@@ -70,6 +70,8 @@ jobs:
         run: node desktop/tests/test_plugin_download.cjs
       - name: Test AI request isolation and streaming
         run: node desktop/tests/test_ai_analysis.cjs
+      - name: Test native mail credential and request boundaries
+        run: node desktop/tests/test_seekli.cjs
       - name: Test isolated exchange rate requests
         run: node desktop/tests/test_exchange_rates.cjs
       - name: Test Windows Toast lifecycle

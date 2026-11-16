@@ -88,6 +88,7 @@ import io.github.seektop.ui.resources.desktop_manage_boards
 import io.github.seektop.ui.resources.desktop_menu_collapse
 import io.github.seektop.ui.resources.desktop_menu_expand
 import io.github.seektop.ui.resources.home_search_hint
+import io.github.seektop.ui.resources.mail_title
 import io.github.seektop.ui.resources.plugin_center
 import io.github.seektop.ui.resources.settings_title
 import org.jetbrains.compose.resources.stringResource
@@ -121,6 +122,7 @@ internal fun DesktopAwareNavigationFrame(
     modifier: Modifier = Modifier,
     searchSession: DesktopSearchSession? = null,
     toolPlugins: io.github.seektop.plugins.ToolPluginManager? = null,
+    seekLi: io.github.seektop.data.mail.SeekLiAccount? = null,
     workspaceKey: Any? = null,
     pinnedBoards: List<String> = listOf("daily", "tech"),
     onPinnedBoardsChange: (List<String>) -> Unit = {},
@@ -132,25 +134,40 @@ internal fun DesktopAwareNavigationFrame(
         mobileNavigation(content)
         return
     }
+    var mailVisible by rememberSaveable { mutableStateOf(false) }
     val initialPlugin = LocalDesktopPluginLaunch.current
     var pluginsVisible by rememberSaveable { mutableStateOf(initialPlugin != null) }
     val pluginStateHolder = rememberSaveableStateHolder()
     var previousWorkspace by remember { mutableStateOf(workspaceKey) }
     LaunchedEffect(workspaceKey) {
-        if (previousWorkspace != workspaceKey) pluginsVisible = false
+        if (previousWorkspace != workspaceKey) {
+            pluginsVisible = false
+            mailVisible = false
+        }
         previousWorkspace = workspaceKey
     }
-    val goBack = { if (pluginsVisible) pluginsVisible = false else onBack() }
+    val goBack = {
+        if (mailVisible) {
+            mailVisible = false
+        } else if (pluginsVisible) {
+            pluginsVisible = false
+        } else {
+            onBack()
+        }
+    }
     val search = {
         pluginsVisible = false
+        mailVisible = false
         onSearch()
     }
     val createPost = {
         pluginsVisible = false
+        mailVisible = false
         onCreatePost()
     }
     val settings = {
         pluginsVisible = false
+        mailVisible = false
         onSettings()
     }
     val searchFocus = remember { FocusRequester() }
@@ -160,6 +177,7 @@ internal fun DesktopAwareNavigationFrame(
     val boardNavigation = remember { DesktopBoardNavigation() }
     val selectDestination: (TopLevelDestination) -> Unit = { destination ->
         pluginsVisible = false
+        mailVisible = false
         if (destination == TopLevelDestination.HOME) boardNavigation.select(null)
         onSelect(destination)
     }
@@ -251,11 +269,28 @@ internal fun DesktopAwareNavigationFrame(
                         )
                     }
                 }
+                if (seekLi != null) {
+                    val openMail = {
+                        mailVisible = true
+                        pluginsVisible = false
+                    }
+                    if (menuCollapsed) {
+                        DesktopMenuIcon(stringResource(Res.string.mail_title), mailVisible, openMail) { io.github.seektop.ui.mail.MailNavigationIcon(seekLi) }
+                    } else {
+                        NavigationDrawerItem(selected = mailVisible, onClick = openMail, label = { Text(stringResource(Res.string.mail_title)) }, icon = { io.github.seektop.ui.mail.MailNavigationIcon(seekLi) }, modifier = Modifier.height(42.dp), shape = RoundedCornerShape(6.dp))
+                    }
+                }
                 if (toolPlugins != null) {
                     if (menuCollapsed) {
-                        DesktopMenuIcon(stringResource(Res.string.plugin_center), pluginsVisible, { pluginsVisible = true }) { Icon(Icons.Default.Build, null) }
+                        DesktopMenuIcon(stringResource(Res.string.plugin_center), pluginsVisible, {
+                            mailVisible = false
+                            pluginsVisible = true
+                        }) { Icon(Icons.Default.Build, null) }
                     } else {
-                        NavigationDrawerItem(selected = pluginsVisible, onClick = { pluginsVisible = true }, label = { Text(stringResource(Res.string.plugin_center)) }, icon = { Icon(Icons.Default.Build, null) }, modifier = Modifier.height(42.dp), shape = RoundedCornerShape(6.dp))
+                        NavigationDrawerItem(selected = pluginsVisible, onClick = {
+                            mailVisible = false
+                            pluginsVisible = true
+                        }, label = { Text(stringResource(Res.string.plugin_center)) }, icon = { Icon(Icons.Default.Build, null) }, modifier = Modifier.height(42.dp), shape = RoundedCornerShape(6.dp))
                     }
                 }
                 HorizontalDivider(Modifier.padding(horizontal = 10.dp, vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
@@ -280,6 +315,7 @@ internal fun DesktopAwareNavigationFrame(
                                             if (menuCollapsed) {
                                                 DesktopMenuIcon(board.title, current == TopLevelDestination.HOME && !pluginsVisible && boardNavigation.selectedSlug == board.slug, {
                                                     pluginsVisible = false
+                                                    mailVisible = false
                                                     onOpenBoard()
                                                     boardNavigation.select(board.slug)
                                                 }) { Text(board.title.take(2), style = MaterialTheme.typography.labelMedium, maxLines = 1) }
@@ -288,6 +324,7 @@ internal fun DesktopAwareNavigationFrame(
                                                     selected = current == TopLevelDestination.HOME && !pluginsVisible && boardNavigation.selectedSlug == board.slug,
                                                     onClick = {
                                                         pluginsVisible = false
+                                                        mailVisible = false
                                                         onOpenBoard()
                                                         boardNavigation.select(board.slug)
                                                     },
@@ -341,7 +378,9 @@ internal fun DesktopAwareNavigationFrame(
             Box(Modifier.weight(1f).fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
                 Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))) {
                     CompositionLocalProvider(LocalDesktopRefreshTargets provides refreshTargets, LocalDesktopBoardNavigation provides boardNavigation, LocalDesktopSearch provides searchSession) {
-                        if (pluginsVisible && toolPlugins != null) {
+                        if (mailVisible && seekLi != null) {
+                            io.github.seektop.ui.mail.MailScreen(seekLi)
+                        } else if (pluginsVisible && toolPlugins != null) {
                             pluginStateHolder.SaveableStateProvider("plugins") { io.github.seektop.ui.plugins.ToolPluginCenter(toolPlugins, initialPlugin?.takeIf { it.isNotEmpty() }) }
                         } else {
                             content()

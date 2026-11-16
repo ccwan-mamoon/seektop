@@ -70,3 +70,13 @@ internal actual fun DesktopPostContextMenu(url: String, content: @Composable () 
         )
     }, content = content)
 }
+
+@Composable
+internal actual fun DesktopScrollbars(state: androidx.compose.foundation.ScrollState, modifier: androidx.compose.ui.Modifier, content: @Composable () -> Unit) {
+    androidx.compose.foundation.layout.Box(modifier) {
+        content()
+        androidx.compose.foundation.layout.Box(Modifier.matchParentSize()) {
+            VerticalScrollbar(rememberScrollbarAdapter(state), Modifier.align(Alignment.CenterEnd).fillMaxHeight(), style = LocalScrollbarStyle.current.copy(unhoverColor = LocalContentColor.current.copy(alpha = 0.25f), hoverColor = LocalContentColor.current.copy(alpha = 0.55f)))
+        }
+    }
+}

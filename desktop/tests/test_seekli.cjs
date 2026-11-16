@@ -1,0 +1,48 @@
+"use strict";
+const assert=require("node:assert/strict");
+const fs=require("node:fs/promises");
+const os=require("node:os");
+const path=require("node:path");
+const {createSeekLiService}=require("../browser/seekli.cjs");
+(async()=>{
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),"seekli-test-"));
+ const calls=[];
+ const safeStorage={isAsyncEncryptionAvailable:async()=>true,encryptStringAsync:async s=>Buffer.from("cipher:"+Buffer.from(s).toString("base64")),decryptStringAsync:async b=>Buffer.from(b.toString().slice(7),"base64").toString()};
+ const session={webRequest:{onBeforeRequest:()=>{}},fetch:async(url,options)=>{calls.push({url,options});return new Response(url.endsWith("/mails/42") ? '{"data":{"id":42,"subject":"private-fixture-subject","bodyText":"private-fixture-body"}}' : '{"data":[]}',{status:200});}};
+ try{
+  const service=createSeekLiService({session,safeStorage,directory});
+  assert.equal((await service.settings()).connected,false);
+  await service.save({key:"sk_live_testing"});
+  assert.ok(!(await fs.readFile(path.join(directory,"credentials.bin"),"utf8")).includes("sk_live_testing"));
+  const restored=createSeekLiService({session,safeStorage,directory});
+  assert.equal((await restored.settings()).connected,true);
+  await assert.rejects(()=>restored.request({url:"https://evil.example/openapi/v1/mails"}));
+  await assert.rejects(()=>restored.request({url:"https://seek.li/openapi/v1/mailboxes",method:"DELETE"}));
+  await restored.request({url:"https://seek.li/openapi/v1/mails"});
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].options.redirect,"error");
+  assert.equal(calls[0].options.credentials,"omit");
+  assert.equal(calls[0].options.headers.Authorization,"Bearer sk_live_testing");
+  await restored.request({url:"https://seek.li/openapi/v1/mails/42"});
+  const diagnostic=await fs.readFile(path.join(directory,"last-detail-shape.json"),"utf8");
+  assert.ok(!diagnostic.includes("private-fixture-subject"));
+  assert.ok(!diagnostic.includes("private-fixture-body"));
+  assert.ok(!diagnostic.includes("sk_live_testing"));
+  assert.equal(JSON.parse(diagnostic).data.bodyText,"string");
+  await restored.request({url:"https://seek.li/openapi/v1/filters/12",method:"PUT",body:JSON.stringify({isActive:false})});
+  assert.equal(calls.at(-1).options.method,"PUT");
+  assert.equal(JSON.parse(calls.at(-1).options.body).isActive,false);
+  const binary=await restored.request({url:"https://seek.li/openapi/v1/mails/42/attachments/0",binary:true});
+  assert.equal(binary.code,200);
+  assert.equal(calls.at(-1).options.headers.Accept,"*/*");
+  assert.ok(Buffer.from(binary.body,"base64").length>0);
+  await assert.rejects(()=>restored.request({url:"https://seek.li/openapi/v1/admin/settings",method:"PUT"}));
+  await restored.request({url:"https://seek.li/openapi/v1/upload/attachment",method:"POST",upload:{name:"test.txt",mime:"text/plain",bytes:Buffer.from("fixture").toString("base64")}});
+  assert.ok(calls.at(-1).options.body instanceof FormData);
+  assert.equal(calls.at(-1).options.headers["Content-Type"],undefined);
+  assert.equal(await calls.at(-1).options.body.get("file").text(),"fixture");
+  await restored.clear();
+  assert.equal((await restored.settings()).connected,false);
+  console.log("PASS: mail origin/method restrictions, cookie isolation, redirect refusal, encrypted key persistence and disconnect");
+ }finally{await fs.rm(directory,{recursive:true,force:true});}
+})().catch(e=>{console.error(e);process.exitCode=1;});

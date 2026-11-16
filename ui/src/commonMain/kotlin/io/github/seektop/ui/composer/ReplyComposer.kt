@@ -391,6 +391,7 @@ private fun ReplyEditorSheet(
                 hintStyle = CommentBody,
                 inlinePictures = stickerPictures,
                 modifier = Modifier
+                    .then(rememberPasteImageModifier(bodyState))
                     .readableWidth()
                     .heightIn(min = MIN_EDITOR_HEIGHT, max = MAX_EDITOR_HEIGHT)
                     .padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.md, bottom = Spacing.sm),

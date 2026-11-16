@@ -8,3 +8,6 @@ internal expect fun DesktopScrollbars(state: LazyListState, reserveScrollbarSpac
 
 @Composable
 internal expect fun DesktopPostContextMenu(url: String, content: @Composable () -> Unit)
+
+@Composable
+internal expect fun DesktopScrollbars(state: androidx.compose.foundation.ScrollState, modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier, content: @Composable () -> Unit)

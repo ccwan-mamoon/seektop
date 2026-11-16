@@ -195,6 +195,7 @@ fun ImageHostRoute(
         state = state,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
+        uploadPriority = { io.github.seektop.ui.composer.UploadPrioritySettings() },
         onSelectProvider = viewModel::selectProvider,
         onSiteUrlChange = viewModel::updateSiteUrl,
         onTokenChange = viewModel::updateToken,
@@ -255,6 +256,7 @@ fun ImageHostScreen(
     onOpenSite: () -> Unit,
     onOpenImage: (String) -> Unit,
     modifier: Modifier = Modifier,
+    uploadPriority: @Composable () -> Unit = {},
 ) {
     val appBarState = rememberOneHandAppBarState()
     Scaffold(
@@ -294,6 +296,7 @@ fun ImageHostScreen(
                 .padding(SettingsPagePadding),
             verticalArrangement = Arrangement.spacedBy(SettingsItemGap),
         ) {
+            uploadPriority()
             ProviderCard(selected = state.provider, onSelect = onSelectProvider)
 
             ConnectionCard(

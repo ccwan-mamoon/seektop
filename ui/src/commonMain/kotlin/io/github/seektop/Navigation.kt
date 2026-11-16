@@ -596,6 +596,7 @@ fun MainNavigation(
         }
     }
     DesktopAwareNavigationFrame(
+        seekLi = container.seekLi,
         toolPlugins = container.toolPlugins,
         workspaceKey = backStack.lastOrNull() to launchRequest,
         desktop = desktop,

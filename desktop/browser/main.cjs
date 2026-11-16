@@ -46,6 +46,8 @@ app.whenReady().then(() => {
     const updatesSession = session.fromPartition("updates");
     const pluginSession = session.fromPartition("plugin-market");
     const aiSession = session.fromPartition("ai-analysis");
+    const mailSession = session.fromPartition("seekli-mail");
+    const seekli = require("./seekli.cjs").createSeekLiService({session:mailSession,safeStorage:require("electron").safeStorage,directory:require("node:path").join(process.env.SEEKTOP_BROWSER_DATA,"../mail")});
     const fxSession = session.fromPartition("exchange-rates");
     const fetchExchangeRates = require("./exchange-rates.cjs").createExchangeRateFetcher(fxSession);
     const ai = require("./ai-analysis.cjs").createAiService({session:aiSession,safeStorage:require("electron").safeStorage,directory:require("node:path").join(process.env.SEEKTOP_BROWSER_DATA,"../ai"),defaultSettings:{providers:[{id:"deepseek",name:"DeepSeek",baseUrl:"https://api.deepseek.com",model:"deepseek-flash",vision:true}],selectedProvider:"deepseek",defaultPrompt:"",boardPrompts:{}}});
@@ -91,6 +93,10 @@ app.whenReady().then(() => {
             const q = body ? JSON.parse(body) : {};
             let value;
             switch (req.url) {
+                case "/mail-settings": value = await seekli.settings(); break;
+                case "/mail-save": value = await seekli.save(q); break;
+                case "/mail-clear": value = await seekli.clear(); break;
+                case "/mail-request": value = await seekli.request(q); break;
                 case "/ai-settings": value = await ai.settings(); break;
                 case "/ai-save": value = await ai.save(q); break;
                 case "/ai-test": value = await ai.test(q.id); break;
@@ -127,6 +133,8 @@ app.whenReady().then(() => {
                               proxyRules: `${q.type === "SOCKS" ? "socks5" : "http"}://${q.host}:${q.port}`,
                           }
                         : { mode: "system" };
+                    await mailSession.setProxy(q.scope === "FORUM_ONLY" ? { mode: "system" } : config);
+                    await mailSession.closeAllConnections();
                     await forum.setProxy(config);
                     await third.setProxy(
                         q.scope === "FORUM_ONLY" ? { mode: "system" } : config,

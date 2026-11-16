@@ -12,3 +12,8 @@ internal actual fun DesktopScrollbars(state: LazyListState, reserveScrollbarSpac
 internal actual fun DesktopPostContextMenu(url: String, content: @Composable () -> Unit) {
     content()
 }
+
+@Composable
+internal actual fun DesktopScrollbars(state: androidx.compose.foundation.ScrollState, modifier: androidx.compose.ui.Modifier, content: @Composable () -> Unit) {
+    androidx.compose.foundation.layout.Box(modifier) { content() }
+}

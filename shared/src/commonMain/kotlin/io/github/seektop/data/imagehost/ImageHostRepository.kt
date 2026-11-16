@@ -24,6 +24,11 @@ interface ImageHostRepository : ImageHostSettings {
         onProgress: (Float) -> Unit = {},
     ): HostedImage
 
+    suspend fun uploadTo(provider: ImageHostProvider, upload: ImageHostUpload): HostedImage {
+        select(provider)
+        return upload(upload)
+    }
+
     /** @throws ImageHostException with [ImageHostError.Unsupported] on a host that publishes no list. */
     suspend fun images(): List<HostedImage>
 

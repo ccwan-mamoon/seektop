@@ -706,6 +706,7 @@ private fun BodyField(
         hintStyle = CommentBody,
         inlinePictures = stickerPictures,
         modifier = modifier
+            .then(rememberPasteImageModifier(bodyState))
             .readableWidth()
             .focusRequester(focusRequester)
             .padding(horizontal = PageMargin, vertical = Spacing.md),
